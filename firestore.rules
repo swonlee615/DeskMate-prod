@@ -1,0 +1,13 @@
+rules_version = '2';
+// Firebase 콘솔 → Firestore → 규칙 에 이 내용을 붙여 넣는다.
+// 1) 본인 데이터만 읽고 쓴다
+// 2) 이메일 인증을 마친 계정만 쓴다 — Google · Apple 은 처음부터 인증된 이메일이다
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{uid}/{document=**} {
+      allow read, write: if request.auth != null
+        && request.auth.uid == uid
+        && request.auth.token.email_verified == true;
+    }
+  }
+}

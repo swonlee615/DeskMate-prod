@@ -1,0 +1,178 @@
+/* ============================================================
+   모바일 화면 — PC(v3) 와 따로 가는 레이아웃
+   ★ 클래스는 전부 `m-` 로 시작한다. PC 의 v3 클래스와 섞지 않는다
+   ★ 색 · 글꼴은 v3 토큰(var(--…)) 그대로 — 라이트/다크가 같이 따라간다
+   ============================================================ */
+
+.m-app {
+  height: 100%;
+  display: flex; flex-direction: column;
+  background: var(--main); color: var(--text);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.m-head {
+  display: flex; align-items: baseline; gap: 8px;
+  padding: calc(14px + env(safe-area-inset-top)) 18px 10px;
+}
+.m-head h1 { font-size: 22px; font-weight: 900; color: var(--text-strong); }
+.m-date { font-size: 13px; color: var(--text-muted); }
+.m-sp { flex: 1; }
+.m-head .sync { margin: 0; }
+
+.m-body {
+  flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  padding: 4px 16px calc(84px + env(safe-area-inset-bottom));
+  display: flex; flex-direction: column; gap: 14px;
+}
+
+.m-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 14px; }
+.m-note, .m-empty { font-size: 13px; color: var(--text-dim); text-align: center; padding: 8px 0; }
+
+/* ── 오늘 카드 */
+.m-today { padding: 18px 18px 16px; }
+.m-state { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--text-muted); }
+.m-state b { color: var(--text-strong); font-size: 15px; }
+.m-sp-r { margin-left: auto; }
+.m-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; background: transparent; box-shadow: inset 0 0 0 2px var(--text-dim); }
+.m-dot.work { background: var(--green); box-shadow: none; }
+.m-dot.break { background: var(--yellow); box-shadow: none; }
+.m-big { display: flex; align-items: baseline; gap: 8px; margin-top: 14px; }
+.m-big b { font-size: 40px; font-weight: 900; letter-spacing: -.5px; color: var(--text-strong); line-height: 1.1; }
+.m-big span { color: var(--text-muted); font-size: 15px; }
+.m-bar { height: 6px; border-radius: 3px; background: var(--surface-3); margin-top: 12px; overflow: hidden; }
+.m-bar i { display: block; height: 100%; background: var(--blue); border-radius: inherit; transition: width .4s; }
+.m-bar.hit i { background: var(--green); }
+.m-meta { display: flex; justify-content: space-between; margin-top: 8px; font-size: 13px; color: var(--text-muted); }
+.m-meta b { color: var(--text-strong); }
+
+.m-actions { display: flex; gap: 8px; margin-top: 18px; }
+.m-btn {
+  flex: 1; height: 52px; border-radius: 12px; font-size: 16px; font-weight: 700;
+  border: 1px solid var(--border); background: var(--main); color: var(--text-strong);
+}
+.m-btn:active { transform: scale(.98); }
+.m-btn.go { background: #007a5a; border-color: #007a5a; color: #fff; }
+.m-btn.rest { color: var(--yellow); }
+.m-btn.off { color: var(--red); }
+
+/* ── 이번 주 요약 */
+.m-sum { padding: 14px 18px; }
+.m-sum-t { font-size: 13px; font-weight: 700; color: var(--text-muted); margin-bottom: 10px; }
+.m-sum-g { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; }
+.m-sum-g div { display: flex; flex-direction: column; }
+.m-sum-g b { font-size: 18px; font-weight: 900; color: var(--text-strong); }
+.m-sum-g span { font-size: 12px; color: var(--text-dim); }
+
+/* ── 지난 날 목록 */
+.m-week h2 { font-size: 13px; font-weight: 700; color: var(--text-muted); margin: 6px 4px 8px; }
+.m-week h2 em { font-style: normal; font-weight: 400; }
+.m-list { list-style: none; overflow: hidden; }
+.m-row { display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 10px 16px; }
+.m-row + .m-row { border-top: 1px solid var(--border); }
+.m-row-l { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.m-row-l b { font-size: 15px; color: var(--text-strong); }
+.m-row-l b small { font-weight: 400; color: var(--text-muted); }
+.m-row-l span { font-size: 13px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.m-row-r { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.m-row-r > b { font-size: 15px; color: var(--text-strong); }
+.m-row-r > b.hit { color: var(--green); }
+
+.m-lv {
+  position: relative; display: inline-flex; align-items: center; gap: 5px;
+  height: 26px; padding: 0 10px; border-radius: 13px; font-size: 12px;
+  background: var(--surface-3); color: var(--text-muted);
+}
+.m-lv i { width: 6px; height: 6px; border-radius: 50%; background: var(--text-dim); }
+.m-lv.on { color: var(--text-strong); }
+.m-lv.on i { background: var(--lv); }
+.m-lv select { position: absolute; inset: 0; opacity: 0; font-size: 16px; }
+
+.m-av {
+  position: relative; width: 36px; height: 36px; border-radius: 9px; flex: none;
+  display: grid; place-items: center; background: #1264a3; color: #fff; font-weight: 900;
+}
+.m-av .m-dot { position: absolute; right: -3px; bottom: -3px; width: 12px; height: 12px; border: 2px solid var(--surface-2); }
+.m-link { color: var(--blue); font-weight: 700; font-size: 15px; }
+
+/* ── 하단 탭 */
+.m-tabs {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+  display: flex; background: var(--main); border-top: 1px solid var(--border);
+  padding: 6px 0 max(10px, env(safe-area-inset-bottom));
+}
+.m-tabs button {
+  flex: 1; min-height: 50px; display: flex; flex-direction: column; align-items: center; gap: 3px;
+  font-size: 11px; color: var(--text-muted);
+}
+.m-tabs button.on { color: var(--blue); font-weight: 700; }
+.m-tabs svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+
+.m-toast {
+  position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom)); transform: translate(-50%, 8px);
+  max-width: calc(100% - 32px); padding: 10px 16px; border-radius: 10px;
+  background: var(--text-strong); color: var(--main); font-size: 14px;
+  opacity: 0; pointer-events: none; transition: opacity .15s, transform .15s; z-index: 30;
+}
+.m-toast.show { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+
+/* ── 집중 타이머 */
+.m-focus { padding: 14px 16px; }
+.m-focus-top { display: flex; align-items: center; gap: 8px; }
+.m-focus-clock { flex: 1; display: flex; flex-direction: column; }
+.m-focus-clock b { font-size: 28px; font-weight: 900; color: var(--text-strong); font-variant-numeric: tabular-nums; line-height: 1.15; }
+.m-focus-clock b.rest { color: var(--yellow); }
+.m-focus-clock span { font-size: 12px; color: var(--text-muted); }
+.m-btn.sm { flex: none; height: 40px; padding: 0 14px; font-size: 14px; border-radius: 10px; }
+.m-chips { display: flex; gap: 6px; margin-top: 12px; }
+.m-chips button { flex: 1; height: 32px; border-radius: 16px; font-size: 13px; background: var(--surface-3); color: var(--text-muted); }
+.m-chips button.on { background: var(--blue); color: #fff; font-weight: 700; }
+.m-toast-act { margin-left: 12px; font-weight: 700; color: var(--blue); pointer-events: auto; }
+
+/* ── 자정 넘김 · 하루 고치기 */
+.m-pend { padding: 14px 16px; background: color-mix(in srgb, var(--blue) 8%, var(--surface-2)); border-color: color-mix(in srgb, var(--blue) 35%, var(--border)); }
+.m-pend b { color: var(--text-strong); font-size: 15px; }
+.m-pend p { font-size: 13px; color: var(--text-muted); margin: 6px 0 10px; }
+.m-pend-a { display: flex; flex-direction: column; gap: 8px; }
+.m-pend-a .m-btn { height: 46px; font-size: 15px; }
+.m-pendtag { font-style: normal; font-size: 11px; font-weight: 700; color: var(--yellow); margin-left: 6px; }
+.m-edit-today { align-self: flex-end; font-size: 13px; margin: -6px 4px 0; }
+.m-row { cursor: pointer; }
+.m-sheet-bg { position: fixed; inset: 0; z-index: 40; background: rgba(15,22,51,.45); display: flex; align-items: flex-end; }
+.m-sheet {
+  width: 100%; max-height: 85vh; overflow-y: auto; background: var(--main); color: var(--text);
+  border-radius: 18px 18px 0 0; padding: 16px 16px calc(20px + env(safe-area-inset-bottom));
+  display: flex; flex-direction: column; gap: 10px;
+}
+.m-sheet-h { display: flex; align-items: baseline; gap: 8px; }
+.m-sheet-h b { font-size: 18px; color: var(--text-strong); }
+.m-sheet-h span { font-size: 13px; color: var(--text-muted); }
+.m-sheet-sub { font-size: 13px; font-weight: 700; color: var(--text-muted); margin-top: 6px; }
+.m-ses { display: flex; align-items: center; gap: 8px; min-height: 48px; }
+.m-ses .k { flex: none; width: 30px; font-size: 13px; color: var(--text-muted); white-space: nowrap; }
+.m-ses .m-tin {
+  flex: 1; min-width: 0; width: 0; text-align: center; font-variant-numeric: tabular-nums; height: 44px; padding: 0 10px; border-radius: 10px; font-size: 16px;
+  border: 1px solid var(--border); background: var(--surface-2); color: var(--text-strong);
+}
+.m-ses em { color: var(--text-dim); font-style: normal; }
+.m-brk-t { flex: 1; font-size: 14px; color: var(--text-strong); }
+.m-x { width: 40px; height: 40px; border-radius: 10px; color: var(--text-muted); background: var(--surface-3); flex: none; }
+.m-pend-a .m-btn { flex: none; }
+
+/* ── 오늘 할 일 */
+.m-todo { padding: 14px 12px 12px 16px; }
+.m-todo ul { list-style: none; display: flex; flex-direction: column; }
+.m-todo li { display: flex; align-items: center; gap: 8px; min-height: 44px; }
+.m-todo li.head .m-todo-t { font-weight: 800; color: var(--text-strong); }
+.m-todo li.done .m-todo-t { text-decoration: line-through; color: var(--text-muted); }
+.m-cb {
+  flex: none; width: 22px; height: 22px; border-radius: 6px; border: 1.5px solid var(--border);
+  color: transparent; font-size: 13px; font-weight: 900; display: grid; place-items: center;
+}
+.m-cb.on { background: var(--blue); border-color: var(--blue); color: #fff; }
+.m-bul { flex: none; width: 22px; text-align: center; color: var(--text-muted); }
+.m-todo-t { flex: 1; min-width: 0; height: 40px; font-size: 16px; color: var(--text-strong); background: transparent; border: 0; }
+.m-born { flex: none; font-size: 11px; font-weight: 600; color: var(--text-muted); opacity: .7; }
+.m-x.sm { width: 32px; height: 32px; font-size: 12px; background: transparent; }
+.m-add { display: flex; gap: 8px; margin-top: 8px; }
+.m-add input { flex: 1; min-width: 0; height: 42px; padding: 0 12px; border-radius: 10px; font-size: 16px; border: 1px solid var(--border); background: var(--main); color: var(--text-strong); }

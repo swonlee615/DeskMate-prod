@@ -1,0 +1,67 @@
+/* ============================================================
+   PC · 모바일 공통 — v3 styles.css 위에 얹는 «v3 에 없던 화면»
+   (로그인 · 메일 인증 · 계정 · 동기화 표시)
+   색은 전부 v3 토큰(var(--…))을 쓴다 — 라이트/다크가 같이 따라간다
+   ★ PC 레이아웃은 src/pc/pc.css, 모바일 레이아웃은 src/mobile/mobile.css 에만 둔다
+   ============================================================ */
+#root { height: 100%; }
+
+/* ───────────── 동기화 상태 — v3 에는 없다 (기기 하나였으니까) */
+.sync { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); white-space: nowrap; margin-right: 10px; }
+.sync i { width: 7px; height: 7px; border-radius: 50%; background: var(--text-dim); }
+.sync-ok i { background: var(--green); }
+.sync-busy i { background: var(--blue); }
+.sync-off { color: var(--yellow); }
+.sync-off i { background: var(--yellow); }
+
+/* ───────────── 로그인 · 메일 인증 · 계정 — v3 에는 없는 화면. v3 토큰으로 칠한다 */
+.boot { height: 100%; background: var(--main); }
+.signin { height: 100%; overflow: auto; display: grid; place-items: center; padding: 16px; background: var(--main); user-select: text; }
+.w-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 24px; }
+.signin .auth { width: 100%; max-width: 380px; }
+.auth h1 { margin: 0 0 8px; font-weight: 900; font-size: 24px; text-align: center; color: var(--text-strong); }
+.auth-sub { text-align: center; color: var(--text-muted); font-size: 14px; margin: 0 0 20px; }
+.auth-sub b { color: var(--text-strong); }
+.auth-providers { display: grid; gap: 8px; }
+.w-btn {
+  height: 38px; padding: 0 16px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--main); color: var(--text-strong);
+  font-weight: 700; cursor: pointer;
+}
+.w-btn:hover { background: var(--surface-3); }
+.w-btn:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.w-btn.w-primary { background: #007a5a; border-color: #007a5a; color: #fff; }
+.w-btn.w-primary:hover { background: #148567; }
+.w-btn:disabled { opacity: .5; cursor: default; }
+.w-btn.w-provider { height: 46px; width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; }
+.w-btn.w-apple { background: #000; color: #fff; border-color: #000; }
+.w-btn.w-wide { width: 100%; height: 44px; margin-top: 16px; }
+.w-btn.w-danger-fill { background: var(--red); border-color: var(--red); color: #fff; }
+.auth-or { display: flex; align-items: center; gap: 12px; margin: 18px 0 6px; color: var(--text-dim); font-size: 13px; }
+.auth-or::before, .auth-or::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.w-field { display: grid; gap: 6px; margin-top: 12px; font-size: 14px; }
+.w-field span { color: var(--text-muted); }
+.w-field em { font-style: normal; color: var(--text-dim); }
+.w-field input { height: 42px; padding: 0 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--main); color: var(--text-strong); }
+.w-field input:focus { border-color: var(--blue); box-shadow: 0 0 0 1px var(--blue); }
+.auth-msg { font-size: 13px; margin: 12px 0 0; padding: 8px 10px; border-radius: 6px; }
+.auth-msg.err { color: var(--red); background: color-mix(in srgb, var(--red) 10%, transparent); }
+.auth-msg.ok { color: var(--green); background: color-mix(in srgb, var(--green) 10%, transparent); }
+.auth-links { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 16px; font-size: 14px; color: var(--text-muted); }
+.auth-foot { margin-top: 18px; font-size: 12px; color: var(--text-dim); text-align: center; }
+.link { background: none; border: 0; color: var(--blue); font-weight: 700; cursor: pointer; padding: 0; }
+.link:disabled { color: var(--text-dim); cursor: default; }
+.link.danger { color: var(--red); }
+
+.modal-scrim { position: fixed; inset: 0; background: rgba(15,22,51,.45); display: grid; place-items: center; padding: 16px; z-index: 300; user-select: text; }
+.w-modal { width: 100%; max-width: 420px; color: var(--text); }
+.modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.modal-head h2 { margin: 0; font-size: 18px; color: var(--text-strong); }
+.modal-text { font-size: 14px; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+.acct { margin: 8px 0 0; }
+.acct div { display: flex; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+.acct dt { width: 88px; color: var(--text-muted); flex: none; }
+.acct dd { margin: 0; overflow-wrap: anywhere; color: var(--text-strong); }
+.danger-zone { margin-top: 20px; padding-top: 12px; border-top: 1px solid var(--border); }
+

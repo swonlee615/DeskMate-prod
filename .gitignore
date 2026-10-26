@@ -1,0 +1,10 @@
+node_modules
+dist
+dev-dist
+.env.local
+.DS_Store
+*.log
+*.tsbuildinfo
+.env.emutest
+firebase-debug.log
+_to_delete
