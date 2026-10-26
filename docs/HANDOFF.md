@@ -3,22 +3,10 @@
 > 마지막 갱신: 2026-10-27 · 이 문서는 «지금 어디까지 왔고, 다음에 무엇을, 어떻게 확인하나» 만 적는다.
 > 규칙은 `CLAUDE.md`, 기기 · 동기화 결정은 `docs/SYNC.md`, 출시 할 일은 `docs/RELEASE.md`.
 
-## 0. 처음 한 번 — GitHub 연결 (아직 안 됨)
+## 0. 저장소
 
-원격 저장소: `https://github.com/swonlee615/DeskMate-prod.git` (비어 있음, 기본 브랜치 `main`)
-이 폴더(WebBase)는 아직 git 저장소가 아니다. 맥에서 Claude Code 가 이렇게 시작한다:
-
-```bash
-git init -b main
-git remote add origin https://github.com/swonlee615/DeskMate-prod.git
-git add -A            # .gitignore 가 node_modules · dist · .env.local 을 뺀다
-git status            # .env.local 이 목록에 없는지 꼭 확인
-git commit -m "DeskMate 웹 첫 커밋 — 근태 · 타이머 · 할 일 · 주간 플래너"
-git push -u origin main
-```
-
-- `.env.local`(Firebase 설정값)은 올리지 않는다. 새 기기에서는 `Firebase-연결.command` 로 다시 만든다
-- 맥 Claude Code 에서는 git · `npm install` 을 해도 된다 (`CLAUDE.md` «클라우드 세션» 제한은 클라우드에서 이 폴더를 원격으로 만질 때만 해당)
+- GitHub `https://github.com/swonlee615/DeskMate-prod` · 브랜치 `main` (2026-10-27 첫 push)
+- `.env.local`(Firebase 설정값) · `_to_delete/`(옛 백업)는 올리지 않는다. 새 기기에서는 `Firebase-연결.command` 로 `.env.local` 을 다시 만든다
 
 ## 1. 지금 된 것 (2026-10-27)
 
