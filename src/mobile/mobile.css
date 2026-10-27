@@ -34,7 +34,7 @@
   --on-ink: #fff; --on-dim: var(--rail-ic);
   background: var(--rail); color: var(--on-dim);
   border-radius: 18px; padding: 18px 18px 14px;
-  display: flex; flex-direction: column;
+  display: flex; flex-direction: column; cursor: pointer;
 }
 .m-state { display: flex; align-items: center; gap: 8px; font-size: 13px; }
 .m-state b { color: var(--on-ink); font-size: 14px; }

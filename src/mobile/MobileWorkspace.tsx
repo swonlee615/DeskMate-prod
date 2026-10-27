@@ -9,7 +9,7 @@
  * ★ 모양만 다르다 — 한 손으로 누르기 좋게. 클래스는 전부 `m-` 로 시작해 PC(v3)와 안 섞인다. 색 · 글꼴은 v3 토큰
  */
 import { PomoClock } from '../ui/Live';
-import { useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import type { Workspace } from '../app/useWorkspace';
 import { AccountDialog } from '../ui/AccountDialog';
 import { SyncBadge } from '../ui/SyncBadge';
@@ -28,6 +28,9 @@ export function MobileWorkspace({ ws }: { ws: Workspace }) {
   const [view, setView] = useState<'all' | 'week'>('all');
   const [day, setDay] = useState<{ date: string; edit: boolean } | null>(null);
   const [acctOpen, setAcctOpen] = useState(false);
+  // 탭 · 보기(전체/주간)를 바꾸면 늘 맨 위에서 — 스크롤 칸 하나를 함께 써서 앞 탭의 위치가 남았다
+  const body = useRef<HTMLElement>(null);
+  useLayoutEffect(() => { body.current?.scrollTo(0, 0); }, [tab, view]);
   const goDay = (date: string, edit = false) => setDay({ date, edit });
   const t = ws.timer;
   const toTimer = () => {
@@ -46,7 +49,7 @@ export function MobileWorkspace({ ws }: { ws: Workspace }) {
         </button>
       </header>
 
-      <main className="m-body">
+      <main className="m-body" ref={body}>
         {tab === 'att' && <>
           <div className="m-seg" role="tablist" aria-label="근태 보기">
             <button role="tab" aria-selected={view === 'all'} className={view === 'all' ? 'on' : ''} onClick={() => setView('all')}>전체</button>
