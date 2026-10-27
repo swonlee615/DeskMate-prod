@@ -306,7 +306,7 @@ describe('뽀모도로 횟수 — pomoDone', () => {
 });
 
 // ───────────────────────────────────────── 손으로 고치기 (override) — LOGIC §4 · §7
-import { addSessionAt, dropSession, mergeSession, removeBreak, resolveAt, resolveCarry, sessionRows, setBreakAt, setSessionTime } from './edit';
+import { addSessionAt, dropSession, editBreak, mergeSession, removeBreak, resolveAt, resolveCarry, sessionRows, setBreakAt, setSessionTime } from './edit';
 import type { DaySnapshot } from './types';
 
 const snap = (d: ReturnType<typeof deriveDay>): DaySnapshot =>
@@ -439,5 +439,25 @@ describe('자정을 넘긴 날 — LOGIC §7', () => {
     const d = deriveDay(D, [...evs, o], NEXT);
     expect(d.pending).toBeUndefined();
     expect(d.offAt).toBe(t('23:59'));
+  });
+});
+
+describe('v3.1.239 — 출퇴근에 걸친 휴게', () => {
+  // 웹에는 «근무 밖 휴게»(v3 rests)가 아직 없다 — 시간 기록을 옮길 때 같이 들어온다.
+  // 그 전에도 지킬 것: 근무 안 몫만 근무에서 빠지고, 출퇴근 시각은 그대로
+  const base = () => deriveDay(D, [
+    ev('clockIn', '09:00'), ev('breakStart', '12:00'), ev('breakEnd', '13:00'), ev('clockOut', '18:00'),
+  ], END);
+
+  it('퇴근 뒤로 걸치면(17:30~19:00) 퇴근을 미루지 않는다', () => {
+    const d = editBreak(base(), 0, t('17:30'), t('19:00'), '')!;
+    expect(d.offAt).toBe(t('18:00'));
+    expect(workMinutes(d, END)).toBe(9 * 60 - 30);
+  });
+
+  it('출근 전에서 걸치면(08:00~09:30) 09:00~09:30 이 근무로 남지 않는다', () => {
+    const d = editBreak(base(), 0, t('08:00'), t('09:30'), '')!;
+    expect(d.onAt).toBe(t('09:00'));
+    expect(workMinutes(d, END)).toBe(9 * 60 - 30);
   });
 });
