@@ -225,6 +225,19 @@ export function editBreak(d0: Day, idx: number, s: number, e: number, note: stri
   return normalizeBreaks(d);
 }
 
+/** 시간표에서 끌어 만든 휴게 — 근무 안 몫만 들어온다 (근무 밖 몫은 근무 밖 휴게 · logs.splitRest) */
+export function addBreakSpan(d0: Day, s: number, e: number, note: string): Day | null {
+  if (!(e - s >= MIN_BREAK_MS)) return null;
+  const d = clone(d0);
+  d.breaks.push({ s, e, kind: 'break', ...(note.trim() ? { note: note.trim() } : {}) });
+  d.breaks.sort((a, c) => a.s - c.s);
+  const n = normalizeBreaks(d);
+  // 이미 휴게였던 자리면 구간은 그대로 — 메모만 «그 시각을 품은 휴게» 에 (v3.1.56)
+  const host = n.breaks.find((b) => b.e != null && b.s <= s && s < b.e);
+  if (host && note.trim()) host.note = note.trim();
+  return n;
+}
+
 export function removeBreak(d0: Day, idx: number): Day | null {
   if (!d0.breaks[idx]) return null;
   const d = clone(d0);

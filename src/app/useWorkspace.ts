@@ -9,8 +9,9 @@ import type { Backend, DayEvents, Item, Repo, SyncStatus, User } from '../data';
 import { deviceId, deviceKind, newId } from '../data/device';
 import type { AttEvent, AttEventType, AttState, Day, Leave } from '../domain/attendance/types';
 import { deriveDay } from '../domain/attendance/replay';
-import { dateKey, dayEndMs, sessions, stateOf } from '../domain/attendance/rules';
-import { canCarry, resolveAt, resolveCarry } from '../domain/attendance/edit';
+import { dateKey, dayEndMs, dayStartMs, sessions, stateOf } from '../domain/attendance/rules';
+import { addBreakSpan, canCarry, editBreak, removeBreak, resolveAt, resolveCarry } from '../domain/attendance/edit';
+import { logsOf, overlapIds, splitRest, type Log, type SpanInput, type SpanRef } from '../domain/attendance/logs';
 import { addDays, dateOf, keyOf, weekStart } from '../ui/v3fmt';
 import { usePomodoro, type Pomodoro } from './usePomodoro';
 import { deleteChunk, inverseOf, triFix, triToggle, type Block, type Patch } from '../domain/todos/tree';
@@ -110,6 +111,15 @@ export interface Workspace {
   deleteHabit: (id: string) => void;
   /** 체크 · 해제 — 오늘 패널 · 일간 상세가 같이 쓴다 */
   toggleHabit: (id: string, date: string) => void;
+  // ── 시간 기록 · 근무 밖 휴게 (v3 slots · rests — LOGIC §5 · §6)
+  /** 받아 둔 기간의 기록 전부 (지운 것 포함 — logsOf 가 거른다) */
+  logs: Log[];
+  /**
+   * 시간표 상자에서 저장 (v3 saveSlot) — 종류 바꾸기 · 겹치면 새것이 이긴다 · 휴게의 근무 밖 몫 나누기까지.
+   * 한 번의 되돌리기로 전부 돌아온다. 잘못된 입력이면 그 이유, 저장했으면 null
+   */
+  saveSpan: (date: string, orig: SpanRef | null, v: SpanInput) => string | null;
+  deleteSpan: (date: string, orig: SpanRef) => void;
   nick: string;
   initial: string;
   presence: 'active' | 'break' | 'offline';
@@ -144,6 +154,8 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
   useEffect(() => repo.watchRange(from, to, setRange), [repo, from, to]);
   const [blocks, setBlocks] = useState<Block[]>([]);
   useEffect(() => repo.watchBlocks(from, to, (d) => setBlocks(d.blocks)), [repo, from, to]);
+  const [logs, setLogs] = useState<Log[]>([]);
+  useEffect(() => repo.watchLogs(from, to, setLogs), [repo, from, to]);
 
   const byDate = useMemo(() => {
     const m: Record<string, AttEvent[]> = {};
@@ -153,9 +165,12 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
 
   const days = useMemo(() => {
     const out: Record<string, Day> = {};
-    for (const [k, evs] of Object.entries(byDate)) out[k] = deriveDay(k, evs, now);
+    for (const [k, evs] of Object.entries(byDate)) {
+      const slots = logsOf(logs, k, 'slot');
+      out[k] = { ...deriveDay(k, evs, now), ...(slots.length ? { slots } : {}) };
+    }
     return out;
-  }, [byDate, now]);
+  }, [byDate, logs, now]);
   const day: Day = days[today] ?? { date: today, onAt: null, offAt: null, breaks: [], leave: '' };
   const state = stateOf(day);
 
@@ -229,14 +244,18 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
   const emptyDay = (date: string): Day => ({ date, onAt: null, offAt: null, breaks: [], leave: '' });
   const dayOf = (date: string) => days[date] ?? emptyDay(date);
 
-  const editDay = (date: string, fn: (d: Day) => Day | null, msg = '근태를 고쳤어요') => {
-    const next = fn(dayOf(date));
-    if (!next) return false;
+  /** 고친 하루를 override 이벤트 하나로 (SYNC §6) */
+  const overrideDay = (date: string, next: Day) => {
     const { onAt, offAt, breaks, leave, autoClosed, carriedFrom } = next;
-    const e = push('override', date, {
+    return push('override', date, {
       day: { onAt, offAt, breaks, leave, autoClosed, carriedFrom },
       basedOn: (byDate[date] ?? []).filter((x) => !x.deletedAt && x.type !== 'pomoDone').map((x) => x.id),
     });
+  };
+  const editDay = (date: string, fn: (d: Day) => Day | null, msg = '근태를 고쳤어요') => {
+    const next = fn(dayOf(date));
+    if (!next) return false;
+    const e = overrideDay(date, next);
     say(msg, { label: '되돌리기', run: () => { repo.deleteEvent(e); setToast(null); } });
     return true;
   };
@@ -374,6 +393,68 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
     if (h) repo.patchItem(id, { [`done.${date}`]: hbDoneAt(h, date) ? null : Date.now() });
   };
 
+  // ── 시간 기록 · 근무 밖 휴게
+  const saveSpan: Workspace['saveSpan'] = (date, orig, v) => {
+    if (!(v.e > v.s)) return '시간을 확인해 주세요 — 끝나는 시각이 시작보다 뒤여야 해요';
+    const text = v.text.trim();
+    if (v.kind === 'slot' && !text) return '무엇을 했는지 적어 주세요';
+    const at = Date.now();
+    const ms = (m: number) => dayStartMs(date) + m * 60000;
+    const undo: (() => void)[] = [];
+    const kill = (id: string) => { repo.patchLog(id, { deletedAt: at }); undo.push(() => repo.patchLog(id, { deletedAt: null })); };
+    const add = (kind: Log['kind'], s: number, e: number, color: string | null) => {
+      for (const id of overlapIds(logs, date, kind, s, e)) kill(id);
+      const l: Log = { id: newId(), date, kind, s, e, text, color, createdAt: at };
+      repo.addLog(l);
+      undo.push(() => repo.patchLog(l.id, { deletedAt: at }));
+    };
+    const patch = (id: string, s: number, e: number) => {
+      const old = logs.find((x) => x.id === id);
+      if (!old) return;
+      for (const o of overlapIds(logs, date, old.kind, s, e, id)) kill(o);
+      repo.patchLog(id, { s, e, text, color: v.color });
+      undo.push(() => repo.patchLog(id, { s: old.s, e: old.e, text: old.text, color: old.color }));
+    };
+    const d0 = dayOf(date);
+    let d = d0;
+    let ref = orig;
+    let msg = '';
+    // 종류 바꾸기 (v3.1.240) — 원래 것을 지우고 새로 만드는 길을 그대로 탄다
+    const origKind = !ref ? null : ref.type === 'slot' ? 'slot' : 'break';
+    if (ref && origKind !== v.kind) {
+      if (ref.type === 'brk') d = removeBreak(d, ref.idx) ?? d; else kill(ref.id);
+      ref = null;
+      msg = v.kind === 'break' ? '휴게로 바꿨어요 — 근무시간에서 빠져요' : '시간 기록으로 바꿨어요 — 근무시간에 들어가요';
+    }
+    if (v.kind === 'slot') {
+      if (ref?.type === 'slot') patch(ref.id, v.s, v.e); else add('slot', v.s, v.e, v.color);
+      msg ||= ref ? '시간 기록을 고쳤어요' : '시간 기록을 남겼어요';
+    } else if (ref?.type === 'rest') {
+      patch(ref.id, v.s, v.e);
+      msg ||= '휴게를 고쳤어요';
+    } else if (ref?.type === 'brk') {
+      const n = editBreak(d, ref.idx, ms(v.s), ms(v.e), text);
+      if (!n) return '시간을 확인해 주세요';
+      d = n;
+      msg ||= '휴게를 고쳤어요';
+    } else {
+      // 근무 안 몫은 근태 휴게, 밖 몫은 근무 밖 휴게 (v3.1.239) — 출퇴근은 안 바뀐다
+      const { inside, outside } = splitRest(d, v.s, v.e);
+      for (const [a, z] of inside) d = addBreakSpan(d, ms(a), ms(z), text) ?? d;
+      for (const [a, z] of outside) add('rest', a, z, v.color);
+      msg ||= inside.length ? '휴게를 넣었어요 — 근무시간에서 빠져요' : '휴게를 넣었어요 — 근무시간에는 영향이 없어요';
+    }
+    if (d !== d0) { const e = overrideDay(date, d); undo.push(() => repo.deleteEvent(e)); }
+    say(msg, { label: '되돌리기', run: () => { undo.forEach((f) => f()); setToast(null); } });
+    return null;
+  };
+  const deleteSpan: Workspace['deleteSpan'] = (date, orig) => {
+    if (orig.type === 'brk') { editDay(date, (x) => removeBreak(x, orig.idx), '휴게를 지웠어요'); return; }
+    repo.patchLog(orig.id, { deletedAt: Date.now() });
+    say(orig.type === 'slot' ? '시간 기록을 지웠어요' : '휴게를 지웠어요',
+      { label: '되돌리기', run: () => { repo.patchLog(orig.id, { deletedAt: null }); setToast(null); } });
+  };
+
   const nick = user.name ?? user.email?.split('@')[0] ?? '나';
 
   return {
@@ -383,6 +464,7 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
     blocks, addBlock, patchBlocks, editBlocks, undoBlocks, lastEditAt, toggleBlock, removeBlock, newId,
     ddays, saveDDay, pinDDay, archiveDDay, deleteDDay,
     habits, offDay, saveHabit, archiveHabit, deleteHabit, toggleHabit,
+    logs, saveSpan, deleteSpan,
     nick, initial: nick.slice(0, 1).toUpperCase(),
     presence: state === 'break' ? 'break' : state === 'work' ? 'active' : 'offline',
   };

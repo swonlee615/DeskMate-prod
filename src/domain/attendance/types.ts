@@ -85,6 +85,8 @@ export interface Day {
   pending?: { reason: 'open'; guessOff: number };
   /** 전날에서 이어받은 날 (00:00 출근) */
   carriedFrom?: string;
+  /** 그 날 시간 기록 (00:00 기준 분). 근태 이벤트가 아니라 따로 저장한 것을 화면이 붙인다 — 근무시간에 들어간다 (§5) */
+  slots?: { s: number; e: number }[];
 }
 
 /** override 이벤트에 싣는 하루 — 근태 부분만 */

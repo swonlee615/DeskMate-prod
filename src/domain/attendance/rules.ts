@@ -163,10 +163,9 @@ export interface DayParts {
 }
 
 /**
- * 근무시간 = (출근~퇴근 − 비근무 − 휴게), 모두 그 날 창 [00:00, 다음 날 00:00) 과
- * [출근, 퇴근] 안으로 자른 뒤 합집합으로 잰다 (§4-9, §5).
- * 오늘은 «지금» 까지만 센다.
- * (시간 기록 slots 의 합집합은 시간 기록 그리드를 옮길 때 추가한다)
+ * 근무시간 = ((출근~퇴근 − 비근무) ∪ 시간 기록) − 휴게 (§5 · v3.1.223)
+ * 모두 그 날 창 [00:00, 다음 날 00:00) 안으로 자른다. 휴게 · 비근무는 [출근, 퇴근] 안으로.
+ * 시간 기록은 출근 기록이 있는 날만 · 오늘은 «지금» 까지만 센다. 근무 밖 휴게(rests)는 이 식에 없다
  */
 export function dayParts(day: Day, now: number): DayParts {
   if (day.onAt == null) return { workMs: 0, breakMs: 0, offMs: 0 };
@@ -174,22 +173,30 @@ export function dayParts(day: Day, now: number): DayParts {
   // 확인을 기다리는 지난 날은 23:59 까지로 센다 (v3 effectiveOff — pending.guessOff)
   const end = day.offAt ?? (day.pending ? day.pending.guessOff : Math.min(now, win[1]));
   const base = clip([day.onAt, end], win);
-  if (base[1] <= base[0]) return { workMs: 0, breakMs: 0, offMs: 0 };
 
   const brk: Iv[] = [];
   const off: Iv[] = [];
-  for (const b of day.breaks) {
-    const iv = clip([b.s, spanEnd(day, b, now)], base);
-    (effKind(day, b, now) === 'off' ? off : brk).push(iv);
+  if (base[1] > base[0]) {
+    for (const b of day.breaks) {
+      const iv = clip([b.s, spanEnd(day, b, now)], base);
+      (effKind(day, b, now) === 'off' ? off : brk).push(iv);
+    }
   }
-  const offMs = totalIv(off);
+  const offM = mergeIv(off);
+  const slotIv = (day.slots ?? []).map((x): Iv => clip([win[0] + x.s * MIN_MS, win[0] + x.e * MIN_MS], [win[0], Math.min(now, win[1])]));
+  const work = subIv(mergeIv([...(base[1] > base[0] ? subIv([base], offM) : []), ...slotIv]), mergeIv(brk));
   // 휴게가 비근무와 겹친 부분은 두 번 빼지 않는다
-  const awayMs = totalIv([...off, ...brk]);
-  return {
-    workMs: base[1] - base[0] - awayMs,
-    breakMs: awayMs - offMs,
-    offMs,
-  };
+  const offMs = totalIv(off);
+  return { workMs: totalIv(work), breakMs: totalIv([...off, ...brk]) - offMs, offMs };
+}
+
+/** a − b (둘 다 정렬 · 합쳐진 구간) */
+function subIv(a: Iv[], b: Iv[]): Iv[] {
+  let out = a;
+  for (const [x, y] of b) {
+    out = out.flatMap(([p, q]): Iv[] => (y <= p || x >= q ? [[p, q]] : [...(x > p ? [[p, x] as Iv] : []), ...(y < q ? [[y, q] as Iv] : [])]));
+  }
+  return out;
 }
 
 export function workMinutes(day: Day, now: number): number {

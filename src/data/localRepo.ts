@@ -4,11 +4,13 @@
  */
 import type { AttEvent } from '../domain/attendance/types';
 import type { Block } from '../domain/todos/tree';
+import type { Log } from '../domain/attendance/logs';
 import type { DayEvents, Item, Repo, SyncStatus } from './repo';
 
 const KEY = 'dm.local.events.v1';
 const BKEY = 'dm.local.blocks.v1';
 const IKEY = 'dm.local.items.v1';
+const LKEY = 'dm.local.logs.v1';
 
 function load(): AttEvent[] {
   try {
@@ -30,6 +32,10 @@ function saveB(list: Block[]) { try { localStorage.setItem(BKEY, JSON.stringify(
 function loadI(): Item[] {
   try { const raw = localStorage.getItem(IKEY); return raw ? (JSON.parse(raw) as Item[]) : []; } catch { return []; }
 }
+function loadL(): Log[] {
+  try { const raw = localStorage.getItem(LKEY); return raw ? (JSON.parse(raw) as Log[]) : []; } catch { return []; }
+}
+function saveL(list: Log[]) { try { localStorage.setItem(LKEY, JSON.stringify(list)); } catch { /* 이번 세션만 */ } }
 function saveI(list: Item[]) { try { localStorage.setItem(IKEY, JSON.stringify(list)); } catch { /* 이번 세션만 */ } }
 
 /** Firestore updateDoc 과 같은 뜻 — 점은 맵 안으로, null 은 지우기 */
@@ -48,6 +54,9 @@ export function createLocalRepo(): Repo {
   let all = load();
   let blocks = loadB();
   let items = loadI();
+  let logs = loadL();
+  const lw = new Set<{ from: string; to: string; cb: (l: Log[]) => void }>();
+  const emitL = () => { for (const w of lw) w.cb(logs.filter((l) => l.date >= w.from && l.date <= w.to)); };
   const iw = new Set<(items: Item[]) => void>();
   const emitI = () => { for (const cb of iw) cb(items); };
   const bw = new Set<{ from: string; to: string; cb: (d: { blocks: Block[]; unavailable: boolean }) => void }>();
@@ -64,6 +73,7 @@ export function createLocalRepo(): Repo {
       if (e.key === KEY) { all = load(); emit(); }
       if (e.key === BKEY) { blocks = loadB(); emitB(); }
       if (e.key === IKEY) { items = loadI(); emitI(); }
+      if (e.key === LKEY) { logs = loadL(); emitL(); }
     });
   }
 
@@ -105,6 +115,15 @@ export function createLocalRepo(): Repo {
       blocks = blocks.map((b) => { const p = m.get(b.id); return p ? { ...b, ...p, updatedAt: now } : b; });
       saveB(blocks); emitB();
     },
+
+    watchLogs(from, to, cb) {
+      const w = { from, to, cb };
+      lw.add(w);
+      cb(logs.filter((l) => l.date >= from && l.date <= to));
+      return () => { lw.delete(w); };
+    },
+    addLog(l) { logs = [...logs.filter((x) => x.id !== l.id), l]; saveL(logs); emitL(); },
+    patchLog(id, f) { logs = logs.map((x) => (x.id === id ? { ...x, ...f, updatedAt: Date.now() } : x)); saveL(logs); emitL(); },
 
     watchItems(cb) { iw.add(cb); cb(items); return () => { iw.delete(cb); }; },
     addItem(it) { items = [...items.filter((x) => x.id !== it.id), it]; saveI(items); emitI(); },

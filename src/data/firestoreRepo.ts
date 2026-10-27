@@ -35,6 +35,7 @@ export function createFirestoreRepo(db: Firestore, uid: string): Repo {
   const col = collection(db, 'users', uid, 'events');
   const bcol = collection(db, 'users', uid, 'blocks');
   const icol = collection(db, 'users', uid, 'items');
+  const lcol = collection(db, 'users', uid, 'logs');
 
   /** 서버 확인을 기다리지 않는다 — 오프라인이면 promise 는 온라인이 될 때까지 안 끝난다 */
   const track = (p: Promise<unknown>) => {
@@ -96,6 +97,19 @@ export function createFirestoreRepo(db: Firestore, uid: string): Repo {
       for (const { id, ...f } of patches) batch.update(doc(bcol, id), { ...f, updatedAt: now });
       track(batch.commit());
     },
+
+    watchLogs(from, to, cb) {
+      const q = query(lcol, where('date', '>=', from), where('date', '<=', to));
+      const key = `l${nextSub++}`;
+      const off = onSnapshot(q, { includeMetadataChanges: true }, (snap) => {
+        snapPend.set(key, snap.metadata.hasPendingWrites);
+        emitSync();
+        cb(snap.docs.map((d) => d.data() as never));
+      });
+      return () => { off(); snapPend.delete(key); emitSync(); };
+    },
+    addLog(l) { track(setDoc(doc(lcol, l.id), l)); },
+    patchLog(id, f) { track(updateDoc(doc(lcol, id), { ...f, updatedAt: Date.now() })); },
 
     watchItems(cb) {
       const key = `i${nextSub++}`;
