@@ -1,9 +1,10 @@
 /**
  * 뽀모도로 엔진 — v3 `timer.js` 를 React 훅으로 옮긴 것
  *
- * ★ 돌고 있는 타이머는 «이 기기» 의 것이다. 기기마다 따로 돈다 (v3 도 앱 하나에 하나였다).
- *   새로고침해도 이어지도록 기기 저장소에 남긴다 — 「언제 시작했나」 를 적어 두고 남은 시간은 매번 계산한다.
- * ★ «집중을 끝까지 채운 횟수» 만 서버로 간다 (`pomoDone` 이벤트) — 그래야 폰에서도 오늘 몇 회인지 보인다.
+ * ★ 타이머는 «사람 하나에 하나» 다 (2026-10-27 소유자 — 폰에서 시작하면 PC 에도 그대로 돌아야 한다. SYNC §9).
+ *   상태는 문서 하나(`items/pomo`)에 두고, 고칠 때는 바뀐 필드만 보낸다. 남은 시간은 «끝나는 시각» 으로 매번 계산한다.
+ * ★ 끝나는 순간은 열려 있는 기기가 모두 알아챈다. 그래서 다음 상태를 «끝난 시각» 에서만 계산한다
+ *   (Date.now() 를 쓰지 않는다) — 어느 기기가 몇 번 써도 같은 값이고, 완료 이벤트 id 도 같아서 한 번만 센다.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -15,7 +16,8 @@ export interface PomoCfg { focusMin: number; shortMin: number; longMin: number; 
 const DEFAULTS: PomoCfg = { focusMin: 25, shortMin: 5, longMin: 15, longEvery: 4, autoStart: true };
 export const PRESETS = [15, 25, 40, 50];
 
-interface Saved {
+/** 저장하는 모양 — `items/pomo` 문서의 필드 그대로 */
+export interface PomoDoc extends PomoCfg {
   mode: PomoMode;
   /** 멈춰 있을 때 남은 초 */
   remain: number;
@@ -24,13 +26,26 @@ interface Saved {
   cycle: number;
 }
 
-const KEY = 'dm.pomo.v1';
-const CFG_KEY = 'dm.pomo.cfg';
+export const POMO_DEFAULT: PomoDoc = { ...DEFAULTS, mode: 'focus', remain: DEFAULTS.focusMin * 60, endsAt: null, cycle: 0 };
 
-function read<T>(k: string, fb: T): T {
-  try { const v = localStorage.getItem(k); return v ? { ...fb, ...JSON.parse(v) } : fb; } catch { return fb; }
+const lenOf = (x: PomoDoc, m: PomoMode) => (m === 'focus' ? x.focusMin : m === 'short' ? x.shortMin : x.longMin) * 60;
+
+/**
+ * 다음 세션 (v3 _advance) — 순수 함수. `completed` 면 «끝난 시각» 에 이어서 시작한다
+ * ponytail: 아무 기기도 안 켜져 있던 사이 끝난 세션은 하나만 센다 — 이어 시작할 세션마저 이미 지났으면 멈춰 둔다
+ */
+export function nextPomo(x: PomoDoc, completed: boolean, noAuto: boolean, now: number): PomoDoc {
+  let cycle = x.cycle;
+  let mode: PomoMode;
+  if (x.mode === 'focus') {
+    cycle++;
+    mode = cycle % x.longEvery === 0 ? 'long' : 'short';
+  } else mode = 'focus';
+  const len = lenOf(x, mode);
+  const endsAt = !noAuto && x.autoStart && completed && x.endsAt != null && x.endsAt + len * 1000 > now
+    ? x.endsAt + len * 1000 : null;
+  return { ...x, mode, cycle, remain: len, endsAt };
 }
-function write(k: string, v: unknown) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* 이번 화면에서만 유지 */ } }
 
 export interface Pomodoro {
   cfg: PomoCfg;
@@ -52,52 +67,57 @@ export interface Pomodoro {
 }
 
 /**
- * @param onFocusDone 집중 한 번을 끝까지 채웠을 때 (분)
+ * @param doc 저장된 타이머 (아직 없으면 null)
+ * @param write 바뀐 필드만 저장
+ * @param onFocusDone 집중 한 번을 끝까지 채웠을 때 — 끝난 시각 · 분
  * @param onAutoStart 앱이 스스로 다음 세션을 시작했을 때 — v3 는 «켜 두되 말을 한다» (v3.1.127)
  */
-export function usePomodoro(onFocusDone: (min: number) => void, onAutoStart: (mode: PomoMode) => void): Pomodoro {
-  const [cfg, setCfg] = useState<PomoCfg>(() => read(CFG_KEY, DEFAULTS));
-  const len = useCallback((m: PomoMode) => (m === 'focus' ? cfg.focusMin : m === 'short' ? cfg.shortMin : cfg.longMin) * 60, [cfg]);
-  const [s, setS] = useState<Saved>(() => read<Saved>(KEY, { mode: 'focus', remain: cfg.focusMin * 60, endsAt: null, cycle: 0 }));
+export function usePomodoro(
+  doc: PomoDoc | null,
+  write: (fields: Partial<PomoDoc>, full: PomoDoc) => void,
+  onFocusDone: (endedAt: number, min: number) => void,
+  onAutoStart: (mode: PomoMode) => void,
+): Pomodoro {
+  const s = doc ?? POMO_DEFAULT;
   const [, tick] = useState(0);
-  const cb = useRef({ onFocusDone, onAutoStart });
-  cb.current = { onFocusDone, onAutoStart };
+  const cb = useRef({ onFocusDone, onAutoStart, write });
+  /** 이 기기가 이미 넘긴 세션 (끝나는 시각) — 저장이 화면에 돌아오기 전에 또 넘기지 않게 */
+  const done = useRef<number | null>(null);
+  cb.current = { onFocusDone, onAutoStart, write };
 
-  const save = useCallback((n: Saved) => { setS(n); write(KEY, n); }, []);
-  const remainOf = (x: Saved) => (x.endsAt != null ? Math.max(0, (x.endsAt - Date.now()) / 1000) : x.remain);
+  const save = useCallback((n: PomoDoc) => {
+    const f: Partial<PomoDoc> = {};
+    for (const k of Object.keys(n) as (keyof PomoDoc)[]) if (n[k] !== s[k]) (f as Record<string, unknown>)[k] = n[k];
+    if (Object.keys(f).length) cb.current.write(f, n);
+  }, [s]);
 
-  // 다음 세션으로 (v3 _advance) — 끝까지 채웠으면 completed
-  const advance = useCallback((x: Saved, completed: boolean, noAuto: boolean) => {
-    let cycle = x.cycle;
-    let mode: PomoMode;
-    if (x.mode === 'focus') {
-      cycle++;
-      mode = cycle % cfg.longEvery === 0 ? 'long' : 'short';
-    } else mode = 'focus';
-    if (completed && x.mode === 'focus') cb.current.onFocusDone(cfg.focusMin);
-    const auto = !noAuto && cfg.autoStart && completed;
-    const n: Saved = { mode, cycle, remain: len(mode), endsAt: auto ? Date.now() + len(mode) * 1000 : null };
-    save(n);
-    if (auto) cb.current.onAutoStart(mode);
-  }, [cfg, len, save]);
+  const remainOf = (x: PomoDoc) => (x.endsAt != null ? Math.max(0, (x.endsAt - Date.now()) / 1000) : x.remain);
 
   // 돌고 있을 때만 0.25초마다 들여다본다 (v3 _loop 와 같은 박자). 끝났으면 다음 세션으로
   useEffect(() => {
     if (s.endsAt == null) return;
     const id = setInterval(() => {
-      if (s.endsAt != null && Date.now() >= s.endsAt) advance(s, true, false);
-      else tick((t) => t + 1);
+      if (s.endsAt != null && Date.now() >= s.endsAt) {
+        if (done.current === s.endsAt) return;
+        done.current = s.endsAt;
+        const n = nextPomo(s, true, false, Date.now());
+        if (s.mode === 'focus') cb.current.onFocusDone(s.endsAt, s.focusMin);
+        save(n);
+        if (n.endsAt != null) cb.current.onAutoStart(n.mode);
+      } else tick((t) => t + 1);
     }, 250);
     return () => clearInterval(id);
-  }, [s, advance]);
+  }, [s, save]);
 
   const remain = remainOf(s);
   const running = s.endsAt != null;
-  const total = len(s.mode);
+  const total = lenOf(s, s.mode);
   const sec = Math.max(0, Math.ceil(remain));
+  const { focusMin, shortMin, longMin, longEvery, autoStart } = s;
 
   return {
-    cfg, mode: s.mode, running, remain, total,
+    cfg: { focusMin, shortMin, longMin, longEvery, autoStart },
+    mode: s.mode, running, remain, total,
     pct: total ? 1 - Math.max(0, remain) / total : 0,
     label: s.mode === 'focus' ? '집중' : s.mode === 'short' ? '짧은 휴식' : '긴 휴식',
     clock: `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`,
@@ -105,13 +125,9 @@ export function usePomodoro(onFocusDone: (min: number) => void, onAutoStart: (mo
       ? { ...s, remain, endsAt: null }
       : { ...s, endsAt: Date.now() + remain * 1000 }),
     pause: () => { if (running) save({ ...s, remain, endsAt: null }); },
-    skip: () => advance({ ...s, remain }, false, true),
-    reset: () => save({ ...s, remain: len(s.mode), endsAt: null }),
-    setFocusMin: (n: number) => {
-      const c = { ...cfg, focusMin: n };
-      setCfg(c); write(CFG_KEY, c);
-      // v3 setFocusMin — 돌고 있지 않으면 집중으로 새로 맞춘다
-      if (!running) save({ ...s, mode: 'focus', remain: n * 60, endsAt: null });
-    },
+    skip: () => save(nextPomo({ ...s, remain }, false, true, Date.now())),
+    reset: () => save({ ...s, remain: total, endsAt: null }),
+    // v3 setFocusMin — 돌고 있지 않으면 집중으로 새로 맞춘다
+    setFocusMin: (n: number) => save(running ? { ...s, focusMin: n } : { ...s, focusMin: n, mode: 'focus', remain: n * 60, endsAt: null }),
   };
 }

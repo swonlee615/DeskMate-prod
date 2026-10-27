@@ -7,7 +7,8 @@
  * ▣ 근무 밖 휴게(rest)는 근무시간 · 휴게 합계 · 퇴근 어디에도 안 들어간다 — 시간표에 무늬와 메모로만
  */
 import { MIN_BREAK_MS, type Day } from './types';
-import { dayStartMs, normalizeBreaks, offSpans, sessions } from './rules';
+import { dayStartMs, effKind, normalizeBreaks, offSpans, sessions, spanEnd } from './rules';
+import { sessionRows } from './edit';
 
 export type LogKind = 'slot' | 'rest';
 
@@ -127,4 +128,42 @@ export function resolveConflicts(day: Day, withOff: boolean): { day: Day; n: num
   });
   const breaks = day.breaks.filter((_, i) => !hit.has(i)).concat(kept).sort((a, b) => a.s - b.s);
   return { day: normalizeBreaks({ ...day, breaks }), n: list.length };
+}
+
+// ─────────────────────────────────────────────────────────── 시간표 한 장 (모바일 세로 시간표가 읽는다)
+
+export interface TLSpan {
+  kind: 'work' | 'break' | 'off' | 'slot' | 'rest';
+  /** 00:00 기준 분 (0~1440) */
+  s: number;
+  e: number;
+  /** 눌러서 고칠 대상 — 근무 · 비근무 줄은 차수 칸에서 고친다 */
+  ref: SpanRef | null;
+  text: string;
+  color: string | null;
+  /** 아직 끝나지 않은 구간 (근무 중 · 휴게 중) */
+  live: boolean;
+}
+
+/**
+ * 그 날 시간표에 그릴 구간 전부 — 근무(차수) · 휴게/비근무(근태) · 시간 기록 · 근무 밖 휴게.
+ * 판정은 PC 격자와 같은 함수(sessionRows · effKind · spanEnd)를 쓴다. 화면은 이 결과만 그린다 (LOGIC §8-1)
+ */
+export function timeline(day: Day, logs: Log[], now: number): TLSpan[] {
+  const base = dayStartMs(day.date);
+  const m = (ms: number) => Math.max(0, Math.min(1440, Math.round((ms - base) / 60000)));
+  const out: TLSpan[] = [];
+  for (const r of sessionRows(day)) {
+    if (r.on == null) continue;
+    const off = r.off ?? day.pending?.guessOff ?? null;
+    out.push({ kind: 'work', s: m(r.on), e: m(off ?? now), ref: null, text: '', color: null, live: off == null });
+  }
+  day.breaks.forEach((b, idx) => {
+    const off = effKind(day, b, now) === 'off';
+    out.push({ kind: off ? 'off' : 'break', s: m(b.s), e: m(spanEnd(day, b, now)), ref: off ? null : { type: 'brk', idx }, text: b.note ?? '', color: null, live: b.e == null });
+  });
+  for (const l of logsOf(logs, day.date)) {
+    out.push({ kind: l.kind, s: l.s, e: l.e, ref: { type: l.kind, id: l.id }, text: l.text, color: l.color, live: false });
+  }
+  return out.filter((x) => x.e > x.s || x.live).sort((a, b) => a.s - b.s);
 }

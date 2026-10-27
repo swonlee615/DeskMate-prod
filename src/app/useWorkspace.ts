@@ -14,10 +14,13 @@ import { addBreakSpan, canCarry, editBreak, removeBreak, resolveAt, resolveCarry
 import { breakConflicts, logsOf, overlapIds, resolveConflicts, splitRest, type Log, type SpanInput, type SpanRef } from '../domain/attendance/logs';
 import { addDays, dateOf, fmtDur, keyOf, weekStart } from '../ui/v3fmt';
 import { buildTeam, leaderboard, ROSTER, STATUS_ORDER, statusAt, type LbRow, type Member, type MateStatus } from '../domain/sim/team';
-import { usePomodoro, type Pomodoro } from './usePomodoro';
+import { usePomodoro, type Pomodoro, type PomoDoc } from './usePomodoro';
 import { deleteChunk, inverseOf, triFix, triToggle, type Block, type Patch } from '../domain/todos/tree';
 import { ddCanPin, ddClean, ddLabel, type DDay } from '../domain/dday';
 import { HB_MAX, hbClean, hbDoneAt, hbFreqLabel, type Habit, type HbInput, type OffDay } from '../domain/habits';
+
+/** 집중 타이머 문서 — 사람 하나에 하나 */
+const POMO_ID = 'pomo';
 
 export const GOAL_HOURS = 8; // 설정 화면을 옮기기 전까지 v3 기본값
 /** 근태 표가 보여 주는 주 수 (이번 주 포함) */
@@ -214,12 +217,20 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
     return e;
   }, [repo, today]);
 
-  // 집중을 끝까지 채우면 횟수를 서버에 남긴다 — 횟수는 «그 날» 의 것 (v3 onComplete)
+  // D-Day · 습관 · 타이머 — 정의 하나 = 문서 하나 (items)
+  const [items, setItems] = useState<Item[]>([]);
+  useEffect(() => repo.watchItems(setItems), [repo]);
+
+  // 집중 타이머 — 사람 하나에 하나 (items/pomo · SYNC §9). 집중을 끝까지 채우면 횟수를 «끝난 날» 에 남긴다 (v3 onComplete)
+  const pomoDoc = useMemo(() => (items.find((x) => x.id === POMO_ID) as (PomoDoc & Item) | undefined) ?? null, [items]);
+  // 완료 이벤트 id 는 끝난 시각 — 여러 기기가 동시에 알아채도 한 건
   const pomoCount = useRef(0);
   pomoCount.current = day.pomos ?? 0;
   const timer = usePomodoro(
-    (min) => {
-      push('pomoDone', dateKey(Date.now()), { min });
+    pomoDoc,
+    (fields, full) => (pomoDoc ? repo.patchItem(POMO_ID, fields) : repo.addItem({ id: POMO_ID, kind: 'pomo', ...full } as Item)),
+    (endedAt, min) => {
+      push('pomoDone', dateKey(endedAt), { id: `pomo-${endedAt}`, at: endedAt, min });
       say(`세션 완료! 오늘 ${pomoCount.current + 1}회`);
     },
     (mode) => say(mode === 'focus' ? '다음 집중을 자동으로 시작했어요' : '휴식을 자동으로 시작했어요',
@@ -334,8 +345,6 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
   };
 
   // ── D-Day
-  const [items, setItems] = useState<Item[]>([]);
-  useEffect(() => repo.watchItems(setItems), [repo]);
   const ddays = useMemo(() => items.filter((x): x is DDay & Item => x.kind === 'dday' && !x.deletedAt), [items]);
   const saveDDay: Workspace['saveDDay'] = (id, v) => {
     const c = ddClean(v);

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Day } from './types';
 import { dayParts, workMinutes } from './rules';
-import { breakConflicts, overlapIds, resolveConflicts, slotOutside, splitRest, type Log } from './logs';
+import { breakConflicts, overlapIds, resolveConflicts, slotOutside, splitRest, timeline, type Log } from './logs';
 
 const D = '2026-10-21';
 const t = (hm: string) => { const [h, m] = hm.split(':').map(Number); return new Date(2026, 9, 21, h, m).getTime(); };
@@ -73,5 +73,25 @@ describe('휴게 ↔ 시간 기록 겹침 (LOGIC §3 breakSlotConflicts · resol
     expect(b.n).toBe(2);
     expect(breakConflicts(b.day)).toEqual([]);
     expect(resolveConflicts(day(), true).n).toBe(0);
+  });
+});
+
+describe('timeline — 모바일 시간표가 그리는 구간', () => {
+  it('차수 · 휴게 · 비근무 · 기록을 분으로 · 시작 순', () => {
+    const d = day({ breaks: [{ s: t('12:00'), e: t('12:40'), kind: 'break', note: '점심' }, { s: t('14:00'), e: t('16:30'), kind: 'off' }] });
+    const logs: Log[] = [{ id: 'a', date: D, kind: 'slot', s: M('08:00'), e: M('09:00'), text: '메일', color: null, createdAt: 0 }];
+    const tl = timeline(d, logs, END);
+    expect(tl.map((x) => [x.kind, x.s, x.e])).toEqual([
+      ['slot', M('08:00'), M('09:00')],
+      ['work', M('09:00'), M('14:00')],
+      ['break', M('12:00'), M('12:40')],
+      ['off', M('14:00'), M('16:30')],
+      ['work', M('16:30'), M('18:00')],
+    ]);
+    expect(tl[2]).toMatchObject({ ref: { type: 'brk', idx: 0 }, text: '점심' });
+  });
+  it('근무 중이면 지금까지 · live', () => {
+    const tl = timeline(day({ offAt: null }), [], t('10:30'));
+    expect(tl).toEqual([expect.objectContaining({ kind: 'work', s: M('09:00'), e: M('10:30'), live: true })]);
   });
 });

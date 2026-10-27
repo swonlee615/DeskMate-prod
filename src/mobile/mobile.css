@@ -116,13 +116,6 @@
 }
 .m-toast.show { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
 
-/* ── 집중 타이머 */
-.m-focus { padding: 14px 16px; }
-.m-focus-top { display: flex; align-items: center; gap: 8px; }
-.m-focus-clock { flex: 1; display: flex; flex-direction: column; }
-.m-focus-clock b { font-size: 28px; font-weight: 900; color: var(--text-strong); font-variant-numeric: tabular-nums; line-height: 1.15; }
-.m-focus-clock b.rest { color: var(--yellow); }
-.m-focus-clock span { font-size: 12px; color: var(--text-muted); }
 .m-btn.sm { flex: none; height: 40px; padding: 0 14px; font-size: 14px; border-radius: 10px; }
 .m-chips { display: flex; gap: 6px; margin-top: 12px; }
 .m-chips button { flex: 1; height: 32px; border-radius: 16px; font-size: 13px; background: var(--surface-3); color: var(--text-muted); }
@@ -136,7 +129,6 @@
 .m-pend-a { display: flex; flex-direction: column; gap: 8px; }
 .m-pend-a .m-btn { height: 46px; font-size: 15px; }
 .m-pendtag { font-style: normal; font-size: 11px; font-weight: 700; color: var(--yellow); margin-left: 6px; }
-.m-edit-today { align-self: flex-end; font-size: 13px; margin: -6px 4px 0; }
 .m-row { cursor: pointer; }
 .m-sheet-bg { position: fixed; inset: 0; z-index: 40; background: rgba(15,22,51,.45); display: flex; align-items: flex-end; }
 .m-sheet {
@@ -215,3 +207,161 @@
 
 /* ── 팀 (오늘 근무 랭킹) */
 .m-rank { flex: none; width: 20px; text-align: center; font-size: 13px; font-weight: 700; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
+/* ── 머리 알약 — 어느 탭에서든 지금 상태 · 돌고 있는 타이머 */
+.m-head { align-items: center; }
+.m-pill {
+  display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 14px;
+  background: var(--surface-3); color: var(--text-strong); font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums;
+}
+.m-pill .m-dot { width: 7px; height: 7px; }
+.m-pill.timer { background: color-mix(in srgb, var(--blue) 14%, var(--surface-2)); color: var(--blue); }
+.m-pill.timer.rest { background: color-mix(in srgb, var(--yellow) 16%, var(--surface-2)); color: var(--yellow); }
+.m-toast.bad { background: var(--red); color: #fff; }
+.m-hint { font-size: 12px; color: var(--text-dim); }
+.m-bad { font-size: 13px; color: var(--red); }
+.m-today-go { display: block; margin: 14px auto 0; font-size: 14px; }
+.m-sum-t em { font-style: normal; font-weight: 400; margin-left: 4px; }
+
+/* ── 집중 타이머 (고리) */
+.m-timer { display: flex; align-items: center; gap: 16px; padding: 16px; }
+.m-ring { position: relative; width: 128px; height: 128px; flex: none; }
+.m-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.m-ring circle { fill: none; stroke-width: 9; }
+.m-ring .bg { stroke: var(--surface-3); }
+.m-ring .fg { stroke: var(--tc, var(--blue)); stroke-linecap: round; transition: stroke-dashoffset .25s linear; }
+.m-ring .fg.rest { stroke: var(--yellow); }
+.m-ring-c { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.m-ring-c b { font-size: 28px; font-weight: 900; color: var(--text-strong); font-variant-numeric: tabular-nums; }
+.m-ring-c span { font-size: 12px; color: var(--text-muted); }
+.m-timer-r { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.m-timer-a { display: flex; gap: 6px; }
+.m-timer-a .m-btn { height: 44px; font-size: 15px; }
+.m-timer-a .m-x { height: 44px; }
+.m-timer .m-chips { margin-top: 0; }
+.m-chips.wrap { flex-wrap: wrap; }
+.m-chips.wrap button { flex: none; padding: 0 14px; }
+
+/* ── 습관 · D-Day */
+.m-hb { padding: 14px 16px; }
+.m-hb-l { display: flex; flex-wrap: wrap; gap: 8px; }
+.m-hb-l button {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 12px 0 6px; border-radius: 20px;
+  background: var(--surface-3); color: var(--text-strong); font-size: 14px; max-width: 100%;
+}
+.m-hb-l button i { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-style: normal; background: var(--main); }
+.m-hb-l button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.m-hb-l button small { color: var(--text-muted); font-size: 11px; }
+.m-hb-l button.on { background: color-mix(in srgb, var(--green) 16%, var(--surface-2)); }
+.m-hb-l button.on i { background: var(--green); color: #fff; font-weight: 900; }
+.m-dd { display: flex; gap: 8px; overflow-x: auto; margin: 0 -16px; padding: 0 16px; scrollbar-width: none; }
+.m-dd-i { flex: none; display: flex; flex-direction: column; gap: 2px; padding: 10px 14px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--border); }
+.m-dd-i b { font-size: 16px; font-weight: 900; color: var(--blue); }
+.m-dd-i span { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+
+/* ── 이번 주 막대 */
+.m-wbars { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-bottom: 14px; }
+.m-wbars button { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.m-wbars .bar { width: 100%; height: 56px; border-radius: 6px; background: var(--surface-3); display: flex; align-items: flex-end; overflow: hidden; }
+.m-wbars .bar i { width: 100%; background: var(--blue); }
+.m-wbars .hit .bar i { background: var(--green); }
+.m-wbars small { font-size: 11px; color: var(--text-muted); }
+.m-wbars .today small { color: var(--blue); font-weight: 700; }
+
+/* ── 시간표 탭 — 날짜 이동 */
+.m-dnav { display: flex; align-items: center; gap: 8px; }
+.m-dnav .m-x { font-size: 22px; }
+.m-dnav-t { flex: 1; display: flex; flex-direction: column; align-items: center; }
+.m-dnav-t b { font-size: 17px; color: var(--text-strong); }
+.m-dnav-t span { font-size: 12px; color: var(--text-muted); }
+.m-dnav-today { align-self: center; font-size: 13px; margin-top: -8px; }
+.m-strip { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.m-strip button { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 6px 0; border-radius: 10px; color: var(--text-muted); }
+.m-strip b { font-size: 16px; color: var(--text-strong); }
+.m-strip small { font-size: 11px; }
+.m-strip em { font-style: normal; font-size: 10px; min-height: 13px; font-variant-numeric: tabular-nums; }
+.m-strip .today b { color: var(--blue); }
+.m-strip .on { background: var(--blue); }
+.m-strip .on, .m-strip .on b { color: #fff; }
+
+.m-dsum { padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
+.m-dsum-g { width: 100%; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.m-dsum-g div { display: flex; flex-direction: column; min-width: 0; }
+.m-dsum-g b { font-size: 16px; font-weight: 900; color: var(--text-strong); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.m-dsum-g b.hit { color: var(--green); }
+.m-dsum-g span { font-size: 12px; color: var(--text-dim); }
+.m-sess { padding: 14px 16px 10px; }
+.m-ses-add { display: block; margin: 6px 0 2px; font-size: 14px; }
+.m-ses-add:disabled { color: var(--text-dim); }
+
+/* ── 세로 시간표 */
+.m-tlc { padding: 14px 0 10px; }
+.m-tlc > .m-hint { padding: 8px 16px 0; }
+.m-tl-h { display: flex; align-items: center; gap: 8px; padding: 0 16px 10px; }
+.m-tl-h .m-sum-t { margin: 0; }
+.m-tl-lg { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-muted); }
+.m-tl-lg i { width: 8px; height: 8px; border-radius: 2px; margin-left: 4px; }
+.m-tl-lg i.work { background: var(--green); }
+.m-tl-lg i.slot { background: var(--blue); }
+.m-tl-lg i.break { background: var(--yellow); }
+.m-tl { height: 420px; overflow-y: auto; -webkit-overflow-scrolling: touch; border-top: 1px solid var(--border); overscroll-behavior: contain; }
+.m-tl-in { position: relative; margin-left: 44px; margin-right: 12px; }
+.m-tl-hr { position: absolute; left: -44px; right: 0; border-top: 1px solid var(--border); }
+.m-tl-hr i { position: absolute; left: 8px; top: 2px; font-style: normal; font-size: 11px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.m-tl-att { position: absolute; left: 0; top: 0; bottom: 0; width: 6px; }
+.m-tl-att i { position: absolute; left: 0; width: 6px; border-radius: 3px; }
+.m-tl-att i.work { background: var(--green); }
+.m-tl-att i.off { background: repeating-linear-gradient(45deg, var(--surface-3) 0 3px, transparent 3px 6px); }
+.m-tl-att i.live { opacity: .7; }
+.m-tl-lane { position: absolute; top: 0; bottom: 0; }
+.m-tl-lane.slots { left: 12px; right: 38%; }
+.m-tl-lane.brks { left: calc(62% + 4px); right: 0; }
+.m-tl-b {
+  position: absolute; left: 0; right: 0; overflow: hidden; text-align: left; border-radius: 6px; padding: 3px 7px;
+  display: flex; flex-direction: column; justify-content: flex-start;
+  background: color-mix(in srgb, var(--c, var(--blue)) 22%, var(--surface-2)); border-left: 3px solid var(--c, var(--blue));
+}
+.m-tl-b b { font-size: 12px; color: var(--text-strong); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.m-tl-b span { font-size: 10px; color: var(--text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.m-tl-b.thin { flex-direction: row; align-items: center; gap: 6px; padding-top: 0; padding-bottom: 0; }
+.m-tl-b.thin span { display: none; }
+.m-tl-b.break, .m-tl-b.rest { --c: var(--yellow); }
+.m-tl-b.rest { background: repeating-linear-gradient(-45deg, color-mix(in srgb, var(--c) 18%, var(--surface-2)) 0 4px, var(--surface-2) 4px 8px); }
+.m-tl-b.live { border-left-style: dashed; }
+.m-tl-now { position: absolute; left: -6px; right: 0; height: 0; border-top: 2px solid var(--red); pointer-events: none; }
+.m-tl-now::before { content: ''; position: absolute; left: -4px; top: -5px; width: 8px; height: 8px; border-radius: 50%; background: var(--red); }
+
+/* ── 달력 시트 */
+.m-cal-nav { display: flex; align-items: center; justify-content: space-between; }
+.m-cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.m-cal small { text-align: center; font-size: 11px; color: var(--text-dim); padding-bottom: 2px; }
+.m-cal button { position: relative; min-height: 52px; border-radius: 10px; background: var(--surface-2); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+.m-cal button b { font-size: 14px; color: var(--text-strong); }
+.m-cal button em { font-style: normal; font-size: 10px; color: var(--text-muted); font-variant-numeric: tabular-nums; min-height: 12px; }
+.m-cal button.hit em { color: var(--green); font-weight: 700; }
+.m-cal button i { position: absolute; top: 6px; right: 6px; width: 6px; height: 6px; border-radius: 50%; }
+.m-cal button.out { opacity: .4; }
+.m-cal button.today b { color: var(--blue); }
+.m-cal button.on { box-shadow: inset 0 0 0 2px var(--blue); }
+
+/* ── 시트 안 */
+.m-field { width: 100%; height: 46px; padding: 0 12px; border-radius: 10px; font-size: 16px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-strong); }
+.m-ses .m-field { flex: 1; width: auto; min-width: 0; }
+.m-sheet .m-tin { flex: 1; min-width: 0; width: 0; text-align: center; font-variant-numeric: tabular-nums; height: 46px; padding: 0 10px; border-radius: 10px; font-size: 16px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-strong); }
+.m-sheet .m-tin.m-emo-in { flex: none; width: 56px; font-size: 22px; }
+.m-sheet-f { display: flex; gap: 8px; }
+.m-sheet-f .m-btn { height: 46px; font-size: 15px; }
+.m-btn:disabled { opacity: .45; }
+.m-opt { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface-2); text-align: left; }
+.m-opt span { flex: 1; display: flex; flex-direction: column; }
+.m-opt b { font-size: 15px; color: var(--text-strong); }
+.m-opt small { font-size: 12px; color: var(--text-muted); }
+.m-opt em { font-style: normal; font-size: 16px; font-weight: 900; color: var(--text-strong); }
+.m-opt:disabled { opacity: .45; }
+.m-check { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--text); min-height: 40px; }
+.m-check input { width: 20px; height: 20px; }
+
+/* ── 더보기 */
+.m-sec-h { display: flex; align-items: center; margin: 6px 4px 8px; }
+.m-sec-h b { font-size: 13px; color: var(--text-muted); }
+.m-emo { flex: none; width: 32px; font-size: 22px; text-align: center; }
