@@ -1,5 +1,6 @@
 /**
  * PC 화면 — v3 「ONnOFF」 를 그대로 (레일 · 사이드바 · 근태 · 우측 패널)
+ * ★ 레일 첫 메뉴 이름은 «홈» (2026-10-28 소유자 — v3 의 «근태» 자리. v3 의 홈(대화)은 옮기지 않는다)
  *
  * ★ 모양의 원본은 v3 다. v3 styles.css 를 그대로 쓰고 마크업 · 클래스 · id 를 v3 와 같게 둔다.
  *   PC 창을 아무리 좁혀도 모바일 화면으로 바뀌지 않는다 — v3 의 3단 · 2단 · 1단(서랍) 으로만 바뀐다.
@@ -90,8 +91,8 @@ export function PcWorkspace({ ws }: { ws: Workspace }) {
         <aside className="rail">
           <div className="ws-badge" id="wsBadge">D</div>
           <button className="rail-btn on" data-view="worklog">
-            <span className="ri"><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="7.1" /><path d="M10 5.7v4.5l3 1.8" /></svg></span>
-            <small>근태</small>
+            <span className="ri"><svg viewBox="0 0 20 20"><path d="M3.2 8.6 10 3.2l6.8 5.4V16a1.2 1.2 0 0 1-1.2 1.2h-3.3v-4.8H7.7v4.8H4.4A1.2 1.2 0 0 1 3.2 16V8.6Z" /></svg></span>
+            <small>홈</small>
           </button>
           {/* 아직 안 옮긴 메뉴 — v3 와 같은 자리에 «오픈 전» 으로 (2026-10-28 소유자). 홈(대화)은 옮기지 않는다 */}
           <button className="rail-btn soon" data-view="dash" aria-disabled="true" title="활동 — 준비 중이에요" onClick={() => ws.say('활동은 준비 중이에요')}>

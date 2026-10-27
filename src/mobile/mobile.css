@@ -328,17 +328,6 @@ body[data-mode="light"] .m-tm-hub { background: #fff; box-shadow: 0 0 0 1px rgba
 .m-chips.wrap button { flex: none; padding: 0 14px; }
 
 /* ── 습관 · D-Day */
-.m-hb { padding: 14px 16px; }
-.m-hb-l { display: flex; flex-wrap: wrap; gap: 8px; }
-.m-hb-l button {
-  display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 12px 0 6px; border-radius: 20px;
-  background: var(--surface-3); color: var(--text-strong); font-size: 14px; max-width: 100%;
-}
-.m-hb-l button i { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-style: normal; background: var(--main); }
-.m-hb-l button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.m-hb-l button small { color: var(--text-muted); font-size: 11px; }
-.m-hb-l button.on { background: color-mix(in srgb, var(--green) 16%, var(--surface-2)); }
-.m-hb-l button.on i { background: var(--green); color: #fff; font-weight: 900; }
 .m-dd { display: flex; gap: 8px; overflow-x: auto; margin: 0 -16px; padding: 0 16px; scrollbar-width: none; }
 .m-dd-i { flex: none; display: flex; flex-direction: column; gap: 2px; padding: 10px 14px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--border); }
 .m-dd-i b { font-size: 16px; font-weight: 900; color: var(--blue); }
@@ -549,19 +538,47 @@ body[data-mode="light"] .m-tm-hub { background: #fff; box-shadow: 0 0 0 1px rgba
 .m-tgs .tg-r > i.h { font-size: 11px; padding: 0; display: grid; place-items: center; }
 .m-tgl { margin-top: 10px; display: flex; flex-direction: column; gap: 4px; }
 .m-tgl .tg-item { min-height: 44px; }
-/* 「＋ 기록」 — 시간표 구역 안에서 화면 아래(하단 메뉴 바로 위)에 떠 있다. 구역을 벗어나면 같이 사라진다
-   bottom: 0 — 스크롤 영역의 아래 여백(.m-body padding = 하단 메뉴 높이)이 이미 띄워 준다 */
-.m-fab-dock { position: sticky; bottom: 0; height: 0; display: flex; justify-content: flex-end; pointer-events: none; z-index: 2; }
-.m-fab {
-  pointer-events: auto; transform: translateY(calc(-100% - 6px));
-  display: inline-flex; align-items: center; gap: 6px; height: 48px; padding: 0 18px 0 14px; border-radius: 24px;
-  background: #2b8fd8; color: #fff; font-size: 15px; font-weight: 800;
-  box-shadow: 0 6px 18px rgba(0,0,0,.28);
-}
 .m-fab svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; }
-.m-fab:active { transform: translateY(calc(-100% - 6px)) scale(.97); }
 .m-fab:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
 
 /* 할 일 · 메모 — PC 편집기 그대로, 폭만 폰에 */
 .m-notes { display: flex; flex-direction: column; gap: 12px; }
 .m-notes .txt { font-size: 16px; }
+
+/* ── 하루 상세 (2026-10-28 ②) — 아코디언 · 한 번에 한 판 · 고정 「＋ 기록」 */
+.m-dsum { flex-direction: column; align-items: stretch; gap: 0; }
+.m-dsum-r { width: 100%; }
+.m-dsum-rg i.lv { font-style: normal; font-size: 11px; font-weight: 700; margin-left: 8px; }
+.m-acc-c { flex: none; font-style: normal; font-size: 20px; line-height: 1; color: var(--text-dim); transition: transform .2s cubic-bezier(.22, 1, .36, 1); margin-top: -8px; }
+.m-acc-c.on { transform: rotate(180deg); margin-top: 6px; }
+.m-dsum-d { padding: 4px 0 14px; display: flex; flex-direction: column; gap: 6px; }
+.m-dsum-lv { display: flex; align-items: center; justify-content: space-between; min-height: 44px; font-size: 13px; color: var(--text-muted); border-top: 1px solid var(--border-soft); padding-top: 8px; }
+.m-dpane { position: sticky; top: -14px; z-index: 3; }
+.m-acc-h { width: 100%; display: flex; align-items: center; gap: 8px; min-height: 48px; text-align: left; font-size: 14px; color: var(--text-strong); font-weight: 700; }
+.m-acc-h em { flex: 1; font-style: normal; font-weight: 400; font-size: 12px; color: var(--text-muted); }
+.m-tgl-h { margin-top: 6px; border-bottom: 1px solid var(--border-soft); }
+.m-fab {
+  position: fixed; right: 16px; bottom: calc(84px + env(safe-area-inset-bottom)); z-index: 5;
+  display: inline-flex; align-items: center; gap: 6px; height: 48px; padding: 0 18px 0 14px; border-radius: 24px;
+  background: #2b8fd8; color: #fff; font-size: 15px; font-weight: 800;
+  box-shadow: 0 6px 18px rgba(0,0,0,.28);
+}
+.m-fab:active { transform: scale(.97); }
+.m-tgs { padding-bottom: 56px; }
+@media (prefers-reduced-motion: reduce) { .m-acc-c { transition: none; } }
+
+/* ── 습관 — 작은 고리 + 짧은 이름, 한 줄 다섯 칸 */
+.m-hb { padding: 2px 0; }
+.m-hb-l { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px 6px; }
+.m-hb-l button { display: flex; flex-direction: column; align-items: center; gap: 5px; min-width: 0; }
+.m-hb-l button i {
+  width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-size: 19px;
+  box-shadow: inset 0 0 0 2.5px var(--surface-3); background: transparent;
+}
+.m-hb-l button.on i { box-shadow: inset 0 0 0 2.5px var(--green); background: color-mix(in srgb, var(--green) 14%, transparent); color: var(--green); font-weight: 900; }
+.m-hb-l button span { max-width: 100%; font-size: 11px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.m-hb-l button.on span { color: var(--text-strong); }
+.m-hb-l button small { font-size: 10px; color: var(--text-dim); margin-top: -3px; font-variant-numeric: tabular-nums; }
+.m-hb-l button:focus-visible i { outline: 2px solid var(--blue); outline-offset: 2px; }
+.m-dsum-d .m-ses .m-tin { padding: 0 4px; min-width: 64px; }
+.m-dsum-d .m-ses .k { width: 26px; }

@@ -79,18 +79,22 @@ export function Todos({ ws, date, area }: { ws: Workspace; date: string; area: B
   );
 }
 
-/** 그 날 체크할 습관 — PC 오늘 패널 고리 · 일간 상세 칩과 같은 hbOfDay */
+/**
+ * 그 날 체크할 습관 — PC 오늘 패널 고리(hb-ring)처럼 작은 원 + 짧은 이름. 가로로 길어지지 않게 한 줄에 다섯 칸
+ * 주 N회는 원 아래 이름 대신 «c/n»
+ */
 export function HabitChips({ ws, date }: { ws: Workspace; date: string }) {
   const list = hbOfDay(ws.habits, date, ws.offDay);
   if (!list.length) return null;
   const n = list.filter((x) => x.at).length;
   return (
-    <section className="m-card m-hb" aria-label="습관">
+    <section className="m-hb" aria-label="습관">
       <div className="m-sum-t">습관 <em>{n}/{list.length}</em></div>
       <div className="m-hb-l">
         {list.map(({ h, at, week }) => (
-          <button key={h.id} className={at ? 'on' : ''} onClick={() => ws.toggleHabit(h.id, date)} aria-pressed={!!at}>
-            <i>{at ? '✓' : h.emoji || '·'}</i>
+          <button key={h.id} className={at ? 'on' : ''} onClick={() => ws.toggleHabit(h.id, date)} aria-pressed={!!at}
+            aria-label={`${h.title}${week ? ` (이번 주 ${week.c}/${week.n})` : ''} — ${at ? '했어요' : '아직'}`}>
+            <i aria-hidden="true">{at ? '✓' : h.emoji || '·'}</i>
             <span>{h.title}</span>
             {week && <small>{week.c}/{week.n}</small>}
           </button>

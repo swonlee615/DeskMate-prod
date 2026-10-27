@@ -1,10 +1,11 @@
 /**
  * 모바일 하루 상세 — PC 일간 상세(v3 renderDayPage)를 폰 모양으로 (2026-10-28 소유자 피드백 반영)
  *
- * ★ 머리: 왼쪽 정렬 날짜(누르면 달력) · ‹ › · 이번 주 띠. 상자에 가두지 않고 면 그대로
- * ★ 출퇴근 요약 한 줄 — 누르면 «출퇴근 고치기» 시트(차수 시각 · 추가 · 합치기/지우기). 한 단계 안으로 넣었다
- * ★ 시간표 = PC 격자 그대로(`Grid` · `SlotList` — v3 gridHtml). 한 줄 = 1시간이라 스크롤이 짧다.
- *   칸을 누르면 그 기록을 고치고, 빈 칸을 누르면 그 시각에 30분짜리를 새로 연다. 「＋ 기록」 은 시간표 안에 떠 있다
+ * ★ 머리: 왼쪽 정렬 날짜(누르면 달력) · 이번 주 띠(날 옮기기). 상자에 가두지 않고 면 그대로
+ * ★ 출퇴근 = 아코디언 한 줄(오른쪽 끝 ⌄) — 펼치면 차수 시각 · 추가 · 합치기/지우기 · 근태 종류
+ * ★ 스크롤을 늘리지 않게 «시간표 · 할 일 · 메모» 를 한 번에 하나만 (2026-10-28 소유자 — 모바일은 긴 스크롤을 가장 피한다)
+ *   시간표 = PC 격자 그대로(`Grid`). 기록 목록(`SlotList`)은 접어 둔다 — 기록이 쌓여도 길이가 그대로
+ *   칸을 누르면 그 기록을 고치고, 빈 칸을 누르면 그 시각에 30분짜리를 새로 연다. 「＋ 기록」 은 시간표 판에서만 화면 오른쪽 아래에
  * ★ 할 일 · 메모 = PC 편집기 그대로(`NoteEditor`) — 보면서 그 자리에서 적는다
  * 고치는 일은 전부 PC 와 같은 edit.ts · ws.saveSpan
  */
@@ -37,6 +38,8 @@ const workOf = (d: Day | undefined, now: number) => (d?.onAt != null ? dayParts(
 const TODO_IC = <svg className="nh-ic" viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="m2.4 10.3 2.1 2.1 3.8-4.5" /><path d="M10.4 8h7.2" /><path d="M10.4 12.6h7.2" /></svg>;
 const MEMO_IC = <svg className="nh-ic" viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M2.6 5.6h14.8" /><path d="M2.6 10h14.8" /><path d="M2.6 14.4h9.4" /></svg>;
 
+type Pane = 'tg' | 'todo' | 'memo';
+
 export function MDay({ ws, date, setDate, editOpen }: { ws: Workspace; date: string; setDate: (k: string) => void; editOpen?: boolean }) {
   const d = ws.dayOf(date);
   const [cal, setCal] = useState(false);
@@ -45,9 +48,11 @@ export function MDay({ ws, date, setDate, editOpen }: { ws: Workspace; date: str
   const [adding, setAdding] = useState(false);
   const [sesOpen, setSesOpen] = useState(!!editOpen);
   useEffect(() => { setSesOpen(!!editOpen); }, [editOpen, date]);
+  // 한 번에 한 판만 — 시간 기록이 쌓여도 · 할 일이 길어도 페이지가 아래로 늘어나지 않게
+  const [pane, setPane] = useState<Pane>('tg');
+  const [listOpen, setListOpen] = useState(false);
   const dt = dateOf(date);
   const isToday = date === ws.today;
-  const go = (n: number) => setDate(keyOf(addDays(dt, n)));
 
   // 달력 · 이번 주 띠가 보는 기간을 받아 두게 한다 (노션 방식 — 보이는 것만)
   useEffect(() => {
@@ -63,6 +68,8 @@ export function MDay({ ws, date, setDate, editOpen }: { ws: Workspace; date: str
     const s = Math.max(0, Math.floor((m - 30) / 10) * 10);
     return { ref: null, s, e: Math.min(1440, s + 30), kind: 'slot' };
   };
+  const rows = sessionRows(d);
+  const nLogs = logsOf(ws.logs, date).length + d.breaks.length;
 
   return (
     <div className="m-day">
@@ -71,39 +78,53 @@ export function MDay({ ws, date, setDate, editOpen }: { ws: Workspace; date: str
           <b>{isToday ? '오늘' : dayLabel(dt, new Date(ws.now))}<i aria-hidden="true">▾</i></b>
           <span>{dt.getFullYear()}년 {dt.getMonth() + 1}월 {dt.getDate()}일 {DOW[dt.getDay()]}요일</span>
         </button>
-        <button className="m-dh-nav" onClick={() => go(-1)} aria-label="전날">‹</button>
-        <button className="m-dh-nav" onClick={() => go(1)} aria-label="다음날">›</button>
       </header>
       <WeekStrip ws={ws} date={date} onGo={setDate} />
 
       {d.pending && <Pend ws={ws} date={date} onEdit={() => setSesOpen(true)} />}
-      <Summary ws={ws} d={d} date={date} onEdit={() => setSesOpen(true)} />
+      <Summary ws={ws} d={d} date={date} open={sesOpen} onToggle={() => setSesOpen((v) => !v)}>
+        <Sessions ws={ws} d={d} date={date} autoFocusOff={!!editOpen || !!d.pending} onPick={setSesPick} onAdd={() => setAdding(true)} />
+      </Summary>
       <Conflicts ws={ws} d={d} date={date} />
 
-      <section className="m-dsec m-tgs" aria-label="시간표">
-        <Grid d={d} logs={ws.logs} now={ws.now} isToday={isToday} onOpen={open} />
-        <div className="tg-list m-tgl">
-          <SlotList d={d} logs={ws.logs} now={ws.now} rows={sessionRows(d)} onOpen={open} onGoto={() => setSesOpen(true)} />
-        </div>
-        <div className="m-fab-dock">
+      <div className="m-seg m-dpane" role="tablist" aria-label="하루 보기">
+        <button role="tab" aria-selected={pane === 'tg'} className={pane === 'tg' ? 'on' : ''} onClick={() => setPane('tg')}>시간표</button>
+        <button role="tab" aria-selected={pane === 'todo'} className={pane === 'todo' ? 'on' : ''} onClick={() => setPane('todo')}>할 일</button>
+        <button role="tab" aria-selected={pane === 'memo'} className={pane === 'memo' ? 'on' : ''} onClick={() => setPane('memo')}>메모</button>
+      </div>
+
+      {pane === 'tg' && (
+        <section className="m-dsec m-tgs" aria-label="시간표">
+          <Grid d={d} logs={ws.logs} now={ws.now} isToday={isToday} onOpen={open} />
+          {nLogs + rows.length > 0 && (
+            <button className="m-acc-h m-tgl-h" aria-expanded={listOpen} onClick={() => setListOpen((v) => !v)}>
+              <span>기록 목록</span><em>{logsOf(ws.logs, date, 'slot').length}건 기록 · 휴게 {d.breaks.filter((x) => x.kind === 'break').length + logsOf(ws.logs, date, 'rest').length}건</em>
+              <i className={`m-acc-c${listOpen ? ' on' : ''}`} aria-hidden="true">⌄</i>
+            </button>
+          )}
+          {listOpen && (
+            <div className="tg-list m-tgl">
+              <SlotList d={d} logs={ws.logs} now={ws.now} rows={rows} onOpen={open} onGoto={() => setSesOpen(true)} />
+            </div>
+          )}
           <button className="m-fab" onClick={() => setSpan(nowSlot())} aria-label="시간 기록 · 휴게 적기">
             <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 4v12M4 10h12" /></svg>기록
           </button>
-        </div>
-      </section>
-
-      <HabitChips ws={ws} date={date} />
-      <section className="m-dsec m-notes">
-        <NoteEditor ws={ws} date={date} area="today" title="Today" ph="할 일을 입력하세요" icon={TODO_IC} />
-        <NoteEditor ws={ws} date={date} area="memo" title="Memo" ph="메모를 입력하세요" icon={MEMO_IC} />
-      </section>
+        </section>
+      )}
+      {pane === 'todo' && (
+        <section className="m-dsec m-notes">
+          <HabitChips ws={ws} date={date} />
+          <NoteEditor ws={ws} date={date} area="today" title="Today" ph="할 일을 입력하세요" icon={TODO_IC} />
+        </section>
+      )}
+      {pane === 'memo' && (
+        <section className="m-dsec m-notes">
+          <NoteEditor ws={ws} date={date} area="memo" title="Memo" ph="메모를 입력하세요" icon={MEMO_IC} />
+        </section>
+      )}
 
       {cal && <CalSheet ws={ws} date={date} onPick={(k) => { setDate(k); setCal(false); }} onClose={() => setCal(false)} />}
-      {sesOpen && (
-        <Sheet title="출퇴근 고치기" sub={`${dt.getMonth() + 1}/${dt.getDate()} (${DOW[dt.getDay()]})`} onClose={() => setSesOpen(false)}>
-          <Sessions ws={ws} d={d} date={date} autoFocusOff={!!editOpen || !!d.pending} onPick={setSesPick} onAdd={() => setAdding(true)} />
-        </Sheet>
-      )}
       {span && <SpanSheet ws={ws} date={date} d={d} o={span} onClose={() => setSpan(null)} />}
       {sesPick != null && <SesSheet ws={ws} date={date} d={d} i={sesPick} onClose={() => setSesPick(null)} />}
       {adding && <AddSheet ws={ws} date={date} d={d} onClose={() => setAdding(false)} />}
@@ -131,8 +152,13 @@ function WeekStrip({ ws, date, onGo }: { ws: Workspace; date: string; onGo: (k: 
   );
 }
 
-/** 출퇴근 요약 한 줄 (PC dh-bar 와 같은 값) — 누르면 «출퇴근 고치기» */
-function Summary({ ws, d, date, onEdit }: { ws: Workspace; d: Day; date: string; onEdit: () => void }) {
+/**
+ * 출퇴근 아코디언 (PC dh-bar · dh-detail 과 같은 값) — 접으면 한 줄, 펼치면 차수 시각 · 차수 추가 · 근태 종류
+ * 근태 종류(근무 · 연차 …)도 펼친 안에 둔다 — 날마다 고치는 값이 아니라서
+ */
+function Summary({ ws, d, date, open, onToggle, children }: {
+  ws: Workspace; d: Day; date: string; open: boolean; onToggle: () => void; children: React.ReactNode;
+}) {
   const p = dayParts(d, ws.now);
   const work = p.workMs / 60000;
   const goal = dayGoalMin(GOAL_HOURS, d);
@@ -141,23 +167,32 @@ function Summary({ ws, d, date, onEdit }: { ws: Workspace; d: Day; date: string;
   const lv = leaveOf(d.leave);
   const off = d.offAt != null ? hhmm(d.offAt) : d.pending ? hhmm(d.pending.guessOff) : last?.on != null ? '근무 중' : '';
   return (
-    <section className="m-dsum">
-      <button className="m-dsum-r" onClick={onEdit} aria-label="출퇴근 고치기">
+    <section className={`m-dsum${open ? ' open' : ''}`}>
+      <button className="m-dsum-r" onClick={onToggle} aria-expanded={open} aria-label={open ? '출퇴근 접기' : '출퇴근 펼치기'}>
         <span className="m-dsum-rg">
           {d.onAt != null ? <>{hhmm(d.onAt)}<em>→</em>{off}{rows.length > 1 && <i>{rows.length}차</i>}</> : <span className="m-hint">출근 기록 없음</span>}
+          {d.leave && <i className="lv" style={{ color: lv[2] }}>{lv[1]}</i>}
         </span>
         <span className="m-dsum-n">
           <b className={work > 0 && work >= goal ? 'hit' : ''}>{fmtDur(work)}</b>
           <small>휴게 {fmtDur(p.breakMs / 60000)}</small>
         </span>
-        <i className="m-chev" aria-hidden="true">›</i>
+        <i className={`m-acc-c${open ? ' on' : ''}`} aria-hidden="true">⌄</i>
       </button>
-      <label className={`m-lv${d.leave ? ' on' : ''}`} style={lv[2] ? { '--lv': lv[2] } as React.CSSProperties : undefined}>
-        <i aria-hidden="true" />{lv[1]} ▾
-        <select aria-label="근태" value={d.leave} onChange={(e) => ws.onLeave(date, e.target.value as Leave)}>
-          {LEAVES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-        </select>
-      </label>
+      {open && (
+        <div className="m-dsum-d">
+          {children}
+          <label className="m-dsum-lv">
+            <span>근태</span>
+            <span className={`m-lv${d.leave ? ' on' : ''}`} style={lv[2] ? { '--lv': lv[2] } as React.CSSProperties : undefined}>
+              <i aria-hidden="true" />{lv[1]} ▾
+              <select aria-label="근태" value={d.leave} onChange={(e) => ws.onLeave(date, e.target.value as Leave)}>
+                {LEAVES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </select>
+            </span>
+          </label>
+        </div>
+      )}
     </section>
   );
 }

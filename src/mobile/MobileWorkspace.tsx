@@ -3,8 +3,8 @@
  *
  * ★ 데이터 · 동기화 · 버튼 동작은 PC 와 같은 것(`useWorkspace`)을 쓴다. 여기서 다시 만들지 않는다.
  *   그래서 폰에서 누른 것(출퇴근 · 타이머 · 할 일 · 시간 기록)이 PC 에 그대로 보이고, 그 반대도 같다.
- * ★ 메뉴는 PC 레일과 같다 (2026-10-28 소유자): 근태 · 활동 · 팀 · 저장됨 · 설정 (설정은 PC 처럼 맨 끝).
- *   근태 안은 PC 처럼 «전체 · 주간», 날을 누르면 그 날 상세가 위로 열린다. 닫기는 하단 «근태» (따로 뒤로 단추를 두지 않는다)
+ * ★ 메뉴는 PC 레일과 같다 (2026-10-28 소유자): 홈 · 활동 · 팀 · 저장됨 · 설정 (설정은 PC 처럼 맨 끝).
+ *   홈 안은 PC 처럼 «전체 · 주간», 날을 누르면 그 날 상세가 위로 열린다. 닫기는 하단 «홈» (따로 뒤로 단추를 두지 않는다)
  * ★ 머리의 타이머 알약은 PC 머리의 미니 타이머와 같다 — 늘 보이고, 누르면 집중 타이머로
  * ★ 모양만 다르다 — 한 손으로 누르기 좋게. 클래스는 전부 `m-` 로 시작해 PC(v3)와 안 섞인다. 색 · 글꼴은 v3 토큰
  */
@@ -21,7 +21,7 @@ import { HabitChips } from './parts';
 import './mobile.css';
 
 type Tab = 'att' | 'dash' | 'team' | 'later' | 'set';
-const TITLE: Record<Tab, string> = { att: '근태', dash: '활동', team: '팀', later: '저장됨', set: '설정' };
+const TITLE: Record<Tab, string> = { att: '홈', dash: '활동', team: '팀', later: '저장됨', set: '설정' };
 
 export function MobileWorkspace({ ws }: { ws: Workspace }) {
   const [tab, setTab] = useState<Tab>('att');
@@ -51,7 +51,7 @@ export function MobileWorkspace({ ws }: { ws: Workspace }) {
 
       <main className="m-body" ref={body}>
         {tab === 'att' && <>
-          <div className="m-seg" role="tablist" aria-label="근태 보기">
+          <div className="m-seg" role="tablist" aria-label="홈 보기">
             <button role="tab" aria-selected={view === 'all'} className={view === 'all' ? 'on' : ''} onClick={() => setView('all')}>전체</button>
             <button role="tab" aria-selected={view === 'week'} className={view === 'week' ? 'on' : ''} onClick={() => setView('week')}>주간</button>
           </div>
@@ -76,8 +76,8 @@ export function MobileWorkspace({ ws }: { ws: Workspace }) {
       )}
 
       <nav className="m-tabs" aria-label="메뉴">
-        <TabBtn on={tab === 'att'} onClick={() => { setTab('att'); setDay(null); }} label="근태"
-          icon={<><circle cx="10" cy="10" r="7.1" /><path d="M10 5.7v4.5l3 1.8" /></>} />
+        <TabBtn on={tab === 'att'} onClick={() => { setTab('att'); setDay(null); }} label="홈"
+          icon={<path d="M3.2 8.6 10 3.2l6.8 5.4V16a1.2 1.2 0 0 1-1.2 1.2h-3.3v-4.8H7.7v4.8H4.4A1.2 1.2 0 0 1 3.2 16V8.6Z" />} />
         <TabBtn on={tab === 'dash'} onClick={() => { setTab('dash'); setDay(null); }} label="활동"
           icon={<path d="M4 16.2V9.4M10 16.2V3.8M16 16.2v-4.6" />} />
         <TabBtn on={tab === 'team'} onClick={() => { setTab('team'); setDay(null); }} label="팀"
