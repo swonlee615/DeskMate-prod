@@ -6,6 +6,7 @@ import type { Workspace } from '../app/useWorkspace';
 import { GOAL_HOURS } from '../app/useWorkspace';
 import { PRESETS } from '../app/usePomodoro';
 import { dayGoalMin, dayParts, openBreak, sessions } from '../domain/attendance/rules';
+import { catVar, nextColor, timeline } from '../domain/attendance/logs';
 import { ddLabel, ddLive, ddPinned } from '../domain/dday';
 import { addDays, dateOf, fmtClock, fmtDur, hhmm, keyOf, mmss, weekStart, weekTag } from '../ui/v3fmt';
 import { HabitChips, Pend, Todos } from './parts';
@@ -26,16 +27,19 @@ export function MToday({ ws, goDay }: { ws: Workspace; goDay: (date: string, edi
       {ws.unavailable && <p className="m-note">오프라인이라 이 기기에서 열어 본 적 없는 날은 불러올 수 없어요.</p>}
       {ws.pendingDays.length > 0 && <Pend ws={ws} date={ws.pendingDays[0]} onEdit={() => goDay(ws.pendingDays[0], true)} />}
 
-      <section className="m-card m-today" aria-label="오늘 근태">
+      <section className={`m-hero ${state}`} aria-label="오늘 근태">
         <div className="m-state">
           <i className={`m-dot ${state}`} aria-hidden="true" />
           <b>{STATE_LABEL[state]}</b>
-          {brk && <span>{mmss((now - brk.s) / 1000)}째</span>}
-          {day.onAt != null && <span className="m-sp-r">출근 {hhmm(day.onAt)}{ses.length > 1 ? ` · ${ses.length}차` : ''}</span>}
+          {brk && <span>· {mmss((now - brk.s) / 1000)}째</span>}
+          {day.onAt != null && <span className="m-sp-r">{hhmm(day.onAt)} 출근{ses.length > 1 ? ` · ${ses.length}차` : ''}</span>}
         </div>
-        <div className="m-big"><b>{fmtDur(work)}</b><span>/ {+(goal / 60).toFixed(1)}시간</span></div>
-        <div className={`m-bar${work > 0 && work >= goal ? ' hit' : ''}`}><i style={{ width: `${pct}%` }} /></div>
-        <div className="m-meta"><span>휴게 <b>{fmtDur(parts.breakMs / 60000)}</b> · 뽀모도로 <b>{day.pomos ?? 0}회</b></span><span>{Math.round(pct)}%</span></div>
+        <div className="m-big">
+          <Dur min={work} />
+          <span>/ {+(goal / 60).toFixed(1)}시간 · {Math.round(pct)}%</span>
+        </div>
+        <Ribbon ws={ws} onOpen={() => goDay(ws.today)} />
+        <div className="m-meta"><span>휴게 <b>{fmtDur(parts.breakMs / 60000)}</b></span><span>뽀모도로 <b>{day.pomos ?? 0}회</b></span></div>
 
         <div className="m-actions">
           {state === 'none' && <button className="m-btn go" onClick={ws.onOn}>출근</button>}
@@ -49,7 +53,7 @@ export function MToday({ ws, goDay }: { ws: Workspace; goDay: (date: string, edi
             <button className="m-btn off" onClick={ws.onOff}>퇴근</button>
           </>}
         </div>
-        <button className="m-link m-today-go" onClick={() => goDay(ws.today)}>오늘 시간표 · 고치기 ›</button>
+        <Desks ws={ws} />
       </section>
 
       <Timer ws={ws} />
@@ -59,6 +63,61 @@ export function MToday({ ws, goDay }: { ws: Workspace; goDay: (date: string, edi
       <Todos ws={ws} date={ws.today} area="memo" />
       <WeekSummary ws={ws} onDay={goDay} />
     </>
+  );
+}
+
+/** «3시간 42분» — 숫자는 굵게 크게, 단위는 작게 (fmtDur 글자 그대로 — v3 표기를 바꾸지 않는다) */
+export function Dur({ min, className }: { min: number; className?: string }) {
+  return (
+    <b className={`m-dur${className ? ` ${className}` : ''}`} aria-label={fmtDur(min)}>
+      {fmtDur(min).split(/(\d+)/).filter(Boolean).map((x, i) => (/\d/.test(x) ? <span key={i}>{x}</span> : <small key={i}>{x.trim()}</small>))}
+    </b>
+  );
+}
+
+/**
+ * 오늘이 지나온 자리 — 시간표 탭과 같은 timeline() 을 한 줄로. 누르면 시간표로
+ * 보이는 폭은 06–22시, 기록이 그 밖에 있으면 그만큼 넓힌다
+ */
+function Ribbon({ ws, onOpen }: { ws: Workspace; onOpen: () => void }) {
+  const tl = timeline(ws.day, ws.logs, ws.now);
+  const t = new Date(ws.now);
+  const nowM = t.getHours() * 60 + t.getMinutes();
+  const lo = Math.min(360, ...tl.map((x) => Math.floor(x.s / 60) * 60), Math.floor(nowM / 60) * 60);
+  const hi = Math.max(1320, ...tl.map((x) => Math.ceil(x.e / 60) * 60), Math.ceil((nowM + 1) / 60) * 60);
+  const at = (m: number) => `${((m - lo) / (hi - lo)) * 100}%`;
+  const w = (x: { s: number; e: number }) => `max(2px, ${((x.e - x.s) / (hi - lo)) * 100}%)`;
+  const ticks: number[] = [];
+  for (let h = Math.ceil(lo / 180) * 180; h <= hi; h += 180) ticks.push(h);
+  return (
+    <button className="m-rib" onClick={onOpen} aria-label="오늘 시간표 열기">
+      <span className="m-rib-l">
+        {tl.map((x, i) => (
+          <i key={i} className={`${x.kind}${x.live ? ' live' : ''}`} style={{
+            left: at(x.s), width: w(x),
+            ...(x.kind === 'slot' ? { '--c': catVar(x.color ?? nextColor(0)) } : {}),
+          } as React.CSSProperties} />
+        ))}
+        <u style={{ left: at(nowM) }} />
+      </span>
+      <span className="m-rib-t">{ticks.map((h) => <em key={h} style={{ left: at(h) }}>{String(h / 60).padStart(2, '0')}</em>)}</span>
+    </button>
+  );
+}
+
+/** 옆자리 — 지금 일하는 동료 (PC 사이드바와 같은 ws.mates). «혼자 일하지만 출근해 있는 기분» */
+function Desks({ ws }: { ws: Workspace }) {
+  const on = ws.mates.filter((x) => x.st.presence === 'active' || x.st.presence === 'dnd');
+  const away = ws.mates.filter((x) => x.st.presence === 'break').length;
+  const show = on.slice(0, 5);
+  return (
+    <div className="m-desks">
+      <span className="m-desks-a" aria-hidden="true">
+        {show.map(({ m }) => <i key={m.id} style={{ background: m.color }}>{m.emoji || m.nick.slice(0, 1)}</i>)}
+        {on.length > show.length && <i className="more">+{on.length - show.length}</i>}
+      </span>
+      <span className="m-desks-t">{on.length ? <>지금 <b>{on.length}명</b>이 일하는 중{away ? ` · 자리 비움 ${away}` : ''}</> : '아직 아무도 출근하지 않았어요'}</span>
+    </div>
   );
 }
 

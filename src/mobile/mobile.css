@@ -29,22 +29,60 @@
 .m-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 14px; }
 .m-note, .m-empty { font-size: 13px; color: var(--text-dim); text-align: center; padding: 8px 0; }
 
-/* ── 오늘 카드 */
-.m-today { padding: 18px 18px 16px; }
-.m-state { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--text-muted); }
-.m-state b { color: var(--text-strong); font-size: 15px; }
-.m-sp-r { margin-left: auto; }
+/* ── 오늘 — 히어로는 PC 레일의 남색 위에 (라이트 · 다크 모두 같은 남색: PC 와 같은 앱으로 보이게) */
+.m-hero {
+  --on-ink: #fff; --on-dim: var(--rail-ic);
+  background: var(--rail); color: var(--on-dim);
+  border-radius: 18px; padding: 18px 18px 14px;
+  display: flex; flex-direction: column;
+}
+.m-state { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.m-state b { color: var(--on-ink); font-size: 14px; }
+.m-sp-r { margin-left: auto; font-variant-numeric: tabular-nums; }
 .m-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; background: transparent; box-shadow: inset 0 0 0 2px var(--text-dim); }
 .m-dot.work { background: var(--green); box-shadow: none; }
 .m-dot.break { background: var(--yellow); box-shadow: none; }
-.m-big { display: flex; align-items: baseline; gap: 8px; margin-top: 14px; }
-.m-big b { font-size: 40px; font-weight: 900; letter-spacing: -.5px; color: var(--text-strong); line-height: 1.1; }
-.m-big span { color: var(--text-muted); font-size: 15px; }
-.m-bar { height: 6px; border-radius: 3px; background: var(--surface-3); margin-top: 12px; overflow: hidden; }
-.m-bar i { display: block; height: 100%; background: var(--blue); border-radius: inherit; transition: width .4s; }
-.m-bar.hit i { background: var(--green); }
-.m-meta { display: flex; justify-content: space-between; margin-top: 8px; font-size: 13px; color: var(--text-muted); }
+.m-hero .m-dot.none, .m-hero .m-dot.off { box-shadow: inset 0 0 0 2px var(--on-dim); }
+.m-big { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; margin-top: 10px; }
+.m-big > span { font-size: 13px; font-variant-numeric: tabular-nums; }
+
+/* 숫자 · 단위 쪼개기 — «3시간 42분» 의 숫자만 크게 */
+.m-dur { display: inline-flex; align-items: baseline; gap: 2px; color: var(--on-ink, var(--text-strong)); font-weight: 900; font-variant-numeric: tabular-nums; }
+.m-dur span { font-size: 52px; line-height: 1; letter-spacing: -1.5px; }
+.m-dur small { font-size: 17px; font-weight: 700; color: var(--on-dim, var(--text-muted)); margin-right: 6px; }
+.m-dur small:last-child { margin-right: 0; }
+
+/* 하루 띠 — 시간표 탭과 같은 색 · 같은 구간 */
+.m-rib { display: block; width: 100%; margin-top: 16px; text-align: left; }
+.m-rib-l { position: relative; display: block; height: 22px; border-radius: 5px; background: rgba(255,255,255,.07); overflow: hidden; }
+.m-rib-l i { position: absolute; top: 0; bottom: 0; }
+.m-rib-l i.work { background: var(--green); opacity: .9; }
+.m-rib-l i.work.live { opacity: .6; }
+.m-rib-l i.off { background: repeating-linear-gradient(45deg, rgba(255,255,255,.14) 0 2px, transparent 2px 5px); }
+.m-rib-l i.break, .m-rib-l i.rest { background: var(--yellow); top: 4px; bottom: 4px; border-radius: 2px; }
+.m-rib-l i.rest { opacity: .55; }
+.m-rib-l i.slot { background: var(--c); top: auto; height: 5px; }
+.m-rib-l u { position: absolute; top: -2px; bottom: -2px; width: 2px; margin-left: -1px; background: var(--on-ink); border-radius: 1px; }
+.m-rib-t { position: relative; display: block; height: 16px; margin-top: 4px; }
+.m-rib-t em { position: absolute; transform: translateX(-50%); font-style: normal; font-size: 10px; font-variant-numeric: tabular-nums; }
+.m-rib-t em:first-child { transform: none; }
+.m-rib:focus-visible { outline: 2px solid var(--blue); outline-offset: 4px; border-radius: 6px; }
+
+.m-meta { display: flex; gap: 14px; margin-top: 6px; font-size: 13px; color: var(--text-muted); }
 .m-meta b { color: var(--text-strong); }
+.m-hero .m-meta { color: var(--on-dim); }
+.m-hero .m-meta b { color: var(--on-ink); }
+
+/* 옆자리 — 지금 일하는 동료 */
+.m-desks { display: flex; align-items: center; gap: 10px; margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,.08); font-size: 13px; }
+.m-desks-a { display: flex; flex: none; }
+.m-desks-a i {
+  width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center; font-style: normal;
+  font-size: 13px; font-weight: 900; color: #fff; box-shadow: 0 0 0 2px var(--rail);
+}
+.m-desks-a i + i { margin-left: -6px; }
+.m-desks-a i.more { background: color-mix(in srgb, #fff 16%, var(--rail)); font-size: 11px; }
+.m-desks-t b { color: var(--on-ink); }
 
 .m-actions { display: flex; gap: 8px; margin-top: 18px; }
 .m-btn {
@@ -55,6 +93,12 @@
 .m-btn.go { background: #007a5a; border-color: #007a5a; color: #fff; }
 .m-btn.rest { color: var(--yellow); }
 .m-btn.off { color: var(--red); }
+.m-hero .m-btn { background: rgba(255,255,255,.08); border-color: transparent; color: var(--on-ink); }
+.m-hero .m-btn.go { background: var(--green); }
+.m-hero .m-btn.rest { color: var(--yellow); }
+.m-hero .m-btn.off { color: #ff7a9c; }
+.m-hero .m-actions { margin-top: 16px; }
+.m-btn:focus-visible, .m-x:focus-visible, .m-link:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 
 /* ── 이번 주 요약 */
 .m-sum { padding: 14px 18px; }
@@ -220,7 +264,6 @@
 .m-toast.bad { background: var(--red); color: #fff; }
 .m-hint { font-size: 12px; color: var(--text-dim); }
 .m-bad { font-size: 13px; color: var(--red); }
-.m-today-go { display: block; margin: 14px auto 0; font-size: 14px; }
 .m-sum-t em { font-style: normal; font-weight: 400; margin-left: 4px; }
 
 /* ── 집중 타이머 (고리) */
