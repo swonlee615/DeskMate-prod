@@ -6,7 +6,8 @@
  * ★ 끝나는 순간은 열려 있는 기기가 모두 알아챈다. 그래서 다음 상태를 «끝난 시각» 에서만 계산한다
  *   (Date.now() 를 쓰지 않는다) — 어느 기기가 몇 번 써도 같은 값이고, 완료 이벤트 id 도 같아서 한 번만 센다.
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
+import { useTick } from './clock';
 
 export type PomoMode = 'focus' | 'short' | 'long';
 
@@ -47,18 +48,19 @@ export function nextPomo(x: PomoDoc, completed: boolean, noAuto: boolean, now: n
   return { ...x, mode, cycle, remain: len, endsAt };
 }
 
+/**
+ * 앱 전체가 들고 다니는 타이머 — 남은 시간 숫자는 들고 있지 않다 (그걸 매 0.25초 바꾸면 앱 전체가 다시 그려진다).
+ * 숫자가 필요한 조각은 `usePomoClock(t)` 로 그 자리에서 센다
+ */
 export interface Pomodoro {
   cfg: PomoCfg;
   mode: PomoMode;
   running: boolean;
-  /** 남은 초 (0 이상) */
-  remain: number;
+  /** 그 시각의 남은 초 (0 이상) */
+  remainAt: (now: number) => number;
   /** 지금 세션 길이 (초) */
   total: number;
-  /** 0~1 진행 */
-  pct: number;
   label: string;
-  clock: string;
   toggle: () => void;
   pause: () => void;
   skip: () => void;
@@ -79,7 +81,6 @@ export function usePomodoro(
   onAutoStart: (mode: PomoMode) => void,
 ): Pomodoro {
   const s = doc ?? POMO_DEFAULT;
-  const [, tick] = useState(0);
   const cb = useRef({ onFocusDone, onAutoStart, write });
   /** 이 기기가 이미 넘긴 세션 (끝나는 시각) — 저장이 화면에 돌아오기 전에 또 넘기지 않게 */
   const done = useRef<number | null>(null);
@@ -93,41 +94,54 @@ export function usePomodoro(
 
   const remainOf = (x: PomoDoc) => (x.endsAt != null ? Math.max(0, (x.endsAt - Date.now()) / 1000) : x.remain);
 
-  // 돌고 있을 때만 0.25초마다 들여다본다 (v3 _loop 와 같은 박자). 끝났으면 다음 세션으로
+  // 끝나는 순간에 한 번만 깨어난다 (예전엔 0.25초마다 들여다봤다 — 그때마다 앱 전체가 다시 그려졌다)
   useEffect(() => {
     if (s.endsAt == null) return;
-    const id = setInterval(() => {
-      if (s.endsAt != null && Date.now() >= s.endsAt) {
-        if (done.current === s.endsAt) return;
-        done.current = s.endsAt;
-        const n = nextPomo(s, true, false, Date.now());
-        if (s.mode === 'focus') cb.current.onFocusDone(s.endsAt, s.focusMin);
-        save(n);
-        if (n.endsAt != null) cb.current.onAutoStart(n.mode);
-      } else tick((t) => t + 1);
-    }, 250);
-    return () => clearInterval(id);
+    const fire = () => {
+      if (s.endsAt == null || done.current === s.endsAt) return;
+      done.current = s.endsAt;
+      const n = nextPomo(s, true, false, Date.now());
+      if (s.mode === 'focus') cb.current.onFocusDone(s.endsAt, s.focusMin);
+      save(n);
+      if (n.endsAt != null) cb.current.onAutoStart(n.mode);
+    };
+    // 잠든 탭은 타이머가 늦게 깨므로, 돌아왔을 때도 한 번 본다
+    const id = setTimeout(fire, Math.max(0, s.endsAt - Date.now()));
+    const onVis = () => { if (document.visibilityState === 'visible' && s.endsAt != null && Date.now() >= s.endsAt) fire(); };
+    document.addEventListener('visibilitychange', onVis);
+    return () => { clearTimeout(id); document.removeEventListener('visibilitychange', onVis); };
   }, [s, save]);
 
-  const remain = remainOf(s);
   const running = s.endsAt != null;
   const total = lenOf(s, s.mode);
-  const sec = Math.max(0, Math.ceil(remain));
   const { focusMin, shortMin, longMin, longEvery, autoStart } = s;
+  // 누르는 순간의 남은 시간 — 화면에 그려 둔 숫자가 아니라 지금 시각으로
+  const remain = () => remainOf(s);
 
   return {
     cfg: { focusMin, shortMin, longMin, longEvery, autoStart },
-    mode: s.mode, running, remain, total,
-    pct: total ? 1 - Math.max(0, remain) / total : 0,
+    mode: s.mode, running, total,
+    remainAt: (now: number) => (s.endsAt != null ? Math.max(0, (s.endsAt - now) / 1000) : s.remain),
     label: s.mode === 'focus' ? '집중' : s.mode === 'short' ? '짧은 휴식' : '긴 휴식',
-    clock: `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`,
     toggle: () => save(running
-      ? { ...s, remain, endsAt: null }
-      : { ...s, endsAt: Date.now() + remain * 1000 }),
-    pause: () => { if (running) save({ ...s, remain, endsAt: null }); },
-    skip: () => save(nextPomo({ ...s, remain }, false, true, Date.now())),
+      ? { ...s, remain: remain(), endsAt: null }
+      : { ...s, endsAt: Date.now() + remain() * 1000 }),
+    pause: () => { if (running) save({ ...s, remain: remain(), endsAt: null }); },
+    skip: () => save(nextPomo({ ...s, remain: remain() }, false, true, Date.now())),
     reset: () => save({ ...s, remain: total, endsAt: null }),
     // v3 setFocusMin — 돌고 있지 않으면 집중으로 새로 맞춘다
     setFocusMin: (n: number) => save(running ? { ...s, focusMin: n } : { ...s, focusMin: n, mode: 'focus', remain: n * 60, endsAt: null }),
+  };
+}
+
+/** 남은 시간 숫자 — 보여 주는 조각 안에서만 센다. 돌고 있을 때만 0.25초마다 (v3 _loop 박자) */
+export function usePomoClock(t: Pomodoro) {
+  const now = useTick(250, t.running);
+  const remain = t.remainAt(now);
+  const sec = Math.max(0, Math.ceil(remain));
+  return {
+    remain,
+    pct: t.total ? 1 - remain / t.total : 0,
+    clock: `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`,
   };
 }

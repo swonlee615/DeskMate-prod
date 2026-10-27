@@ -14,6 +14,7 @@ import { addBreakSpan, canCarry, editBreak, removeBreak, resolveAt, resolveCarry
 import { breakConflicts, logsOf, overlapIds, resolveConflicts, splitRest, type Log, type SpanInput, type SpanRef } from '../domain/attendance/logs';
 import { addDays, dateOf, fmtDur, keyOf, weekStart } from '../ui/v3fmt';
 import { buildTeam, leaderboard, ROSTER, STATUS_ORDER, statusAt, type LbRow, type Member, type MateStatus } from '../domain/sim/team';
+import { useMinute } from './clock';
 import { usePomodoro, type Pomodoro, type PomoDoc } from './usePomodoro';
 import { deleteChunk, inverseOf, triFix, triToggle, type Block, type Patch } from '../domain/todos/tree';
 import { ddCanPin, ddClean, ddLabel, type DDay } from '../domain/dday';
@@ -28,14 +29,6 @@ export const WEEKS_SHOWN = 5;
 
 const OFF_CANCEL = { day: '1분이 안 돼서 출근을 취소했어요', session: '1분이 안 돼서 이 차수를 취소했어요' };
 
-function useNow(ms = 1000) {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), ms);
-    return () => clearInterval(id);
-  }, [ms]);
-  return now;
-}
 
 /** 토스트 — 글자만, 또는 그 자리에서 되받을 단추 하나 (v3 toast · actToast) */
 export interface Toast { text: string; action?: { label: string; run: () => void }; bad?: boolean }
@@ -141,7 +134,8 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
   const repo: Repo = useMemo(() => backend.repoFor(user), [backend, user.uid]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => repo.dispose(), [repo]);
 
-  const now = useNow();
+  // 분 단위 — 초가 보이는 숫자는 그 조각이 따로 센다 (clock.ts)
+  const [now, bumpNow] = useMinute();
   const today = dateKey(now);
   const [sync, setSync] = useState<SyncStatus | null>(null);
   const [range, setRange] = useState<DayEvents>({ events: [], unavailable: false });
@@ -164,6 +158,8 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
     return [calTo, today, keyOf(addDays(dateOf(wpWeek), 6))].sort()[2];
   }, [today, calMonth, wpWeek]);
   useEffect(() => repo.watchRange(from, to, setRange), [repo, from, to]);
+  // 기록이 바뀌면(이 기기 버튼 · 다른 기기) 그 자리에서 다시 센다 — 다음 분까지 기다리지 않는다
+  useEffect(bumpNow, [range, bumpNow]);
   const [blocks, setBlocks] = useState<Block[]>([]);
   useEffect(() => repo.watchBlocks(from, to, (d) => setBlocks(d.blocks)), [repo, from, to]);
   const [logs, setLogs] = useState<Log[]>([]);

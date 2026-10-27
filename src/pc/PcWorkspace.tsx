@@ -4,6 +4,7 @@
  * ★ 모양의 원본은 v3 다. v3 styles.css 를 그대로 쓰고 마크업 · 클래스 · id 를 v3 와 같게 둔다.
  *   PC 창을 아무리 좁혀도 모바일 화면으로 바뀌지 않는다 — v3 의 3단 · 2단 · 1단(서랍) 으로만 바뀐다.
  */
+import { PomoClock } from '../ui/Live';
 import { useEffect, useState } from 'react';
 import type { Workspace } from '../app/useWorkspace';
 import { GOAL_HOURS } from '../app/useWorkspace';
@@ -150,7 +151,7 @@ export function PcWorkspace({ ws }: { ws: Workspace }) {
             <SyncBadge s={sync} />
             <button className="mini-pill" id="miniTimer" title="집중 타이머 열기" onClick={() => setPanelOpen((v) => !v)}>
               <svg viewBox="0 0 20 20" className="si"><circle cx="10" cy="10" r="7" /><path d="M10 5.8v4.4l2.9 1.7" /></svg>
-              <b id="miniClock">{ws.timer.clock}</b>
+              <b id="miniClock"><PomoClock t={ws.timer} /></b>
             </button>
           </header>
 

@@ -3,13 +3,14 @@
  * ★ PC 근태 «전체» 뷰(주별 표) + 우측 패널(집중 타이머)을 한 줄로 세운 것. 타이머는 PC 와 같은 하나다 (SYNC §9)
  * ★ 타이머 카드는 PC 부품(TimerCard · v3 다이얼) 그대로 — 모양이 PC 최신과 늘 같다
  */
+import { Since } from '../ui/Live';
 import { useState } from 'react';
 import type { Workspace } from '../app/useWorkspace';
 import { GOAL_HOURS, WEEKS_SHOWN } from '../app/useWorkspace';
 import type { Day, Leave } from '../domain/attendance/types';
 import { dayGoalMin, dayParts, openBreak, sessions, workMinutes } from '../domain/attendance/rules';
 import { catVar, nextColor, timeline } from '../domain/attendance/logs';
-import { addDays, dateOf, fmtClock, fmtDur, hhmm, keyOf, leaveOf, LEAVES, mmss, rowDate, weekLabel, weekStart, weekTag } from '../ui/v3fmt';
+import { addDays, dateOf, fmtClock, fmtDur, hhmm, keyOf, leaveOf, LEAVES, rowDate, weekLabel, weekStart, weekTag } from '../ui/v3fmt';
 import { TimerCard } from '../pc/TimerCard';
 import { attDotCls } from '../pc/Worklog';
 import { HabitChips, Pend } from './parts';
@@ -35,7 +36,7 @@ export function MToday({ ws, goDay }: { ws: Workspace; goDay: (date: string, edi
         <div className="m-state">
           <i className={`m-dot ${state}`} aria-hidden="true" />
           <b>{STATE_LABEL[state]}</b>
-          {brk && <span>· {mmss((now - brk.s) / 1000)}째</span>}
+          {brk && <span>· <Since at={brk.s} />째</span>}
           {day.onAt != null && <span className="m-sp-r">{hhmm(day.onAt)} 출근{ses.length > 1 ? ` · ${ses.length}차` : ''}</span>}
         </div>
         <div className="m-big">

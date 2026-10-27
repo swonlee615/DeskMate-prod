@@ -5,11 +5,12 @@
  *   스타일은 v3 styles.css 를 그대로 쓰므로, 여기서 모양을 바꾸지 않는다.
  *   일간 상세는 DayPage.tsx · 주간 탭은 WeekPlanner.tsx. 아직 안 옮긴 것: D-Day/습관 칸 · 비고의 시간 기록 분류 · 줄 우클릭 삭제
  */
+import { Since } from '../ui/Live';
 import { useLayoutEffect, useRef, useState } from 'react';
 import type { Day, Leave } from '../domain/attendance/types';
 import { dayGoalMin, dayParts, openBreak, sessions } from '../domain/attendance/rules';
 import {
-  addDays, dateOf, fmtClock, fmtDur, hhmm, keyOf, leaveOf, LEAVES, mmss, rowDate, weekLabel, weekStart, weekTag,
+  addDays, dateOf, fmtClock, fmtDur, hhmm, keyOf, leaveOf, LEAVES, rowDate, weekLabel, weekStart, weekTag,
 } from '../ui/v3fmt';
 
 import { WEEKS_SHOWN } from '../app/useWorkspace';
@@ -178,7 +179,7 @@ function Row({ k, d, isToday, now, nowD, goalHours, onLeave, onOpen }: {
   if (d?.pending) note.push(<em key="pend" className="pendtag">확인 필요</em>);
   if (d?.carriedFrom) note.push('이어짐');
   if (ses.length > 1) note.push(`출근 ${ses.length}회`);
-  if (brk) note.push(<span key="rest" className="rest-live" title="지금 쉬는 중이에요">{mmss((now - brk.s) / 1000)}</span>);
+  if (brk) note.push(<span key="rest" className="rest-live" title="지금 쉬는 중이에요"><Since at={brk.s} /></span>);
   const rd = rowDate(k, nowD);
   const work = d ? workMinutes(d, now) : 0;
 

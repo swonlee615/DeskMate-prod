@@ -4,9 +4,10 @@
  * ★ 마크업 · id 는 v3 와 같다. 스타일은 v3 styles.css 가 칠한다.
  *   습관 고리는 Habits.tsx (HabitRings) · 오늘 근무 랭킹은 Team.tsx (Ranking)
  */
+import { Since } from '../ui/Live';
 import type { Day } from '../domain/attendance/types';
 import { dayGoalMin, dayParts, openBreak } from '../domain/attendance/rules';
-import { fmtDur, hhmm, mmss } from '../ui/v3fmt';
+import { fmtDur, hhmm } from '../ui/v3fmt';
 
 interface Props {
   day: Day;
@@ -39,7 +40,7 @@ export function TodayPanelBody({ day, now, goalHours, onOn, onOff, onRest }: Pro
             title={offTitle} onClick={onOff}>Off</button>
         </div>
         <button className={`btn rest${open ? ' on' : ''}`} id="btnRest" disabled={!working} title={offTitle} onClick={onRest}>
-          {open ? `☕️ ${mmss((now - open.s) / 1000)} · 종료` : '☕️ 휴식 시작'}
+          {open ? <>☕️ <Since at={open.s} /> · 종료</> : '☕️ 휴식 시작'}
         </button>
         <div className="onoff-stat">
           <div><b id="wlWork">{fmtDur(work)}</b><span>근무</span></div>

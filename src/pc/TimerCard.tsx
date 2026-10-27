@@ -5,7 +5,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import type { Pomodoro } from '../app/usePomodoro';
-import { PRESETS } from '../app/usePomodoro';
+import { PRESETS, usePomoClock } from '../app/usePomodoro';
 import { DIAL, dialFace, dialPt, dialSpan, dialWedge } from './dial';
 
 /** @param onDraft 「직접」 입력 중인지 — v3 는 `#panelTimer.pre-draft` 로 시계 · 다이얼 색을 바꾼다 */
@@ -23,11 +23,12 @@ export function TimerCard({ t, onSet, onDraft }: { t: Pomodoro; onSet: (msg: str
     t.setFocusMin(n);
     if (!fromInput) onSet(`집중 시간을 ${n}분으로 맞췄어요`);
   };
+  const live = usePomoClock(t);
   const knob = t.running ? '일시정지' : t.mode === 'focus' ? '집중 시작' : '휴식 시작';
 
   return (
     <div className="timer-card">
-      <Dial total={preview ? draftN * 60 : t.total} remain={preview ? draftN * 60 : t.remain} brk={!preview && t.mode !== 'focus'}>
+      <Dial total={preview ? draftN * 60 : t.total} remain={preview ? draftN * 60 : live.remain} brk={!preview && t.mode !== 'focus'}>
         <button className="dial-knob" id="btnStart" type="button" aria-label={knob} data-tip={knob} onClick={t.toggle}>
           {t.running ? ICON_PAUSE : ICON_PLAY}
         </button>
@@ -37,7 +38,7 @@ export function TimerCard({ t, onSet, onDraft }: { t: Pomodoro; onSet: (msg: str
           <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 10a6 6 0 1 0 2-4.5" /><path d="M4 3.5V7h3.5" /></svg>
         </button>
         <div className="t-time">
-          <b id="clock">{preview ? `${String(draftN).padStart(2, '0')}:00` : t.clock}</b>
+          <b id="clock">{preview ? `${String(draftN).padStart(2, '0')}:00` : live.clock}</b>
           <small id="tmode">{draft != null ? '집중 — 입력 중' : `${t.label}${t.running ? ' 중' : ' 대기'}`}</small>
         </div>
         <button className="dial-ic" id="btnSkip" type="button" aria-label="건너뛰기" data-tip="건너뛰기" onClick={t.skip}>
