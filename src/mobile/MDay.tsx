@@ -372,12 +372,19 @@ function SpanSheet({ ws, date, d, o, onClose }: { ws: Workspace; date: string; d
           <button className={isSlot ? '' : 'on'} onClick={() => { setKind('break'); if (!log) setColor(null); }}>☕️ 휴게</button>
         </div>
       )}
-      <p className="m-hint">{isSlot ? '무엇을 했는지 남겨요 · 근무시간에 들어가요' : brkEm}</p>
+      <p className="m-hint m-span-why">{isSlot ? '무엇을 했는지 남겨요 · 근무시간에 들어가요' : brkEm}</p>
       <input className="m-field" autoComplete="off" placeholder={isSlot ? '무엇을 했나요? (필수)' : '메모 (선택)'} value={text} onChange={(x) => setText(x.target.value)}
         onKeyDown={(x) => { if (x.key === 'Enter' && !x.nativeEvent.isComposing && !locked) save(); }} />
-      {!isSlot && (
-        <div className="m-chips wrap">{MEMO_CHIPS.map((m) => <button key={m} className={text === m ? 'on' : ''} onClick={() => setText(m)}>{m}</button>)}</div>
-      )}
+      {/* 기록 = 카테고리 · 휴게 = 메모 칩 — 같은 높이의 한 줄이라 종류를 바꿔도 시트 높이가 그대로 */}
+      <div className="m-span-row">
+        {isSlot
+          ? <>
+              <span className="m-span-lb">카테고리</span>
+              {/* PC 와 같이 지금 색 하나 (이름 붙이기 · 고르기는 설정 → 시간 기록을 옮길 때) */}
+              <span className="m-cat"><i style={{ background: color ?? nextColor(0) }} />이름 없음</span>
+            </>
+          : MEMO_CHIPS.map((m) => <button key={m} className={`m-chip${text === m ? ' on' : ''}`} onClick={() => setText(m)}>{m}</button>)}
+      </div>
       <div className="m-sheet-f">
         {o.ref && <button className="m-btn off" onClick={() => { ws.deleteSpan(date, o.ref as SpanRef); onClose(); }}>삭제</button>}
         <button className="m-btn go" disabled={locked} onClick={save}>저장</button>

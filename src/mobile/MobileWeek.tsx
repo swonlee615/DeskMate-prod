@@ -12,6 +12,7 @@ import { descendants, rangeRate } from '../domain/todos/tree';
 import { addItem, listGroups, moveItem, weekDays, weekItems, weekKeyOf, type Change, type WGroup, type WItem } from '../domain/todos/week';
 import { addDays, dateOf, DOW, keyOf, weekTag } from '../ui/v3fmt';
 import { workMinutes } from '../pc/Worklog';
+import { CloseX } from './parts';
 
 const md = (k: string) => { const d = dateOf(k); return `${d.getMonth() + 1}/${d.getDate()}`; };
 
@@ -141,7 +142,7 @@ function MoveSheet({ it, keys, items, today, onMove, onDelete, onClose }: {
   return (
     <div className="m-sheet-bg" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="m-sheet" role="dialog" aria-label="할 일 옮기기">
-        <div className="m-sheet-h"><b className="m-sheet-it">{it.b.text || '(빈 할 일)'}</b><span className="m-sp" /><button className="m-link" onClick={onClose}>닫기</button></div>
+        <div className="m-sheet-h"><b className="m-sheet-it">{it.b.text || '(빈 할 일)'}</b><span className="m-sp" /><CloseX onClick={onClose} /></div>
         <div className="m-sheet-sub">날짜</div>
         <div className="m-pick">
           {keys.map((k) => (

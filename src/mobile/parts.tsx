@@ -3,19 +3,32 @@
  * ★ 동작은 전부 `ws` (useWorkspace) 를 부른다. 여기서 규칙을 새로 만들지 않는다
  */
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { Workspace } from '../app/useWorkspace';
 import { appendBlock, carriedInto, flatten, isHead, type BlockArea, type Row } from '../domain/todos/tree';
 import { hbOfDay } from '../domain/habits';
 import { addDays, dateOf, hhmm, keyOf, normTime } from '../ui/v3fmt';
 
+/** 닫기 — 글자 대신 ✕ */
+export const CloseX = ({ onClick }: { onClick: () => void }) => (
+  <button className="m-close" onClick={onClick} aria-label="닫기">
+    <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5.5 5.5l9 9M14.5 5.5l-9 9" /></svg>
+  </button>
+);
+
+/**
+ * 아래에서 올라오는 시트. ★ body 에 바로 그린다 — 하루 상세 페이지 안에 그리면 그 층에 갇혀
+ * 하단 메뉴가 시트 아래쪽(저장 · 삭제 줄)을 덮었다
+ */
 export function Sheet({ title, sub, onClose, children }: { title: string; sub?: string; onClose: () => void; children: React.ReactNode }) {
-  return (
+  return createPortal(
     <div className="m-sheet-bg" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="m-sheet" role="dialog" aria-label={title}>
-        <div className="m-sheet-h"><b>{title}</b>{sub && <span>{sub}</span>}<span className="m-sp" /><button className="m-link" onClick={onClose}>닫기</button></div>
+        <div className="m-sheet-h"><b>{title}</b>{sub && <span>{sub}</span>}<span className="m-sp" /><CloseX onClick={onClose} /></div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
