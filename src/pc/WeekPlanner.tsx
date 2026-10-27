@@ -16,7 +16,6 @@ import {
 import { addDays, dateOf, fmtDur, hhmm, keyOf, leaveOf, weekTag } from '../ui/v3fmt';
 import { attDotCls, Calendar, CHEV, workMinutes } from './Worklog';
 import { NoteEditor } from './NoteEditor';
-import { DDayBox, type OpenDDay } from './DDay';
 
 const WD_EN = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 const WD_KO = ['월', '화', '수', '목', '금', '토', '일'];
@@ -39,7 +38,7 @@ const MEMO_IC = (
 
 interface Drag { id: string; el: HTMLElement; x: number; y: number; on: boolean; fromList: boolean; ghost?: HTMLDivElement }
 
-export function WeekPlanner({ ws, onOpenDay, onDD }: { ws: Workspace; onOpenDay: (date: string) => void; onDD: OpenDDay }) {
+export function WeekPlanner({ ws, onOpenDay, dday }: { ws: Workspace; onOpenDay: (date: string) => void; dday: React.ReactNode }) {
   const { blocks, days, now, today, wpWeek: wk } = ws;
   const keys = weekDays(wk);
   const isThis = wk === weekKeyOf(today);
@@ -344,7 +343,7 @@ export function WeekPlanner({ ws, onOpenDay, onDD }: { ws: Workspace; onOpenDay:
               </div>
             </div>
           </aside>
-          <section className="wp-ddc" aria-label="D-Day"><DDayBox ws={ws} onOpen={onDD} /></section>
+          <section className="wp-ddc" aria-label="D-Day">{dday}</section>
         </div>
       </div>
     </div>

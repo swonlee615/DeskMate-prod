@@ -3,11 +3,13 @@
  *   전체 뷰 캘린더 아래 · 주간 플래너 오른쪽(.wp-ddc) · 일간 상세 오른쪽 열
  * 줄을 누르면 창 하나(DDayModal)가 열린다 — 여는 길이 셋이어도 창은 하나. 스타일은 v3 styles.css
  */
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { Workspace } from '../app/useWorkspace';
 import { DD_MAX_NOTE, DD_MAX_TITLE, DD_PIN_MAX, ddDateLabel, ddDiff, ddLabel, ddLive, ddOfDay, ddPinned, type DDay } from '../domain/dday';
-import { DOW, dateOf, keyOf } from '../ui/v3fmt';
-import { CHEV } from './Worklog';
+import { hbLive, type Habit } from '../domain/habits';
+import { DOW, dateOf } from '../ui/v3fmt';
+import { DatePick, DD_EMO, EmojiField, shake } from './pickers';
+import { HabitRow, type OpenHabit } from './Habits';
 
 /** 창을 여는 손잡이 — null = 새로 만들기 */
 export type OpenDDay = (it: DDay | null) => void;
@@ -31,33 +33,54 @@ function DDayRow({ it, today, onOpen }: { it: DDay; today: string; onOpen: () =>
 }
 
 const DD_PER = 6;
+export type DDTab = 'dday' | 'habit';
 
-/** 전체 뷰 · 주간 — 6개씩 한 쪽, 넘치면 점 · 휠 · 끌기로 넘긴다 */
-export function DDayBox({ ws, onOpen }: { ws: Workspace; onOpen: OpenDDay }) {
-  const all = ddLive(ws.ddays, ws.today);
-  const pages: DDay[][] = [];
+/**
+ * 전체 뷰 · 주간 — 「D-Day · 습관」 탭 (v3.1.236 · 238). 6개씩 한 쪽, 넘치면 점 · 휠 · 끌기로 넘긴다.
+ * 쪽 번호는 탭마다 따로 기억한다
+ */
+export function DDayBox({ ws, tab, setTab, onOpen, onHabit }: {
+  ws: Workspace; tab: DDTab; setTab: (t: DDTab) => void; onOpen: OpenDDay; onHabit: OpenHabit;
+}) {
+  const hb = tab === 'habit';
+  const all = hb ? hbLive(ws.habits, ws.today) : ddLive(ws.ddays, ws.today);
+  const pages: (DDay | Habit)[][] = [];
   for (let i = 0; i < all.length; i += DD_PER) pages.push(all.slice(i, i + DD_PER));
   if (!pages.length) pages.push([]);
-  const [page, setPage] = useState(0);
-  const cur = Math.min(page, pages.length - 1);
+  const [pg, setPg] = useState<Record<DDTab, number>>({ dday: 0, habit: 0 });
+  const cur = Math.min(pg[tab], pages.length - 1);
   const ref = useRef<HTMLDivElement>(null);
+  const setPage = useCallback((i: number) => setPg((p) => (p[tab] === i ? p : { ...p, [tab]: i })), [tab]);
   const panAt = usePan(ref, setPage);
   const go = (i: number) => { setPage(i); const el = ref.current; if (el) el.scrollLeft = i * el.clientWidth; };
-  const open = (it: DDay) => { if (Date.now() - panAt.current < 260) return; onOpen(it); };   // 끌고 난 직후의 클릭은 여는 게 아니다
+  // 탭을 바꾸면 그 탭이 보던 쪽으로
+  useLayoutEffect(() => { const el = ref.current; if (el) { el.style.scrollBehavior = 'auto'; el.scrollLeft = cur * el.clientWidth; el.style.scrollBehavior = ''; } }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
+  const fresh = () => Date.now() - panAt.current >= 260;   // 끌고 난 직후의 클릭은 여는 게 아니다
+  const seg = useRef<HTMLDivElement>(null);
+  const [pill, setPill] = useState<{ x: number; w: number } | null>(null);
+  useLayoutEffect(() => {
+    const on = seg.current?.querySelector<HTMLButtonElement>('button.on');
+    if (on) setPill({ x: on.offsetLeft, w: on.offsetWidth });
+  }, [tab]);
   return (
     <div className="dd" id="ddFull">
       <div className="dd-h">
-        <div className="seg dd-seg" id="ddSeg" role="tablist">
-          <button type="button" role="tab" className="on" data-ddtab="dday" aria-selected="true">D-Day</button>
+        <div className="seg dd-seg has-pill" id="ddSeg" role="tablist" ref={seg}>
+          <i className="seg-pill" aria-hidden="true" style={pill ? { transform: `translateX(${pill.x}px)`, width: pill.w } : { opacity: 0 }} />
+          <button type="button" role="tab" className={hb ? '' : 'on'} data-ddtab="dday" aria-selected={!hb} onClick={() => setTab('dday')}>D-Day</button>
+          <button type="button" role="tab" className={hb ? 'on' : ''} data-ddtab="habit" aria-selected={hb} onClick={() => setTab('habit')}>습관</button>
         </div>
         <span className="sp" />
-        <button className="dd-mini" data-ddnew="1" title="D-Day 추가" onClick={() => onOpen(null)}>＋</button>
+        {hb ? <button className="dd-mini" data-hbnew="1" title="습관 추가" onClick={() => onHabit(null)}>＋</button>
+          : <button className="dd-mini" data-ddnew="1" title="D-Day 추가" onClick={() => onOpen(null)}>＋</button>}
       </div>
       <div className="dd-pages" id="ddPages" ref={ref}>
         {pages.map((p, i) => (
           <div key={i} className="dd-page">
-            {p.length ? p.map((it) => <DDayRow key={it.id} it={it} today={ws.today} onOpen={() => open(it)} />)
-              : <p className="dd-empty">다가오는 날을 하나 적어 두면 여기서 며칠 남았는지 보여드려요.</p>}
+            {p.length ? p.map((it) => it.kind === 'habit'
+              ? <HabitRow key={it.id} h={it} ws={ws} onOpen={() => { if (fresh()) onHabit(it); }} />
+              : <DDayRow key={it.id} it={it} today={ws.today} onOpen={() => { if (fresh()) onOpen(it); }} />)
+              : <p className="dd-empty">{hb ? '반복하고 싶은 일을 하나 적어 두면, 해당하는 날 오늘 패널에 나타나요.' : '다가오는 날을 하나 적어 두면 여기서 며칠 남았는지 보여드려요.'}</p>}
           </div>
         ))}
       </div>
@@ -146,22 +169,6 @@ export function DDayLines({ ws, date, onOpen }: { ws: Workspace; date: string; o
 
 // ───────────────────────────────────────────── 창 (v3 #ddModal)
 
-const DD_EMO = ['🚀', '📚', '💯', '🎂', '✈️', '📦', '🏁', '💍', '🩺', '🏠', '🎓', '📝', '⭐️'];
-const DD_EMO_MORE = [
-  '🚀','📚','💯','🎂','✈️','📦','🏁','💍','🩺','🏠','🎓','📝','⭐️','🔥','🎯','🏆',
-  '💼','📈','📉','🧾','🗓','⏰','⌛️','🔔','📌','🔖','✅','☑️','❗️','❓','💡','🔧',
-  '🧪','🧠','💻','🖥','⌨️','🖱','📱','☎️','📮','📬','🗂','📁','📊','🧮','🔍','🗝',
-  '🎉','🎈','🎁','🍰','🍱','🍜','☕️','🍺','🥂','🍎','🥗','🏃','🚴','🏋️','🧘','🛌',
-  '🌱','🌷','🌊','⛰','🌙','☀️','❄️','🌈','🐣','🐶','🐱','🦔','🚗','🚌','🚄','🛫',
-  '🏥','🏦','🏫','🏢','🛒','💰','💳','🧳','🎫','🪪','⚖️','🤝','👋','🙌','🙏','💬',
-];
-
-/** 여러 코드가 붙은 이모지(국기 · 가족)를 반쪽으로 자르지 않는다 — 글자 묶음 하나만 */
-const firstGrapheme = (raw: string) => {
-  const one = [...new Intl.Segmenter('ko', { granularity: 'grapheme' }).segment(raw)][0];
-  return (one?.segment ?? raw).slice(0, 8);
-};
-
 /**
  * @param it 고칠 것. null 이면 새로 만든다
  * @param date 새로 만들 때 처음 날짜 (열어 둔 날 · 없으면 오늘)
@@ -173,7 +180,6 @@ export function DDayModal({ ws, it, date, onClose }: { ws: Workspace; it: DDay |
   const [title, setTitle] = useState(it?.title ?? '');
   const [note, setNote] = useState(it?.note ?? '');
   const [day, setDay] = useState(it?.date ?? date);
-  const [more, setMore] = useState(false);
   const [cal, setCal] = useState(false);
   const [msg, setMsg] = useState('');
   // 아카이브하면 고정이 풀린다. 같은 창에서 다시 끄면 풀렸던 고정을 되살린다 (v3.1.227)
@@ -192,8 +198,7 @@ export function DDayModal({ ws, it, date, onClose }: { ws: Workspace; it: DDay |
   // 적던 것이 있으면 바깥을 눌러도 닫지 않고 알린다 (v3.1.158)
   const tryClose = () => {
     if (`${emoji}|${title}|${note}|${day}` === snap.current) { onClose(); return; }
-    const m = boxRef.current;
-    if (m) { m.classList.remove('shake'); void m.offsetWidth; m.classList.add('shake'); setTimeout(() => m.classList.remove('shake'), 420); }
+    shake(boxRef.current);
     ws.warn('적던 내용이 있어요 — 닫으려면 «취소» 를 눌러 주세요');
   };
   const save = () => {
@@ -214,35 +219,17 @@ export function DDayModal({ ws, it, date, onClose }: { ws: Workspace; it: DDay |
       ws.archiveDDay(live.id, true);
     }
   };
-  const pickEmo = (v: string) => setEmoji((e) => (e === v ? '' : v));   // 같은 것을 다시 누르면 «안 쓰기»
-  const row = DD_EMO.includes(emoji) || !emoji ? DD_EMO : [emoji, ...DD_EMO];   // 고른 것이 열세 개 밖이면 그 자리도 만든다
 
   return (
     <div className="modal-bg open" id="ddModal" onMouseDown={(e) => { if (e.target === e.currentTarget) tryClose(); }}
       onKeyDown={(e) => {
         if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); if (cal) setCal(false); else onClose(); }
-        if (e.key === 'Enter' && (e.target as HTMLElement).tagName === 'INPUT' && (e.target as HTMLElement).id !== 'ddEmoIn') { e.preventDefault(); save(); }
+        if (e.key === 'Enter' && (e.target as HTMLElement).tagName === 'INPUT' && !(e.target as HTMLElement).hasAttribute('data-emoin')) { e.preventDefault(); save(); }
       }}>
       <div className="modal" ref={boxRef} style={{ width: 'min(384px,92vw)' }}>
         <h3 id="ddTitle">{it ? 'D-Day 수정' : 'D-Day 추가'}</h3>
         <div className="modal-body">
-          <div className="field">
-            <label>이모지</label>
-            <div className="dd-emo" id="ddEmo">
-              {row.map((e) => <button key={e} type="button" data-ddemo={e} className={e === emoji ? 'on' : undefined} onClick={() => pickEmo(e)}>{e}</button>)}
-              <button type="button" className={`dd-emo-add${more ? ' on' : ''}`} id="ddEmoPlus" aria-label="이모지 더 고르기" title="더 고르기" onClick={() => setMore((v) => !v)}>＋</button>
-            </div>
-            {more && (
-              <div className="dd-emo-more" id="ddEmoMore">
-                <input id="ddEmoIn" placeholder="이모지를 직접 넣어도 돼요" maxLength={8} autoComplete="off" autoFocus
-                  onChange={(e) => { const v = e.target.value.trim(); if (v) { setEmoji(firstGrapheme(v)); setMore(false); } }}
-                  onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setMore(false); } }} />
-                <div className="dd-emo-grid" id="ddEmoGrid">
-                  {DD_EMO_MORE.map((e) => <button key={e} type="button" data-ddemo={e} className={e === emoji ? 'on' : undefined} onClick={() => { pickEmo(e); setMore(false); }}>{e}</button>)}
-                </div>
-              </div>
-            )}
-          </div>
+          <EmojiField id="dd" value={emoji} onChange={setEmoji} />
           <div className="field">
             <label htmlFor="ddName">타이틀</label>
             <input id="ddName" ref={nameRef} placeholder="예 · 제품 릴리스" maxLength={DD_MAX_TITLE} autoComplete="off" value={title} onChange={(e) => { setTitle(e.target.value); setMsg(''); }} />
@@ -280,54 +267,7 @@ export function DDayModal({ ws, it, date, onClose }: { ws: Workspace; it: DDay |
           <button className="btn primary" id="ddSave" onClick={save}>완료</button>
         </div>
       </div>
-      {cal && <DatePick value={day} today={ws.today} anchor={dateBtn} onPick={(k) => { setDay(k); setCal(false); setMsg(''); }} onClose={() => setCal(false)} />}
-    </div>
-  );
-}
-
-/** 앱의 달력(.dpick · 240px) 을 단추 아래에 띄운다 — <input type="date"> 는 크로미움이 그려서 앱과 다르다 (v3.1.151 · 156) */
-function DatePick({ value, today, anchor, onPick, onClose }: {
-  value: string; today: string; anchor: React.RefObject<HTMLButtonElement | null>; onPick: (k: string) => void; onClose: () => void;
-}) {
-  const [ym, setYm] = useState(() => { const d = dateOf(value || today); return new Date(d.getFullYear(), d.getMonth(), 1); });
-  const ref = useRef<HTMLDivElement>(null);
-  const place = () => {
-    const box = ref.current, btn = anchor.current;
-    if (!box || !btn) return;
-    const r = btn.getBoundingClientRect();
-    box.style.left = `${Math.max(8, Math.min(window.innerWidth - box.offsetWidth - 8, r.left))}px`;
-    const below = r.bottom + 6;
-    box.style.top = `${below + box.offsetHeight > window.innerHeight - 8 ? Math.max(8, r.top - box.offsetHeight - 6) : below}px`;
-  };
-  useLayoutEffect(place);
-  useEffect(() => {
-    const away = (e: MouseEvent) => {
-      const t = e.target as Node;
-      if (ref.current?.contains(t) || anchor.current?.contains(t)) return;
-      onClose();
-    };
-    document.addEventListener('mousedown', away, true);
-    window.addEventListener('resize', place);
-    return () => { document.removeEventListener('mousedown', away, true); window.removeEventListener('resize', place); };
-  });
-  const y = ym.getFullYear(), m = ym.getMonth();
-  const start = new Date(y, m, 1 - new Date(y, m, 1).getDay());
-  const cells = Array.from({ length: 42 }, (_, i) => new Date(start.getFullYear(), start.getMonth(), start.getDate() + i));
-  return (
-    <div className="dpick dd-pick" id="ddCal" ref={ref}>
-      <div className="dpk-h">
-        <button type="button" className="dpk-nav" aria-label="이전 달" onClick={() => setYm(new Date(y, m - 1, 1))}>{CHEV(-1)}</button>
-        <b>{y}년 {m + 1}월</b>
-        <button type="button" className="dpk-nav" aria-label="다음 달" onClick={() => setYm(new Date(y, m + 1, 1))}>{CHEV(1)}</button>
-      </div>
-      <div className="dpk-w">{DOW.map((w) => <span key={w}>{w}</span>)}</div>
-      <div className="dpk-g">
-        {cells.map((d) => {
-          const k = keyOf(d);
-          return <button key={k} type="button" className={`dpk-d${d.getMonth() === m ? '' : ' out'}${k === value ? ' on' : ''}${k === today ? ' today' : ''}`} onClick={() => onPick(k)}>{d.getDate()}</button>;
-        })}
-      </div>
-      <div className="dpk-q"><button type="button" className="dpk-lnk" onClick={() => onPick(today)}>오늘로</button></div>
+      {cal && <DatePick id="ddCal" value={day} today={ws.today} anchor={dateBtn} onPick={(k) => { setDay(k); setCal(false); setMsg(''); }} onClose={() => setCal(false)} />}
     </div>
   );
 }

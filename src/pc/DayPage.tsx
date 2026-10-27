@@ -3,7 +3,7 @@
  *
  * ★ 마크업 · 클래스 · id 는 v3 와 같다. 스타일은 v3 styles.css.
  * ★ 고치는 일은 전부 `ws.editDay(date, 순수함수)` 로 한다 — 함수는 src/domain/attendance/edit.ts (v3 이식)
- *   Today · Memo 는 NoteEditor.tsx. 아직 안 옮긴 것: 시간 기록 칸 끌어 그리기 (시간 기록 단계) · 습관 칩
+ *   Today · Memo 는 NoteEditor.tsx. 아직 안 옮긴 것: 시간 기록 칸 끌어 그리기 (시간 기록 단계)
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Workspace } from '../app/useWorkspace';
@@ -18,6 +18,7 @@ import { addDays, dateOf, DOW, dayLabel, fmtDur, hhmm, keyOf, leaveOf, LEAVES, n
 import { PendBanner } from './PendBanner';
 import { NoteEditor } from './NoteEditor';
 import { DDayLines, type OpenDDay } from './DDay';
+import { HabitStrip } from './Habits';
 
 const GSTEP = 5;        // 격자 한 칸 = 5분
 const GCOLS = 12;       // 한 줄 = 1시간
@@ -200,6 +201,7 @@ export function DayPage({ ws, date, full, onClose, onFull, onGo, focusOff, onDD 
 
           <div className="day-cols">
             <div className="day-left">
+              <HabitStrip ws={ws} date={date} />
               <NoteEditor ws={ws} date={date} area="today" title="Today" ph="할 일을 입력하세요"
                 icon={<svg className="nh-ic" viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="m2.4 10.3 2.1 2.1 3.8-4.5" /><path d="M10.4 8h7.2" /><path d="M10.4 12.6h7.2" /></svg>} />
               <NoteEditor ws={ws} date={date} area="memo" title="Memo" ph="메모를 입력하세요"

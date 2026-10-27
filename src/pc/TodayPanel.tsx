@@ -2,7 +2,7 @@
  * 우측 패널의 「근태」 · 「오늘 목표」 (v3 index.html `.panel` · renderOnOff · renderPanel)
  *
  * ★ 마크업 · id 는 v3 와 같다. 스타일은 v3 styles.css 가 칠한다.
- *   아직 안 옮긴 것: 위의 집중 타이머 카드 · 오늘 습관 · 오늘 근무 랭킹 (뽀모도로 · 동료 단계에서)
+ *   습관 고리는 Habits.tsx (HabitRings). 아직 안 옮긴 것: 오늘 근무 랭킹 (동료 단계에서)
  */
 import type { Day } from '../domain/attendance/types';
 import { dayGoalMin, dayParts, openBreak } from '../domain/attendance/rules';

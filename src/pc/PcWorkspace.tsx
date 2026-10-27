@@ -17,8 +17,10 @@ import { rangeRate } from '../domain/todos/tree';
 import { addDays, dateOf, keyOf, weekStart } from '../ui/v3fmt';
 import { PendBanner } from './PendBanner';
 import { WeekPlanner } from './WeekPlanner';
-import { DDayBox, DDayModal } from './DDay';
+import { DDayBox, DDayModal, type DDTab } from './DDay';
+import { HabitModal, HabitRings } from './Habits';
 import type { DDay } from '../domain/dday';
+import type { Habit } from '../domain/habits';
 import './pc.css';
 
 /** v3 applyLayout 과 같은 기준 — 3단 ≥840 · 2단 ≥600 · 1단. 우측 패널은 1360(사이드바 접으면 1180)부터 열로 붙는다 */
@@ -44,6 +46,11 @@ export function PcWorkspace({ ws }: { ws: Workspace }) {
   // D-Day 창 — 여는 길이 셋이어도 창은 하나, 일간 상세 «밖» 에 둔다 (v3 #ddModal)
   const [dd, setDd] = useState<{ it: DDay | null; date: string } | null>(null);
   const openDD = (date: string) => (it: DDay | null) => setDd({ it, date });
+  const [hb, setHb] = useState<{ h: Habit | null } | null>(null);
+  const openHb = (h: Habit | null) => setHb({ h });
+  // 「D-Day · 습관」 탭 — 전체 뷰와 주간이 같은 탭을 본다 (v3 S.ddTab)
+  const [ddTab, setDdTab] = useState<DDTab>('dday');
+  const ddBox = <DDayBox ws={ws} tab={ddTab} setTab={setDdTab} onOpen={openDD(today)} onHabit={openHb} />;
   const [sbOff, setSbOff] = useState(false);
   // ⌘Z — 글 칸 밖(체크를 누른 뒤 등)에서는 이 기기의 마지막 줄 동작을 되돌린다. 글 칸 안은 NoteEditor 가 맡는다
   const undoRef = ws.undoBlocks;
@@ -140,8 +147,8 @@ export function PcWorkspace({ ws }: { ws: Workspace }) {
           <Worklog days={days} today={today} now={now} goalHours={GOAL_HOURS}
             calMonth={ws.calMonth} setCalMonth={ws.setCalMonth} onLeave={ws.onLeave} unavailable={ws.unavailable}
             onOpenDay={openDay} hidden={!!dayKey && !asLayer}
-            week={<WeekPlanner ws={ws} onOpenDay={(k) => openDay(k)} onDD={openDD(today)} />}
-            dday={<DDayBox ws={ws} onOpen={openDD(today)} />}
+            week={<WeekPlanner ws={ws} onOpenDay={(k) => openDay(k)} dday={ddBox} />}
+            dday={ddBox}
             noteDates={new Set(ws.blocks.filter((b) => !b.deletedAt && b.text.trim() && (b.area === 'today' || b.area === 'memo')).map((b) => b.date))}
             todo={rangeRate(ws.blocks, keyOf(weekStart(dateOf(today))), keyOf(addDays(weekStart(dateOf(today)), 6)))}
             banner={pend.length > 0 && <PendBanner ws={ws} date={pend[0]} more={pend.length - 1} onEdit={() => openDay(pend[0], true)} />} />
@@ -158,11 +165,13 @@ export function PcWorkspace({ ws }: { ws: Workspace }) {
           <div className={`panel-body${preDraft ? ' pre-draft' : ''}`} id="panelTimer">
             <TimerCard t={ws.timer} onSet={(m) => ws.say(m)} onDraft={setPreDraft} />
             <TodayPanelBody day={day} now={now} goalHours={GOAL_HOURS} onOn={ws.onOn} onOff={ws.onOff} onRest={ws.onRest} />
+            <HabitRings ws={ws} />
           </div>
         </aside>
       </div>
 
       {dd && <DDayModal ws={ws} it={dd.it} date={dd.date} onClose={() => setDd(null)} />}
+      {hb && <HabitModal ws={ws} h={hb.h} onClose={() => setHb(null)} onSaved={() => setDdTab('habit')} />}
 
       <div className={`toast${ws.toast ? ' show' : ''}${ws.toast?.action ? ' has-undo' : ''}${ws.toast?.bad ? ' bad' : ''}`} id="toast" role="status">
         <span className="tm">{ws.toast?.text}</span>

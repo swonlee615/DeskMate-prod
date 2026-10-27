@@ -15,6 +15,7 @@ import { addDays, dateOf, keyOf, weekStart } from '../ui/v3fmt';
 import { usePomodoro, type Pomodoro } from './usePomodoro';
 import { deleteChunk, inverseOf, triFix, triToggle, type Block, type Patch } from '../domain/todos/tree';
 import { ddCanPin, ddClean, ddLabel, type DDay } from '../domain/dday';
+import { HB_MAX, hbClean, hbDoneAt, hbFreqLabel, type Habit, type HbInput, type OffDay } from '../domain/habits';
 
 export const GOAL_HOURS = 8; // 설정 화면을 옮기기 전까지 v3 기본값
 /** 근태 표가 보여 주는 주 수 (이번 주 포함) */
@@ -98,6 +99,17 @@ export interface Workspace {
   /** 아카이브 = «저장됨» 으로 옮김 (고정은 풀린다) · 끄면 목록으로 */
   archiveDDay: (id: string, on: boolean) => void;
   deleteDDay: (id: string) => void;
+  // ── 습관 (v3 hb* · PRD §2-1-3)
+  habits: Habit[];
+  /** 그 날이 쉬는 날(연차 · 병가)인가 — 받아 둔 기간 밖은 근무일로 본다 */
+  offDay: OffDay;
+  /** 잘못된 입력이면 그 이유, 저장했으면 null */
+  saveHabit: (id: string | null, v: HbInput) => string | null;
+  archiveHabit: (id: string, on: boolean) => void;
+  /** 정의와 기록을 함께 걷는다 (되돌리기 있음) */
+  deleteHabit: (id: string) => void;
+  /** 체크 · 해제 — 오늘 패널 · 일간 상세가 같이 쓴다 */
+  toggleHabit: (id: string, date: string) => void;
   nick: string;
   initial: string;
   presence: 'active' | 'break' | 'offline';
@@ -330,6 +342,38 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
     say('삭제했어요', { label: '되돌리기', run: () => { repo.patchItem(id, { deletedAt: null }); setToast(null); } });
   };
 
+  // ── 습관
+  const habits = useMemo(() => items.filter((x): x is Habit & Item => x.kind === 'habit' && !x.deletedAt), [items]);
+  // ponytail: 받아 둔 기간(표 5주 + 캘린더 달)의 근태만 안다. 그 밖의 연차는 달성률에서 근무일로 센다 — 활동(내 분석)을 옮길 때 기간을 넓힌다
+  const offDay: OffDay = (k) => { const lv = days[k]?.leave; return lv === '연차' || lv === '병가'; };
+  const saveHabit: Workspace['saveHabit'] = (id, v) => {
+    const c = hbClean(v);
+    if (!c) return v.title.trim() ? '요일을 하나 이상 골라 주세요.' : '어떤 습관인지 적어 주세요.';
+    if (id) {
+      if (!habits.some((h) => h.id === id)) return '저장하지 못했어요.';
+      repo.patchItem(id, { ...c });
+    } else {
+      if (habits.filter((h) => !h.archivedAt).length >= HB_MAX) return `습관은 ${HB_MAX}개까지 만들 수 있어요 — 하나를 보관하거나 지워 주세요.`;
+      repo.addItem({ id: newId(), kind: 'habit', ...c, createdAt: Date.now(), archivedAt: null } as Habit);
+    }
+    say(`${c.emoji ? c.emoji + ' ' : ''}${c.title} · ${hbFreqLabel(c)}`);
+    return null;
+  };
+  const archiveHabit = (id: string, on: boolean) => {
+    const h = habits.find((x) => x.id === id);
+    if (!h) return;
+    repo.patchItem(id, { archivedAt: on ? Date.now() : null });
+    say(on ? `「${h.title}」을 저장됨으로 보냈어요` : `「${h.title}」을 습관 목록으로 되돌렸어요`);
+  };
+  const deleteHabit = (id: string) => {
+    repo.patchItem(id, { deletedAt: Date.now() });
+    say('습관과 기록을 지웠어요', { label: '되돌리기', run: () => { repo.patchItem(id, { deletedAt: null }); setToast(null); } });
+  };
+  const toggleHabit = (id: string, date: string) => {
+    const h = habits.find((x) => x.id === id);
+    if (h) repo.patchItem(id, { [`done.${date}`]: hbDoneAt(h, date) ? null : Date.now() });
+  };
+
   const nick = user.name ?? user.email?.split('@')[0] ?? '나';
 
   return {
@@ -338,6 +382,7 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
     onOn, onOff, onRest, onLeave, dayOf, editDay, pendingDays, resolvePending, canCarry: canCarryFor,
     blocks, addBlock, patchBlocks, editBlocks, undoBlocks, lastEditAt, toggleBlock, removeBlock, newId,
     ddays, saveDDay, pinDDay, archiveDDay, deleteDDay,
+    habits, offDay, saveHabit, archiveHabit, deleteHabit, toggleHabit,
     nick, initial: nick.slice(0, 1).toUpperCase(),
     presence: state === 'break' ? 'break' : state === 'work' ? 'active' : 'offline',
   };
