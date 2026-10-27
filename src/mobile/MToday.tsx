@@ -1,7 +1,7 @@
 /**
  * 모바일 근태 › 전체 — 지금 상태 · 근태 버튼 · 집중 타이머 · 습관 · 주별 근태 표 · D-Day/습관 상자
  * ★ PC 근태 «전체» 뷰(주별 표) + 우측 패널(집중 타이머)을 한 줄로 세운 것. 타이머는 PC 와 같은 하나다 (SYNC §9)
- * ★ 타이머 카드는 PC 부품(TimerCard · v3 다이얼) 그대로 — 모양이 PC 최신과 늘 같다
+ * ★ 타이머는 PC 다이얼(부채꼴)을 그대로 쓰고 둘레만 폰에 맞춘 MTimer
  */
 import { Since } from '../ui/Live';
 import { useState } from 'react';
@@ -11,7 +11,7 @@ import type { Day, Leave } from '../domain/attendance/types';
 import { dayGoalMin, dayParts, openBreak, sessions, workMinutes } from '../domain/attendance/rules';
 import { catVar, nextColor, timeline } from '../domain/attendance/logs';
 import { addDays, dateOf, fmtClock, fmtDur, hhmm, keyOf, leaveOf, LEAVES, rowDate, weekLabel, weekStart, weekTag } from '../ui/v3fmt';
-import { TimerCard } from '../pc/TimerCard';
+import { MTimer } from './MTimer';
 import { attDotCls } from '../pc/Worklog';
 import { HabitChips, Pend } from './parts';
 import { PlansBox } from './MPlans';
@@ -61,9 +61,7 @@ export function MToday({ ws, goDay }: { ws: Workspace; goDay: (date: string, edi
         <Desks ws={ws} />
       </section>
 
-      <section className="m-card m-timer" id="m-timer" aria-label="집중 타이머">
-        <TimerCard t={ws.timer} onSet={(m) => ws.say(m)} onDraft={() => {}} />
-      </section>
+      <MTimer ws={ws} />
       <HabitChips ws={ws} date={ws.today} />
       <Weeks ws={ws} onDay={goDay} />
       <PlansBox ws={ws} />

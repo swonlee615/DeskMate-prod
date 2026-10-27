@@ -70,7 +70,7 @@ const ICON_PLAY = <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6.5 3.8v
 const ICON_PAUSE = <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="5" y="3.5" width="3.6" height="13" rx="1.2" fill="currentColor" /><rect x="11.4" y="3.5" width="3.6" height="13" rx="1.2" fill="currentColor" /></svg>;
 
 /** 다이얼 판 — 눈금 · 부채꼴(남은 시간) · 바늘. 색은 `--tc` (타이머 색 설정은 설정 화면을 옮길 때) */
-function Dial({ total, remain, brk, children }: { total: number; remain: number; brk: boolean; children: React.ReactNode }) {
+export function Dial({ total, remain, brk, children }: { total: number; remain: number; brk: boolean; children: React.ReactNode }) {
   const span = dialSpan(total);
   const left = Math.max(0, Math.min(total, remain)) / 60;
   const face = dialFace(span);

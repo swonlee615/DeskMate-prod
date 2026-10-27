@@ -266,9 +266,64 @@
 .m-bad { font-size: 13px; color: var(--red); }
 .m-sum-t em { font-style: normal; font-weight: 400; margin-left: 4px; }
 
-/* ── 집중 타이머 — PC 부품(.timer-card · 다이얼) 그대로, 카드 안에 가운데로 */
-.m-timer { padding: 16px 12px 14px; display: flex; justify-content: center; }
-.m-timer .timer-card { width: 100%; max-width: 320px; }
+/* ── 집중 타이머 — PC 다이얼을 카드 폭만큼 키우고, 가운데 원판에 시각 · 아래 엄지 자리에 버튼 */
+.m-tm { padding: 14px 14px 16px; display: flex; flex-direction: column; gap: 14px; }
+.m-tm-h { display: flex; align-items: center; justify-content: space-between; font-size: 13px; color: var(--text-muted); padding: 0 2px; }
+.m-tm-h b { color: var(--text-strong); }
+.m-tm-mode { display: inline-flex; align-items: center; gap: 7px; font-weight: 700; color: var(--text-strong); }
+.m-tm-mode i { width: 8px; height: 8px; border-radius: 50%; background: var(--text-dim); }
+.m-tm.run .m-tm-mode i { background: #2b8fd8; }
+.m-tm.run.brk .m-tm-mode i { background: var(--yellow); }
+
+/* 다이얼 — v3 .dial 의 145px 를 카드 폭으로. 눈금 숫자는 SVG 라 함께 커진다 */
+.m-tm-dial .dial { width: min(100%, 340px); height: auto; aspect-ratio: 1; }
+.m-tm-hub {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: 46%; aspect-ratio: 1; border-radius: 50%; border: 0; padding: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  background: var(--surface-2); color: var(--text-strong);
+  box-shadow: 0 0 0 1px rgba(255,255,255,.08), 0 6px 18px rgba(0,0,0,.35);
+  transition: transform .18s cubic-bezier(.22, 1, .36, 1);
+}
+.m-tm-hub:active { transform: translate(-50%, -50%) scale(.96); }
+.m-tm-hub b { font-size: clamp(30px, 10.5vw, 42px); font-weight: 300; letter-spacing: -.03em; line-height: 1; font-variant-numeric: tabular-nums; }
+.m-tm-hub small { font-size: 11px; color: var(--text-muted); }
+body[data-mode="light"] .m-tm-hub { background: #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.07), 0 6px 16px rgba(0,0,0,.12); }
+.m-tm-hub:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
+
+/* 시간 고르기 — 한 줄 분절 */
+.m-tm-pre { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; padding: 4px; border-radius: 14px; background: var(--surface-3); }
+.m-tm-pre button { height: 42px; border-radius: 10px; font-size: 16px; font-weight: 700; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.m-tm-pre button small { font-size: 11px; font-weight: 400; margin-left: 1px; }
+.m-tm-pre button.on { background: var(--main); color: var(--text-strong); box-shadow: 0 1px 3px rgba(0,0,0,.18); }
+
+/* 엄지 자리 — 리셋 · 시작/멈춤 · 건너뛰기 */
+.m-tm-a { display: flex; align-items: center; gap: 10px; }
+.m-tm-ic {
+  flex: none; width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center;
+  border: 1px solid var(--border); color: var(--text-muted);
+}
+.m-tm-ic svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.m-tm-ic svg .f { fill: currentColor; stroke: none; }
+.m-tm-go {
+  flex: 1; height: 56px; border-radius: 28px; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  background: #2b8fd8; color: #fff; font-size: 17px; font-weight: 800;
+  transition: transform .12s, filter .12s;
+}
+.m-tm-go svg { width: 17px; height: 17px; fill: currentColor; }
+.m-tm-go:active { transform: scale(.98); filter: brightness(.95); }
+.m-tm.brk .m-tm-go { background: color-mix(in srgb, #2b8fd8 45%, var(--surface-3)); }
+.m-tm.run .m-tm-go { background: var(--surface-3); color: var(--text-strong); }
+.m-tm-ic:focus-visible, .m-tm-go:focus-visible, .m-tm-pre button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .m-tm-hub, .m-tm-go { transition: none; } }
+
+/* 직접 맞추기 시트 */
+.m-step { display: grid; grid-template-columns: 1fr 1fr 1.6fr 1fr 1fr; gap: 6px; align-items: center; }
+.m-step > button { height: 48px; border-radius: 12px; background: var(--surface-3); color: var(--text-strong); font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.m-step > button:disabled { opacity: .35; }
+.m-step-n { display: flex; align-items: baseline; justify-content: center; gap: 2px; }
+.m-step-n input { width: 3.2ch; border: 0; background: transparent; text-align: right; font-size: 34px; font-weight: 900; color: var(--text-strong); font-variant-numeric: tabular-nums; }
+.m-step-n small { font-size: 14px; color: var(--text-muted); }
 .m-chips.wrap { flex-wrap: wrap; }
 .m-chips.wrap button { flex: none; padding: 0 14px; }
 
