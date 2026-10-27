@@ -4,7 +4,7 @@
  * ★ 데이터 · 동기화 · 근태 버튼 동작은 PC 와 같은 것(`useWorkspace`)을 쓴다. 여기서 다시 만들지 않는다.
  * ★ 모양만 다르다 — 한 손으로 누르기 좋게, 한 화면에 한 가지. 클래스는 전부 `m-` 로 시작해 PC(v3)와 안 섞인다.
  * ★ 색 · 글꼴은 v3 토큰을 그대로 쓴다 (같은 앱으로 보여야 하므로)
- * 하단 탭: 근태 · 팀 · 더보기
+ * 하단 탭: 근태 · 주간 · 팀 · 더보기
  */
 import { useState } from 'react';
 import type { Workspace } from '../app/useWorkspace';
@@ -19,9 +19,11 @@ import { SyncBadge } from '../ui/SyncBadge';
 import {
   addDays, DOW, dateOf, fmtClock, fmtDur, hhmm, keyOf, leaveOf, LEAVES, mmss, normTime, rowDate, weekLabel, weekStart, weekTag,
 } from '../ui/v3fmt';
+import { MobileWeek } from './MobileWeek';
 import './mobile.css';
 
-type Tab = 'att' | 'team' | 'more';
+type Tab = 'att' | 'week' | 'team' | 'more';
+const TITLE: Record<Tab, string> = { att: '근태', week: '주간', team: '팀', more: '더보기' };
 const mins = (d: Day, now: number) => dayParts(d, now).workMs / 60000;
 
 export function MobileWorkspace({ ws }: { ws: Workspace }) {
@@ -32,7 +34,7 @@ export function MobileWorkspace({ ws }: { ws: Workspace }) {
   return (
     <div className="m-app">
       <header className="m-head">
-        <h1>{tab === 'att' ? '근태' : tab === 'team' ? '팀' : '더보기'}</h1>
+        <h1>{TITLE[tab]}</h1>
         {tab === 'att' && <span className="m-date">{t.getMonth() + 1}월 {t.getDate()}일 ({DOW[t.getDay()]})</span>}
         <span className="m-sp" />
         <SyncBadge s={ws.sync} />
@@ -40,6 +42,7 @@ export function MobileWorkspace({ ws }: { ws: Workspace }) {
 
       <main className="m-body">
         {tab === 'att' && <AttTab ws={ws} />}
+        {tab === 'week' && <MobileWeek ws={ws} />}
         {tab === 'team' && <TeamTab ws={ws} />}
         {tab === 'more' && <MoreTab ws={ws} onAccount={() => setAcctOpen(true)} />}
       </main>
@@ -47,6 +50,8 @@ export function MobileWorkspace({ ws }: { ws: Workspace }) {
       <nav className="m-tabs" aria-label="하단 탭">
         <TabBtn on={tab === 'att'} onClick={() => setTab('att')} label="근태"
           icon={<><circle cx="10" cy="10" r="7.1" /><path d="M10 5.7v4.5l3 1.8" /></>} />
+        <TabBtn on={tab === 'week'} onClick={() => setTab('week')} label="주간"
+          icon={<><rect x="3" y="4.2" width="14" height="12.6" rx="2.2" /><path d="M3 8.2h14M7 2.8v2.6M13 2.8v2.6M6.6 11.4h1.6M9.2 11.4h1.6M11.8 11.4h1.6M6.6 14h1.6" /></>} />
         <TabBtn on={tab === 'team'} onClick={() => setTab('team')} label="팀"
           icon={<><circle cx="8" cy="7.4" r="2.9" /><path d="M2.9 16.2c0-2.6 2.3-4.2 5.1-4.2s5.1 1.6 5.1 4.2" /><path d="M13.6 5.1a2.6 2.6 0 0 1 0 4.9M15.2 12.4c1.4.5 2.4 1.7 2.4 3.4" /></>} />
         <TabBtn on={tab === 'more'} onClick={() => setTab('more')} label="더보기"

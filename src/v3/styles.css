@@ -7850,8 +7850,12 @@ body:not([data-mode="light"]) .blk.done .txt { color: color-mix(in srgb, var(--t
   background: var(--green); border: 2px solid var(--panel); display: grid; place-items: center; box-sizing: border-box; }
 .hb-ok svg, .hb-cb svg { width: 9px; height: 9px; fill: none; stroke: var(--on-accent); stroke-width: 1.6;
   stroke-linecap: round; stroke-linejoin: round; }
-.hb-ring .hb-rt { font-size: 11px; color: var(--text); text-align: center; line-height: 1.25; max-width: 58px;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* v3.1.255 — 이름은 **두 줄까지** (소유자: 잘려 보인다). 고리 폭 58px 에 한 줄이면 한글 다섯 자 남짓이라
+   「GPT와 영어대화」 같은 흔한 이름도 잘린다. 단어 단위로 끊고(`keep-all`), 그래도 넘치면 둘째 줄 끝에 말줄임.
+   한 줄짜리 이름도 두 줄 높이를 차지한다 — 그래야 옆 고리와 아래 시각(`.hb-rm`) 줄이 맞는다. */
+.hb-ring .hb-rt { font-size: 11px; color: var(--text); text-align: center; line-height: 1.25; width: 58px;
+  height: 2.5em; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+  word-break: keep-all; overflow-wrap: anywhere; }
 .hb-ring .hb-rm { font-size: 10px; color: var(--text-dim); line-height: 1.2; font-variant-numeric: tabular-nums; }
 .hb-ring.full .hb-rm { color: var(--green); }
 
@@ -7897,8 +7901,11 @@ body:not([data-mode="light"]) .blk.done .txt { color: color-mix(in srgb, var(--t
 .hb-c.na { color: var(--text-dim); }
 .hb-c.pre, .hb-c.fut { background: none; }
 .hb-c.now { outline: 1.5px dashed var(--text-muted); outline-offset: 1px; }
-.hb-rt { display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
-.hb-rt b { font-size: 12.5px; color: var(--text-strong); font-variant-numeric: tabular-nums; }
+/* ★ v3.1.255 — `.hb-tr` 안으로 좁혔다. 예전엔 맨 `.hb-rt` 라 **오늘 패널 고리의 이름 칸**(같은 이름)에도 걸려,
+     이름이 flex 가 되면서 말줄임이 죽고 `flex-end` 로 붙어 **왼쪽이 잘렸다** (「GPT와 영어대화」 → 「'T와 영어대화」).
+     표와 고리는 다른 부품이다 — 같은 이름을 쓰는 규칙은 반드시 부모로 범위를 묶는다. */
+.hb-tr .hb-rt { display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
+.hb-tr .hb-rt b { font-size: 12.5px; color: var(--text-strong); font-variant-numeric: tabular-nums; }
 .hb-lg { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 12px; font-size: 11px; color: var(--text-dim); }
 .hb-lg span { display: inline-flex; align-items: center; gap: 5px; }
 .hb-lg .hb-c { width: 12px; height: 12px; border-radius: 3px; font-size: 10px; }
