@@ -2,7 +2,7 @@ import type { AuthService, User } from './auth';
 import type { Repo } from './repo';
 import { createLocalRepo } from './localRepo';
 
-export type { Repo, SyncStatus, DayEvents } from './repo';
+export type { Repo, SyncStatus, DayEvents, Item } from './repo';
 export type { AuthService, User } from './auth';
 export { needsVerification, toAuthError, AuthError, MIN_PASSWORD } from './auth';
 

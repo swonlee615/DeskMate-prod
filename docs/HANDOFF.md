@@ -17,8 +17,9 @@
 | PC 화면 | v3 「ONnOFF」 그대로 — 전체 탭 · 캘린더 · 일간 상세 · 우측 집중 타이머 | `src/pc/` (스타일은 `src/v3/styles.css` 원본) |
 | 할 일 | 트리 저장 · 보여주기 이월(D+N) · 끝낸 날 = 체크한 화면 · 부분 체크 · ⠿ 끌기 · ⌘Z | `src/domain/todos/tree.ts` · `src/pc/NoteEditor.tsx` |
 | 주간 플래너 | PC 「주간」 탭 — 7일 칸 · 묶음 · 미정 · 주 메모 · 콤보/끌기로 옮기기 | `src/domain/todos/week.ts` · `src/pc/WeekPlanner.tsx` |
+| D-Day | 전체 뷰 캘린더 아래 · 주간 오른쪽 · 일간 상세 · 창(이모지 · 달력 · 고정 5개 · 아카이브 · 삭제 되돌리기) | `src/domain/dday.ts` · `src/pc/DDay.tsx` |
 | 모바일 | 근태 · 오늘 할 일 · 타이머 · 하루 고치기 시트 (따로 설계한 화면) | `src/mobile/` |
-| 시험 | 79개 (`npm test`) | `*.test.ts` |
+| 시험 | 84개 (`npm test`) | `*.test.ts` |
 | v3 따라잡기 | v3.1.254 까지 분류 · 부분 체크 A안(3.1.245) 반영 · 스타일 원본 3.1.254 | `docs/V3-FOLLOW.md` |
 
 ## 2. 다음 할 일 (순서대로)
@@ -26,7 +27,7 @@
 0. **v3 따라가기 먼저** — `docs/V3-FOLLOW.md` 의 «작업을 시작할 때마다». 남은 «반영» · «확인» 없음 (2026-10-27).
    시간 기록을 옮길 때 «근무 밖 휴게»(v3 `rests`, 3.1.225 · 3.1.239 · 3.1.241)를 함께 옮긴다
 
-1. **습관 · D-Day** — v3 `src/js/app.js` 의 `ddFullHtml` · `hbDayHtml` 계열. 주간 플래너 오른쪽 열 아래 `.wp-ddc` 상자 포함
+1. **습관** — v3 `src/js/app.js` 의 `hb*` · `worklog.js` 의 `hb*`. D-Day 상자에 「습관」 탭(알약) · 오늘 패널 고리 · 일간 상세 칩 · 창. 저장은 `items`(kind habit) · 체크는 `done.{날짜}` 필드
 2. **모바일 주간** — 시안: 하단 탭 · 「요일별 / 이번 주 할 일」 분절 · 지난 요일 접힘 · ⋯ 시트로 날짜 옮기기 (드래그 대신)
 3. 시간 기록 (일간 상세 시간표에 끌어서 기록) → 동료 프레즌스 → 검색
 4. **배포** — Firebase Hosting (`firebase.json` 있음) · 승인된 도메인 · `authDomain` 교체 (`docs/RELEASE.md` §1)

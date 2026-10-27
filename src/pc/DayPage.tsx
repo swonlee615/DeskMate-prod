@@ -3,7 +3,7 @@
  *
  * ★ 마크업 · 클래스 · id 는 v3 와 같다. 스타일은 v3 styles.css.
  * ★ 고치는 일은 전부 `ws.editDay(date, 순수함수)` 로 한다 — 함수는 src/domain/attendance/edit.ts (v3 이식)
- *   Today · Memo 는 NoteEditor.tsx. 아직 안 옮긴 것: 시간 기록 칸 끌어 그리기 (시간 기록 단계) · 습관 칩 · D-Day 선
+ *   Today · Memo 는 NoteEditor.tsx. 아직 안 옮긴 것: 시간 기록 칸 끌어 그리기 (시간 기록 단계) · 습관 칩
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Workspace } from '../app/useWorkspace';
@@ -17,6 +17,7 @@ import {
 import { addDays, dateOf, DOW, dayLabel, fmtDur, hhmm, keyOf, leaveOf, LEAVES, normTime, weekStart } from '../ui/v3fmt';
 import { PendBanner } from './PendBanner';
 import { NoteEditor } from './NoteEditor';
+import { DDayLines, type OpenDDay } from './DDay';
 
 const GSTEP = 5;        // 격자 한 칸 = 5분
 const GCOLS = 12;       // 한 줄 = 1시간
@@ -48,9 +49,11 @@ interface Props {
   onGo: (date: string) => void;
   /** 열 때 차수 칸을 펼치고 마지막 퇴근 칸에 커서를 둘지 (자정 배너 「시각 직접 입력」) */
   focusOff?: boolean;
+  /** D-Day 창 열기 — 창은 이 화면 밖에 산다 */
+  onDD: OpenDDay;
 }
 
-export function DayPage({ ws, date, full, onClose, onFull, onGo, focusOff }: Props) {
+export function DayPage({ ws, date, full, onClose, onFull, onGo, focusOff, onDD }: Props) {
   const d = ws.dayOf(date);
   const { now, today } = ws;
   const isToday = date === today;
@@ -215,6 +218,7 @@ export function DayPage({ ws, date, full, onClose, onFull, onGo, focusOff }: Pro
                 {(d.offAt != null || d.breaks.some((b) => effKind(d, b, now) === 'off')) && <span className="lg"><i className="mk-line off" />퇴근</span>}
                 <span className="lg-sp2" />
               </div></div>
+              <DDayLines ws={ws} date={date} onOpen={onDD} />
             </div>
           </div>
         </div>

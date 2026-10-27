@@ -8,8 +8,9 @@
  *   서버 원본은 그대로이고, 아직 안 올라간 편집은 지우지 않는다
  *
  * 경로: users/{uid}/events/{eventId}   — 이벤트 한 건 = 문서 하나 → 기기끼리 충돌이 없다
+ *       users/{uid}/items/{id}        — D-Day · 습관 정의 하나 = 문서 하나
  */
-import { collection, doc, setDoc, updateDoc, query, where, onSnapshot, writeBatch, type Firestore } from 'firebase/firestore';
+import { collection, deleteField, doc, setDoc, updateDoc, query, where, onSnapshot, writeBatch, type Firestore } from 'firebase/firestore';
 import type { Repo, SyncStatus } from './repo';
 
 export function createFirestoreRepo(db: Firestore, uid: string): Repo {
@@ -33,6 +34,7 @@ export function createFirestoreRepo(db: Firestore, uid: string): Repo {
 
   const col = collection(db, 'users', uid, 'events');
   const bcol = collection(db, 'users', uid, 'blocks');
+  const icol = collection(db, 'users', uid, 'items');
 
   /** 서버 확인을 기다리지 않는다 — 오프라인이면 promise 는 온라인이 될 때까지 안 끝난다 */
   const track = (p: Promise<unknown>) => {
@@ -93,6 +95,24 @@ export function createFirestoreRepo(db: Firestore, uid: string): Repo {
       const now = Date.now();
       for (const { id, ...f } of patches) batch.update(doc(bcol, id), { ...f, updatedAt: now });
       track(batch.commit());
+    },
+
+    watchItems(cb) {
+      const key = `i${nextSub++}`;
+      const off = onSnapshot(icol, { includeMetadataChanges: true }, (snap) => {
+        snapPend.set(key, snap.metadata.hasPendingWrites);
+        emitSync();
+        cb(snap.docs.map((d) => d.data() as never));
+      });
+      return () => { off(); snapPend.delete(key); emitSync(); };
+    },
+
+    addItem(it) { track(setDoc(doc(icol, it.id), it)); },
+
+    patchItem(id, fields) {
+      const f: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(fields)) f[k] = v === null ? deleteField() : v;
+      track(updateDoc(doc(icol, id), f));
     },
 
     watchSync(cb) {

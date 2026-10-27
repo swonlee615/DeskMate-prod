@@ -22,6 +22,9 @@ export interface DayEvents {
   unavailable: boolean;
 }
 
+/** D-Day · 습관 — 정의 하나 = 문서 하나 (users/{uid}/items/{id}). `kind` 로 가른다 */
+export interface Item { id: string; kind: string; deletedAt?: number | null }
+
 export interface Repo {
   readonly mode: 'cloud' | 'local';
   /** 그 날 근태 이벤트 구독 — 다른 기기의 변경도 들어온다 */
@@ -44,5 +47,11 @@ export interface Repo {
   addBlock(b: Block): void;
   /** 바뀐 필드만 — 여러 줄을 한 번에 (Tab 으로 덩어리가 움직일 때 등). 한 덩어리로 저장된다 */
   patchBlocks(patches: Patch[]): void;
+
+  // ── D-Day · 습관 — 몇십 개뿐이라 날짜로 나누지 않고 통째로 구독한다
+  watchItems(cb: (items: Item[]) => void): () => void;
+  addItem(it: Item): void;
+  /** 바뀐 필드만. `'done.2026-10-27'` 처럼 점은 맵 안의 필드 하나, 값 null 은 그 필드를 지운다 */
+  patchItem(id: string, fields: Record<string, unknown>): void;
   dispose(): void;
 }

@@ -5,7 +5,7 @@
  *   같은 버튼이 PC 와 폰에서 다르게 동작하면 안 되므로 동작은 이 한 곳에만 있다.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { Backend, DayEvents, Repo, SyncStatus, User } from '../data';
+import type { Backend, DayEvents, Item, Repo, SyncStatus, User } from '../data';
 import { deviceId, deviceKind, newId } from '../data/device';
 import type { AttEvent, AttEventType, AttState, Day, Leave } from '../domain/attendance/types';
 import { deriveDay } from '../domain/attendance/replay';
@@ -14,6 +14,7 @@ import { canCarry, resolveAt, resolveCarry } from '../domain/attendance/edit';
 import { addDays, dateOf, keyOf, weekStart } from '../ui/v3fmt';
 import { usePomodoro, type Pomodoro } from './usePomodoro';
 import { deleteChunk, inverseOf, triFix, triToggle, type Block, type Patch } from '../domain/todos/tree';
+import { ddCanPin, ddClean, ddLabel, type DDay } from '../domain/dday';
 
 export const GOAL_HOURS = 8; // 설정 화면을 옮기기 전까지 v3 기본값
 /** 근태 표가 보여 주는 주 수 (이번 주 포함) */
@@ -31,7 +32,7 @@ function useNow(ms = 1000) {
 }
 
 /** 토스트 — 글자만, 또는 그 자리에서 되받을 단추 하나 (v3 toast · actToast) */
-export interface Toast { text: string; action?: { label: string; run: () => void } }
+export interface Toast { text: string; action?: { label: string; run: () => void }; bad?: boolean }
 
 export interface Workspace {
   backend: Backend;
@@ -52,6 +53,8 @@ export interface Workspace {
   setCalMonth: (d: Date) => void;
   toast: Toast | null;
   say: (text: string, action?: Toast['action'], queue?: boolean) => void;
+  /** 경고 — «막았다» 를 말한다. 단추 없이 조금 오래 (v3 toastBad) */
+  warn: (text: string) => void;
   /** 이 기기의 집중 타이머 */
   timer: Pomodoro;
   onOn: () => void;
@@ -86,6 +89,15 @@ export interface Workspace {
   /** 덩어리째 지우기 + 되돌리기 */
   removeBlock: (b: Block) => void;
   newId: () => string;
+  // ── D-Day (v3 dd* · PRD §2-1-2)
+  ddays: DDay[];
+  /** id 가 없으면 새로. 타이틀 · 날짜가 없으면 null */
+  saveDDay: (id: string | null, v: { emoji: string; title: string; note: string; date: string }) => DDay | null;
+  /** 자리가 다 찼으면 false — 남의 것을 밀어내지 않는다 */
+  pinDDay: (id: string, on: boolean) => boolean;
+  /** 아카이브 = «저장됨» 으로 옮김 (고정은 풀린다) · 끄면 목록으로 */
+  archiveDDay: (id: string, on: boolean) => void;
+  deleteDDay: (id: string) => void;
   nick: string;
   initial: string;
   presence: 'active' | 'break' | 'offline';
@@ -148,6 +160,13 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
     const wait = toastUntil.current - Date.now();
     // (되돌리기는 기다리지 않는다 — 방금 한 일을 되돌릴 길이 바로 보여야 한다)
     if (queue && wait > 250) window.setTimeout(put, wait + 250); else put();
+  }, []);
+
+  const warn = useCallback((text: string) => {
+    setToast({ text, bad: true });
+    toastUntil.current = Date.now() + 2600;
+    window.clearTimeout(toastTimer.current);
+    toastTimer.current = window.setTimeout(() => { setToast(null); toastUntil.current = 0; }, 2600);
   }, []);
 
   const push = useCallback((type: AttEventType, date = today, extra: Partial<AttEvent> = {}) => {
@@ -274,13 +293,51 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
     });
   };
 
+  // ── D-Day
+  const [items, setItems] = useState<Item[]>([]);
+  useEffect(() => repo.watchItems(setItems), [repo]);
+  const ddays = useMemo(() => items.filter((x): x is DDay & Item => x.kind === 'dday' && !x.deletedAt), [items]);
+  const saveDDay: Workspace['saveDDay'] = (id, v) => {
+    const c = ddClean(v);
+    if (!c) return null;
+    let it: DDay;
+    if (id) {
+      const old = ddays.find((x) => x.id === id);
+      if (!old) return null;
+      it = { ...old, ...c };
+      repo.patchItem(id, c);
+    } else {
+      it = { id: newId(), kind: 'dday', ...c, pinned: false, pinnedAt: null, archivedAt: null, createdAt: Date.now() };
+      repo.addItem(it);
+    }
+    say(`${it.title} · ${ddLabel(it.date, today)}`);
+    return it;
+  };
+  const pinDDay = (id: string, on: boolean) => {
+    if (on && !ddCanPin(ddays, id)) return false;
+    repo.patchItem(id, { pinned: on, pinnedAt: on ? Date.now() : null });
+    return true;
+  };
+  const archiveDDay = (id: string, on: boolean) => {
+    const it = ddays.find((x) => x.id === id);
+    if (!it) return;
+    // 목록에서 뺐는데 상세에 남아 있으면 «어디에도 없는데 계속 보이는» 것이 된다
+    repo.patchItem(id, on ? { archivedAt: Date.now(), pinned: false, pinnedAt: null } : { archivedAt: null });
+    say(on ? `「${it.title}」을 저장됨으로 보냈어요` : `「${it.title}」을 D-Day 목록으로 되돌렸어요`);
+  };
+  const deleteDDay = (id: string) => {
+    repo.patchItem(id, { deletedAt: Date.now() });
+    say('삭제했어요', { label: '되돌리기', run: () => { repo.patchItem(id, { deletedAt: null }); setToast(null); } });
+  };
+
   const nick = user.name ?? user.email?.split('@')[0] ?? '나';
 
   return {
     backend, user, now, today, sync, days, day, state,
-    unavailable: range.unavailable, calMonth, setCalMonth, wpWeek, setWpWeek, toast, timer, say,
+    unavailable: range.unavailable, calMonth, setCalMonth, wpWeek, setWpWeek, toast, timer, say, warn,
     onOn, onOff, onRest, onLeave, dayOf, editDay, pendingDays, resolvePending, canCarry: canCarryFor,
     blocks, addBlock, patchBlocks, editBlocks, undoBlocks, lastEditAt, toggleBlock, removeBlock, newId,
+    ddays, saveDDay, pinDDay, archiveDDay, deleteDDay,
     nick, initial: nick.slice(0, 1).toUpperCase(),
     presence: state === 'break' ? 'break' : state === 'work' ? 'active' : 'offline',
   };

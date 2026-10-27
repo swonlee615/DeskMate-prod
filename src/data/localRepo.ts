@@ -4,10 +4,11 @@
  */
 import type { AttEvent } from '../domain/attendance/types';
 import type { Block } from '../domain/todos/tree';
-import type { DayEvents, Repo, SyncStatus } from './repo';
+import type { DayEvents, Item, Repo, SyncStatus } from './repo';
 
 const KEY = 'dm.local.events.v1';
 const BKEY = 'dm.local.blocks.v1';
+const IKEY = 'dm.local.items.v1';
 
 function load(): AttEvent[] {
   try {
@@ -26,10 +27,29 @@ function loadB(): Block[] {
   try { const raw = localStorage.getItem(BKEY); return raw ? (JSON.parse(raw) as Block[]) : []; } catch { return []; }
 }
 function saveB(list: Block[]) { try { localStorage.setItem(BKEY, JSON.stringify(list)); } catch { /* 이번 세션만 */ } }
+function loadI(): Item[] {
+  try { const raw = localStorage.getItem(IKEY); return raw ? (JSON.parse(raw) as Item[]) : []; } catch { return []; }
+}
+function saveI(list: Item[]) { try { localStorage.setItem(IKEY, JSON.stringify(list)); } catch { /* 이번 세션만 */ } }
+
+/** Firestore updateDoc 과 같은 뜻 — 점은 맵 안으로, null 은 지우기 */
+export function applyPatch<T extends object>(o: T, fields: Record<string, unknown>): T {
+  const n = structuredClone(o) as Record<string, unknown>;
+  for (const [k, v] of Object.entries(fields)) {
+    const ks = k.split('.');
+    let t = n;
+    for (const p of ks.slice(0, -1)) t = (t[p] ??= {}) as Record<string, unknown>;
+    if (v === null) delete t[ks[ks.length - 1]]; else t[ks[ks.length - 1]] = v;
+  }
+  return n as T;
+}
 
 export function createLocalRepo(): Repo {
   let all = load();
   let blocks = loadB();
+  let items = loadI();
+  const iw = new Set<(items: Item[]) => void>();
+  const emitI = () => { for (const cb of iw) cb(items); };
   const bw = new Set<{ from: string; to: string; cb: (d: { blocks: Block[]; unavailable: boolean }) => void }>();
   const emitB = () => { for (const w of bw) w.cb({ blocks: blocks.filter((b) => b.date >= w.from && b.date <= w.to), unavailable: false }); };
   const watchers = new Set<{ from: string; to: string; cb: (d: DayEvents) => void }>();
@@ -43,6 +63,7 @@ export function createLocalRepo(): Repo {
     window.addEventListener('storage', (e) => {
       if (e.key === KEY) { all = load(); emit(); }
       if (e.key === BKEY) { blocks = loadB(); emitB(); }
+      if (e.key === IKEY) { items = loadI(); emitI(); }
     });
   }
 
@@ -83,6 +104,13 @@ export function createLocalRepo(): Repo {
       const m = new Map(patches.map((p) => [p.id, p]));
       blocks = blocks.map((b) => { const p = m.get(b.id); return p ? { ...b, ...p, updatedAt: now } : b; });
       saveB(blocks); emitB();
+    },
+
+    watchItems(cb) { iw.add(cb); cb(items); return () => { iw.delete(cb); }; },
+    addItem(it) { items = [...items.filter((x) => x.id !== it.id), it]; saveI(items); emitI(); },
+    patchItem(id, fields) {
+      items = items.map((x) => (x.id === id ? applyPatch(x, fields) : x));
+      saveI(items); emitI();
     },
 
     watchSync(cb) {

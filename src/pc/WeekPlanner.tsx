@@ -4,7 +4,7 @@
  * ★ 판정(어느 칸 · 어느 묶음 · 옮기기)은 전부 src/domain/todos/week.ts. 여기서는 그리고 손만 단다
  * ★ 주간에 그리는 것은 바깥 할 일만 (결함표 Q8 — v3 그대로). 딸린 줄 · 줄 종류 바꾸기는 상세에서
  * ★ 날짜는 콤보와 끌기 둘 다로 — 둘 다 moveItem 하나를 부른다 (v3 wpMove 와 같은 이유)
- * 아직 안 옮긴 것: D-Day 상자(.wp-ddc) · 주 메모 책갈피 · 그림 붙여넣기 막기 안내 · 스크롤 경계 페이드
+ * 아직 안 옮긴 것: 주 메모 책갈피 · 그림 붙여넣기 막기 안내 · 스크롤 경계 페이드
  */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { Workspace } from '../app/useWorkspace';
@@ -16,6 +16,7 @@ import {
 import { addDays, dateOf, fmtDur, hhmm, keyOf, leaveOf, weekTag } from '../ui/v3fmt';
 import { attDotCls, Calendar, CHEV, workMinutes } from './Worklog';
 import { NoteEditor } from './NoteEditor';
+import { DDayBox, type OpenDDay } from './DDay';
 
 const WD_EN = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 const WD_KO = ['월', '화', '수', '목', '금', '토', '일'];
@@ -38,7 +39,7 @@ const MEMO_IC = (
 
 interface Drag { id: string; el: HTMLElement; x: number; y: number; on: boolean; fromList: boolean; ghost?: HTMLDivElement }
 
-export function WeekPlanner({ ws, onOpenDay }: { ws: Workspace; onOpenDay: (date: string) => void }) {
+export function WeekPlanner({ ws, onOpenDay, onDD }: { ws: Workspace; onOpenDay: (date: string) => void; onDD: OpenDDay }) {
   const { blocks, days, now, today, wpWeek: wk } = ws;
   const keys = weekDays(wk);
   const isThis = wk === weekKeyOf(today);
@@ -343,6 +344,7 @@ export function WeekPlanner({ ws, onOpenDay }: { ws: Workspace; onOpenDay: (date
               </div>
             </div>
           </aside>
+          <section className="wp-ddc" aria-label="D-Day"><DDayBox ws={ws} onOpen={onDD} /></section>
         </div>
       </div>
     </div>

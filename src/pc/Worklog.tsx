@@ -35,6 +35,8 @@ interface Props {
   noteDates?: Set<string>;
   /** 「주간」 탭 내용 (v3 weekPlannerHtml — 탭 아래 머리줄 · 본문) */
   week?: React.ReactNode;
+  /** 캘린더 아래 D-Day 상자 (v3.1.149) */
+  dday?: React.ReactNode;
 }
 
 /** v3 WL.workMinutes 와 같이 «분 단위 소수» 로 — 반올림은 표기(fmtDur)가 한다 */
@@ -55,7 +57,7 @@ function loadWk(): Record<string, boolean> {
   try { return JSON.parse(localStorage.getItem(WK_KEY) || '{}'); } catch { return {}; }
 }
 
-export function Worklog({ days, today, now, goalHours, calMonth, setCalMonth, onLeave, unavailable, onOpenDay, hidden, banner, todo, noteDates, week }: Props) {
+export function Worklog({ days, today, now, goalHours, calMonth, setCalMonth, onLeave, unavailable, onOpenDay, hidden, banner, todo, noteDates, week, dday }: Props) {
   // 전체/주간 — v3 는 설정(cfg.wlView)에 남긴다. 기기별 편의라 브라우저 저장소에
   const [view, setView0] = useState<'all' | 'week'>(() => { try { return localStorage.getItem('dm.wlView') === 'week' ? 'week' : 'all'; } catch { return 'all'; } });
   const setView = (v: 'all' | 'week') => { setView0(v); try { localStorage.setItem('dm.wlView', v); } catch { /* 이번 화면만 */ } };
@@ -157,6 +159,7 @@ export function Worklog({ days, today, now, goalHours, calMonth, setCalMonth, on
 
           <div className="wl-cal">
             <Calendar month={calMonth} setMonth={setCalMonth} today={today} days={days} onOpen={onOpenDay} />
+            {dday}
           </div>
         </div>
         </>}
