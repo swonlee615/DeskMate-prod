@@ -3,8 +3,8 @@
  *
  * ★ 데이터 · 동기화 · 버튼 동작은 PC 와 같은 것(`useWorkspace`)을 쓴다. 여기서 다시 만들지 않는다.
  *   그래서 폰에서 누른 것(출퇴근 · 타이머 · 할 일 · 시간 기록)이 PC 에 그대로 보이고, 그 반대도 같다.
- * ★ 메뉴는 PC 레일과 같다 (2026-10-28 소유자): 근태 · 활동 · 팀 · 저장됨 + 설정(머리 오른쪽).
- *   근태 안은 PC 처럼 «전체 · 주간», 날을 누르면 그 날 상세(시간표)가 PC 옆 창처럼 위로 열린다.
+ * ★ 메뉴는 PC 레일과 같다 (2026-10-28 소유자): 근태 · 활동 · 팀 · 저장됨 · 설정 (설정은 PC 처럼 맨 끝).
+ *   근태 안은 PC 처럼 «전체 · 주간», 날을 누르면 그 날 상세가 위로 열린다. 닫기는 하단 «근태» (따로 뒤로 단추를 두지 않는다)
  * ★ 머리의 타이머 알약은 PC 머리의 미니 타이머와 같다 — 늘 보이고, 누르면 집중 타이머로
  * ★ 모양만 다르다 — 한 손으로 누르기 좋게. 클래스는 전부 `m-` 로 시작해 PC(v3)와 안 섞인다. 색 · 글꼴은 v3 토큰
  */
@@ -17,10 +17,11 @@ import { fmtDur } from '../ui/v3fmt';
 import { MobileWeek } from './MobileWeek';
 import { MToday, STATE_LABEL, WeekSummary } from './MToday';
 import { MDay } from './MDay';
+import { HabitChips } from './parts';
 import './mobile.css';
 
-type Tab = 'att' | 'dash' | 'team' | 'later';
-const TITLE: Record<Tab, string> = { att: '근태', dash: '활동', team: '팀', later: '저장됨' };
+type Tab = 'att' | 'dash' | 'team' | 'later' | 'set';
+const TITLE: Record<Tab, string> = { att: '근태', dash: '활동', team: '팀', later: '저장됨', set: '설정' };
 
 export function MobileWorkspace({ ws }: { ws: Workspace }) {
   const [tab, setTab] = useState<Tab>('att');
@@ -43,9 +44,6 @@ export function MobileWorkspace({ ws }: { ws: Workspace }) {
         <button className={`m-pill timer${t.running ? ' on' : ''}${t.mode === 'focus' ? '' : ' rest'}`} onClick={toTimer} aria-label={`집중 타이머 · ${t.label}${t.running ? ' 중' : ' 대기'}`}>
           <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7" /><path d="M10 5.8v4.4l2.9 1.7" /></svg><PomoClock t={t} />
         </button>
-        <button className="m-x m-gear" onClick={() => setAcctOpen(true)} aria-label="설정">
-          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M8.6 3.1h2.8l.28 1.72c.46.18.89.43 1.28.73l1.63-.62 1.4 2.42-1.32 1.14c.04.27.06.55.06.84s-.02.57-.06.84l1.32 1.14-1.4 2.42-1.63-.62c-.39.3-.82.55-1.28.73l-.28 1.72H8.6l-.28-1.72a5.3 5.3 0 0 1-1.28-.73l-1.63.62-1.4-2.42 1.32-1.14a5.5 5.5 0 0 1 0-1.68L4.01 7.35l1.4-2.42 1.63.62c.39-.3.82-.55 1.28-.73L8.6 3.1Z" /><circle cx="10" cy="10" r="2.3" /></svg>
-        </button>
       </header>
 
       <main className="m-body">
@@ -58,17 +56,16 @@ export function MobileWorkspace({ ws }: { ws: Workspace }) {
         </>}
         {tab === 'dash' && <>
           <WeekSummary ws={ws} onDay={goDay} />
-          <Soon what="내 분석" items="근무 히트맵 · 근태 카드 · 순위 이력 · 습관 달성" />
+          <HabitChips ws={ws} date={ws.today} />
+          <Soon what="내 분석" items="근무 히트맵 · 근태 카드 · 순위 이력 · 습관 달성률" />
         </>}
         {tab === 'team' && <TeamTab ws={ws} />}
         {tab === 'later' && <Soon what="저장됨" items="보관한 D-Day · 습관 · 저장한 메모" />}
+        {tab === 'set' && <Settings ws={ws} onAccount={() => setAcctOpen(true)} />}
       </main>
 
       {day && (
         <div className="m-page" role="dialog" aria-label="하루 상세">
-          <header className="m-page-h">
-            <button className="m-link" onClick={() => setDay(null)}>‹ 근태</button>
-          </header>
           <div className="m-body">
             <MDay ws={ws} date={day.date} setDate={(k) => setDay({ date: k, edit: false })} editOpen={day.edit} />
           </div>
@@ -84,6 +81,8 @@ export function MobileWorkspace({ ws }: { ws: Workspace }) {
           icon={<><circle cx="8" cy="7.4" r="2.9" /><path d="M2.9 16.2c0-2.6 2.3-4.2 5.1-4.2s5.1 1.6 5.1 4.2" /><path d="M13.6 5.1a2.6 2.6 0 0 1 0 4.9M15.2 12.4c1.4.5 2.4 1.7 2.4 3.4" /></>} />
         <TabBtn on={tab === 'later'} onClick={() => { setTab('later'); setDay(null); }} label="저장됨"
           icon={<path d="M5.6 3.6h8.8v13.1L10 13.2l-4.4 3.5V3.6Z" />} />
+        <TabBtn on={tab === 'set'} onClick={() => { setTab('set'); setDay(null); }} label="설정"
+          icon={<><path d="M8.6 3.1h2.8l.28 1.72c.46.18.89.43 1.28.73l1.63-.62 1.4 2.42-1.32 1.14c.04.27.06.55.06.84s-.02.57-.06.84l1.32 1.14-1.4 2.42-1.63-.62c-.39.3-.82.55-1.28.73l-.28 1.72H8.6l-.28-1.72a5.3 5.3 0 0 1-1.28-.73l-1.63.62-1.4-2.42 1.32-1.14a5.5 5.5 0 0 1 0-1.68L4.01 7.35l1.4-2.42 1.63.62c.39-.3.82-.55 1.28-.73L8.6 3.1Z" /><circle cx="10" cy="10" r="2.3" /></>} />
       </nav>
 
       <div className={`m-toast${ws.toast ? ' show' : ''}${ws.toast?.bad ? ' bad' : ''}`} role="status">
@@ -91,9 +90,7 @@ export function MobileWorkspace({ ws }: { ws: Workspace }) {
         {ws.toast?.action && <button className="m-toast-act" onClick={ws.toast.action.run}>{ws.toast.action.label}</button>}
       </div>
 
-      {acctOpen && (ws.backend.mode === 'cloud'
-        ? <AccountDialog auth={ws.backend.auth} user={ws.user} pending={ws.sync?.pending ?? 0} onClose={() => setAcctOpen(false)} />
-        : <div className="m-sheet-bg" onClick={() => setAcctOpen(false)}><div className="m-sheet"><b>{ws.nick}</b><p className="m-hint">개발 모드 · 이 기기에만 저장돼요</p></div></div>)}
+      {acctOpen && <AccountDialog auth={ws.backend.auth} user={ws.user} pending={ws.sync?.pending ?? 0} onClose={() => setAcctOpen(false)} />}
     </div>
   );
 }
@@ -113,6 +110,20 @@ function Soon({ what, items }: { what: string; items: string }) {
       <b>{what}은 준비 중이에요</b>
       <p>{items}이 여기에 생겨요. PC 와 같은 때 함께 열려요.</p>
     </div>
+  );
+}
+
+/** 설정 — PC 레일 맨 아래 «설정» 과 같은 자리. 지금은 계정만 (나머지 설정은 PC 설정 화면을 옮길 때 같이) */
+function Settings({ ws, onAccount }: { ws: Workspace; onAccount: () => void }) {
+  const cloud = ws.backend.mode === 'cloud';
+  return (
+    <ul className="m-card m-list">
+      <li className="m-row" onClick={cloud ? onAccount : undefined}>
+        <span className="m-av">{ws.initial}</span>
+        <div className="m-row-l"><b>{ws.nick}</b><span>{ws.user.email ?? (cloud ? '' : '개발 모드 · 이 기기에만 저장돼요')}</span></div>
+        {cloud && <i className="m-chev" aria-hidden="true">›</i>}
+      </li>
+    </ul>
   );
 }
 

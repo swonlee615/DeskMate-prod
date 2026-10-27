@@ -62,7 +62,7 @@ export function MobileWeek({ ws }: { ws: Workspace }) {
         {!isThis && <button className="m-link" onClick={() => ws.setWpWeek(weekKeyOf(today))}>이번 주</button>}
       </div>
 
-      <section className="m-card m-wps" aria-label="이번 주 할 일">
+      <section className="m-wps" aria-label="이번 주 할 일">
         <div className="m-wps-h">
           <h3>{isThis ? '이번 주 할 일' : '그 주 할 일'}</h3><em>{rate.done} / {rate.n}</em>
         </div>

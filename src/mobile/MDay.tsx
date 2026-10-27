@@ -1,10 +1,12 @@
 /**
- * 모바일 «시간표» — PC 일간 상세(v3 renderDayPage)를 폰 모양으로
+ * 모바일 하루 상세 — PC 일간 상세(v3 renderDayPage)를 폰 모양으로 (2026-10-28 소유자 피드백 반영)
  *
- * ★ 날짜: ‹ › · 이번 주 띠 · 제목을 누르면 달력 (PC 캘린더와 같은 ws.days · setCalMonth)
- * ★ 차수 시각 · 차수 추가/합치기/지우기 · 근태(연차 등) · 겹친 휴게 정리 — PC 와 같은 edit.ts · ws 함수
- * ★ 시간표는 세로 24시간. 그리는 구간은 `timeline()` 한 곳에서 (LOGIC §8-1). 빈 곳을 누르면 시간 기록 · 휴게를 새로,
- *   칸을 누르면 그 기록을 고친다 — 저장은 PC 와 같은 `ws.saveSpan`
+ * ★ 머리: 왼쪽 정렬 날짜(누르면 달력) · ‹ › · 이번 주 띠. 상자에 가두지 않고 면 그대로
+ * ★ 출퇴근 요약 한 줄 — 누르면 «출퇴근 고치기» 시트(차수 시각 · 추가 · 합치기/지우기). 한 단계 안으로 넣었다
+ * ★ 시간표 = PC 격자 그대로(`Grid` · `SlotList` — v3 gridHtml). 한 줄 = 1시간이라 스크롤이 짧다.
+ *   칸을 누르면 그 기록을 고치고, 빈 칸을 누르면 그 시각에 30분짜리를 새로 연다. 「＋ 기록」 은 시간표 안에 떠 있다
+ * ★ 할 일 · 메모 = PC 편집기 그대로(`NoteEditor`) — 보면서 그 자리에서 적는다
+ * 고치는 일은 전부 PC 와 같은 edit.ts · ws.saveSpan
  */
 import { useEffect, useRef, useState } from 'react';
 import type { Workspace } from '../app/useWorkspace';
@@ -14,11 +16,12 @@ import { dayGoalMin, dayParts, dayStartMs } from '../domain/attendance/rules';
 import {
   addSessionAt, canAddSession, dropSession, mergeSession, sessionRows, sessionSlot, sessionWhy, setSessionTime,
 } from '../domain/attendance/edit';
-import { breakConflicts, catVar, logsOf, nextColor, slotOutside, timeline, type SpanRef, type TLSpan } from '../domain/attendance/logs';
+import { breakConflicts, logsOf, nextColor, slotOutside, type SpanRef } from '../domain/attendance/logs';
 import { addDays, dateOf, DOW, dayLabel, fmtDur, hhmm, keyOf, leaveOf, LEAVES, normTime, weekStart } from '../ui/v3fmt';
-import { HabitChips, Pend, Sheet, TimeBox, Todos } from './parts';
+import { Grid, SlotList, type OpenSpan } from '../pc/DayPage';
+import { NoteEditor } from '../pc/NoteEditor';
+import { HabitChips, Pend, Sheet, TimeBox } from './parts';
 
-const PX = 0.8;          // 1분 = 0.8px → 한 시간 48px
 const MEMO_CHIPS = ['점심', '저녁', '병원', '회의 이동', '산책', '통화'];
 const fmtM = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 const toMin = (raw: string) => {
@@ -31,7 +34,8 @@ const toMin = (raw: string) => {
 const msAt = (date: string, hm: string) => dayStartMs(date) + (toMin(hm) ?? 0) * 60000;
 const workOf = (d: Day | undefined, now: number) => (d?.onAt != null ? dayParts(d, now).workMs / 60000 : 0);
 
-interface OpenSpan { ref: SpanRef | null; s: number; e: number; kind: 'slot' | 'break' }
+const TODO_IC = <svg className="nh-ic" viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="m2.4 10.3 2.1 2.1 3.8-4.5" /><path d="M10.4 8h7.2" /><path d="M10.4 12.6h7.2" /></svg>;
+const MEMO_IC = <svg className="nh-ic" viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M2.6 5.6h14.8" /><path d="M2.6 10h14.8" /><path d="M2.6 14.4h9.4" /></svg>;
 
 export function MDay({ ws, date, setDate, editOpen }: { ws: Workspace; date: string; setDate: (k: string) => void; editOpen?: boolean }) {
   const d = ws.dayOf(date);
@@ -39,8 +43,8 @@ export function MDay({ ws, date, setDate, editOpen }: { ws: Workspace; date: str
   const [span, setSpan] = useState<OpenSpan | null>(null);
   const [sesPick, setSesPick] = useState<number | null>(null);
   const [adding, setAdding] = useState(false);
-  const [focusOff, setFocusOff] = useState(!!editOpen);
-  useEffect(() => { setFocusOff(!!editOpen); }, [editOpen, date]);
+  const [sesOpen, setSesOpen] = useState(!!editOpen);
+  useEffect(() => { setSesOpen(!!editOpen); }, [editOpen, date]);
   const dt = dateOf(date);
   const isToday = date === ws.today;
   const go = (n: number) => setDate(keyOf(addDays(dt, n)));
@@ -51,33 +55,59 @@ export function MDay({ ws, date, setDate, editOpen }: { ws: Workspace; date: str
     if (m.getTime() !== ws.calMonth.getTime()) ws.setCalMonth(m);
   }, [date]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // 격자는 한 칸(5분)을 누르면 5분짜리를 연다 — 손가락으로는 끌기 어려우니 새로 열 때만 30분으로
+  const open = (o: OpenSpan) => setSpan(!o.ref && o.e - o.s <= 5 ? { ...o, e: Math.min(1440, o.s + 30) } : o);
+  const nowSlot = (): OpenSpan => {
+    const t = new Date(ws.now);
+    const m = isToday ? t.getHours() * 60 + t.getMinutes() : 9 * 60 + 30;
+    const s = Math.max(0, Math.floor((m - 30) / 10) * 10);
+    return { ref: null, s, e: Math.min(1440, s + 30), kind: 'slot' };
+  };
+
   return (
-    <>
-      <div className="m-dnav">
-        <button className="m-x" onClick={() => go(-1)} aria-label="전날">‹</button>
-        <button className="m-dnav-t" onClick={() => setCal(true)} aria-label="달력 열기">
-          <b>{isToday ? '오늘' : dayLabel(dt, new Date(ws.now))} ▾</b>
+    <div className="m-day">
+      <header className="m-dh">
+        <button className="m-dh-t" onClick={() => setCal(true)} aria-label="달력 열기">
+          <b>{isToday ? '오늘' : dayLabel(dt, new Date(ws.now))}<i aria-hidden="true">▾</i></b>
           <span>{dt.getFullYear()}년 {dt.getMonth() + 1}월 {dt.getDate()}일 {DOW[dt.getDay()]}요일</span>
         </button>
-        <button className="m-x" onClick={() => go(1)} aria-label="다음날">›</button>
-      </div>
+        <button className="m-dh-nav" onClick={() => go(-1)} aria-label="전날">‹</button>
+        <button className="m-dh-nav" onClick={() => go(1)} aria-label="다음날">›</button>
+      </header>
       <WeekStrip ws={ws} date={date} onGo={setDate} />
-      {!isToday && <button className="m-link m-dnav-today" onClick={() => setDate(ws.today)}>오늘로</button>}
 
-      {d.pending && <Pend ws={ws} date={date} onEdit={() => setFocusOff(true)} />}
-      <Summary ws={ws} d={d} date={date} />
-      <Sessions ws={ws} d={d} date={date} autoFocusOff={focusOff} onPick={setSesPick} onAdd={() => setAdding(true)} />
+      {d.pending && <Pend ws={ws} date={date} onEdit={() => setSesOpen(true)} />}
+      <Summary ws={ws} d={d} date={date} onEdit={() => setSesOpen(true)} />
       <Conflicts ws={ws} d={d} date={date} />
-      <Timeline ws={ws} d={d} onOpen={setSpan} />
+
+      <section className="m-dsec m-tgs" aria-label="시간표">
+        <Grid d={d} logs={ws.logs} now={ws.now} isToday={isToday} onOpen={open} />
+        <div className="tg-list m-tgl">
+          <SlotList d={d} logs={ws.logs} now={ws.now} rows={sessionRows(d)} onOpen={open} onGoto={() => setSesOpen(true)} />
+        </div>
+        <div className="m-fab-dock">
+          <button className="m-fab" onClick={() => setSpan(nowSlot())} aria-label="시간 기록 · 휴게 적기">
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 4v12M4 10h12" /></svg>기록
+          </button>
+        </div>
+      </section>
+
       <HabitChips ws={ws} date={date} />
-      <Todos ws={ws} date={date} area="today" />
-      <Todos ws={ws} date={date} area="memo" />
+      <section className="m-dsec m-notes">
+        <NoteEditor ws={ws} date={date} area="today" title="Today" ph="할 일을 입력하세요" icon={TODO_IC} />
+        <NoteEditor ws={ws} date={date} area="memo" title="Memo" ph="메모를 입력하세요" icon={MEMO_IC} />
+      </section>
 
       {cal && <CalSheet ws={ws} date={date} onPick={(k) => { setDate(k); setCal(false); }} onClose={() => setCal(false)} />}
+      {sesOpen && (
+        <Sheet title="출퇴근 고치기" sub={`${dt.getMonth() + 1}/${dt.getDate()} (${DOW[dt.getDay()]})`} onClose={() => setSesOpen(false)}>
+          <Sessions ws={ws} d={d} date={date} autoFocusOff={!!editOpen || !!d.pending} onPick={setSesPick} onAdd={() => setAdding(true)} />
+        </Sheet>
+      )}
       {span && <SpanSheet ws={ws} date={date} d={d} o={span} onClose={() => setSpan(null)} />}
       {sesPick != null && <SesSheet ws={ws} date={date} d={d} i={sesPick} onClose={() => setSesPick(null)} />}
       {adding && <AddSheet ws={ws} date={date} d={d} onClose={() => setAdding(false)} />}
-    </>
+    </div>
   );
 }
 
@@ -90,7 +120,7 @@ function WeekStrip({ ws, date, onGo }: { ws: Workspace; date: string; onGo: (k: 
         const k = keyOf(addDays(w0, i));
         const m = workOf(ws.days[k], ws.now);
         return (
-          <button key={k} className={`${k === date ? 'on' : ''}${k === ws.today ? ' today' : ''}`} onClick={() => onGo(k)}>
+          <button key={k} className={`${k === date ? 'on' : ''}${k === ws.today ? ' today' : ''}`} onClick={() => onGo(k)} aria-current={k === date ? 'date' : undefined}>
             <small>{'월화수목금토일'[i]}</small>
             <b>{dateOf(k).getDate()}</b>
             <em>{m ? `${+(m / 60).toFixed(1)}h` : ws.days[k]?.leave ? ws.days[k].leave.slice(0, 2) : ''}</em>
@@ -101,21 +131,27 @@ function WeekStrip({ ws, date, onGo }: { ws: Workspace; date: string; onGo: (k: 
   );
 }
 
-/** 하루 요약 — 근무 · 휴게 · 범위 · 근태 종류 */
-function Summary({ ws, d, date }: { ws: Workspace; d: Day; date: string }) {
+/** 출퇴근 요약 한 줄 (PC dh-bar 와 같은 값) — 누르면 «출퇴근 고치기» */
+function Summary({ ws, d, date, onEdit }: { ws: Workspace; d: Day; date: string; onEdit: () => void }) {
   const p = dayParts(d, ws.now);
   const work = p.workMs / 60000;
   const goal = dayGoalMin(GOAL_HOURS, d);
   const rows = sessionRows(d);
   const last = rows[rows.length - 1];
   const lv = leaveOf(d.leave);
+  const off = d.offAt != null ? hhmm(d.offAt) : d.pending ? hhmm(d.pending.guessOff) : last?.on != null ? '근무 중' : '';
   return (
-    <section className="m-card m-dsum">
-      <div className="m-dsum-g">
-        <div><b className={work > 0 && work >= goal ? 'hit' : ''}>{fmtDur(work)}</b><span>근무{d.onAt != null && d.offAt == null && !d.pending ? ' (진행 중)' : ''}</span></div>
-        <div><b>{fmtDur(p.breakMs / 60000)}</b><span>휴게</span></div>
-        <div><b>{d.onAt != null ? `${hhmm(d.onAt)}–${d.offAt != null ? hhmm(d.offAt) : last?.off == null ? '' : hhmm(last.off)}` : '–'}</b><span>{rows.length > 1 ? `${rows.length}차` : '출퇴근'}</span></div>
-      </div>
+    <section className="m-dsum">
+      <button className="m-dsum-r" onClick={onEdit} aria-label="출퇴근 고치기">
+        <span className="m-dsum-rg">
+          {d.onAt != null ? <>{hhmm(d.onAt)}<em>→</em>{off}{rows.length > 1 && <i>{rows.length}차</i>}</> : <span className="m-hint">출근 기록 없음</span>}
+        </span>
+        <span className="m-dsum-n">
+          <b className={work > 0 && work >= goal ? 'hit' : ''}>{fmtDur(work)}</b>
+          <small>휴게 {fmtDur(p.breakMs / 60000)}</small>
+        </span>
+        <i className="m-chev" aria-hidden="true">›</i>
+      </button>
       <label className={`m-lv${d.leave ? ' on' : ''}`} style={lv[2] ? { '--lv': lv[2] } as React.CSSProperties : undefined}>
         <i aria-hidden="true" />{lv[1]} ▾
         <select aria-label="근태" value={d.leave} onChange={(e) => ws.onLeave(date, e.target.value as Leave)}>
@@ -126,7 +162,7 @@ function Summary({ ws, d, date }: { ws: Workspace; d: Day; date: string }) {
   );
 }
 
-/** 차수 — 시각 고치기 · − (합치기/지우기) · 차수 추가 (PC dh-detail 과 같은 함수) */
+/** 차수 — 시각 고치기 · − (합치기/지우기) · 차수 추가 (PC dh-detail 과 같은 함수). «출퇴근 고치기» 시트 안 */
 function Sessions({ ws, d, date, autoFocusOff, onPick, onAdd }: {
   ws: Workspace; d: Day; date: string; autoFocusOff?: boolean; onPick: (i: number) => void; onAdd: () => void;
 }) {
@@ -135,8 +171,7 @@ function Sessions({ ws, d, date, autoFocusOff, onPick, onAdd }: {
   useEffect(() => {
     if (!autoFocusOff) return;
     const els = box.current?.querySelectorAll<HTMLInputElement>('input[aria-label$="퇴근"]');
-    const el = els?.[els.length - 1];
-    if (el) { el.scrollIntoView({ block: 'center' }); el.focus(); }
+    els?.[els.length - 1]?.focus();
   }, [autoFocusOff, date]); // eslint-disable-line react-hooks/exhaustive-deps
   const set = (i: number, which: 'on' | 'off', hm: string) => {
     let why = '';
@@ -150,9 +185,8 @@ function Sessions({ ws, d, date, autoFocusOff, onPick, onAdd }: {
   const bad = () => ws.say('시각을 HH:MM 으로 적어 주세요');
   const hm = (ms: number | null | undefined) => (ms == null ? '' : hhmm(ms));
   return (
-    <section className="m-card m-sess" ref={box} aria-label="차수">
-      <div className="m-sum-t">출퇴근</div>
-      {d.onAt == null && <p className="m-hint">출근 기록이 없어요.</p>}
+    <div className="m-sess" ref={box}>
+      {d.onAt == null && <p className="m-hint">출근 기록이 없어요. 아래 «차수 추가» 로 적을 수 있어요.</p>}
       {rows.map((r, i) => (
         <div className="m-ses" key={`${i}-${r.on}-${r.off}`}>
           <span className="k">{i + 1}차</span>
@@ -166,7 +200,7 @@ function Sessions({ ws, d, date, autoFocusOff, onPick, onAdd }: {
         </div>
       ))}
       <button className="m-link m-ses-add" disabled={!canAddSession(d, ws.now)} onClick={onAdd}>＋ 차수 추가</button>
-    </section>
+    </div>
   );
 }
 
@@ -180,78 +214,6 @@ function Conflicts({ ws, d, date }: { ws: Workspace; d: Day; date: string }) {
       <b>휴게 {conf.length}건이 시간 기록 안에 겹쳐 있어요 ({fmtDur(min)})</b>
       <p>그만큼 근무시간에서 빠지고 있어요. 그 시간에 일한 게 맞다면 정리해 주세요.</p>
       <button className="m-btn" onClick={() => ws.fixConflicts(date)}>겹친 휴게 정리</button>
-    </section>
-  );
-}
-
-/** 세로 시간표 — 왼쪽 띠 = 근태(근무 · 비근무), 가운데 = 시간 기록, 오른쪽 = 휴게 */
-function Timeline({ ws, d, onOpen }: { ws: Workspace; d: Day; onOpen: (o: OpenSpan) => void }) {
-  const tl = timeline(d, ws.logs, ws.now);
-  const isToday = d.date === ws.today;
-  const nowMin = isToday ? (() => { const t = new Date(ws.now); return t.getHours() * 60 + t.getMinutes(); })() : null;
-  const wrap = useRef<HTMLDivElement>(null);
-  // 열 때 «지금» 이나 그 날 첫 기록이 보이게 — 시간표 안에서만 굴린다
-  useEffect(() => {
-    const first = nowMin ?? tl[0]?.s ?? 9 * 60;
-    if (wrap.current) wrap.current.scrollTop = Math.max(0, first * PX - 120);
-  }, [d.date]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const openOf = (x: TLSpan): OpenSpan | null => {
-    if (!x.ref) return null;
-    const e = x.e <= x.s ? Math.min(1440, x.s + 10) : x.e;
-    return { ref: x.ref, s: x.s, e, kind: x.kind === 'slot' ? 'slot' : 'break' };
-  };
-  const tapEmpty = (e: React.MouseEvent<HTMLDivElement>, kind: 'slot' | 'break') => {
-    if (e.target !== e.currentTarget) return;
-    const y = e.clientY - e.currentTarget.getBoundingClientRect().top;
-    const s = Math.max(0, Math.min(1410, Math.floor(y / PX / 10) * 10));
-    onOpen({ ref: null, s, e: s + 30, kind });
-  };
-  const box = (x: TLSpan, i: number) => {
-    const o = openOf(x);
-    const h = Math.max(14, (x.e - x.s) * PX);
-    const st: Record<string, string | number> = { top: x.s * PX, height: h };
-    if (x.kind === 'slot') st['--c'] = catVar(x.color ?? nextColor(0));
-    if (x.kind === 'rest' && x.color) st['--c'] = x.color;
-    return (
-      <button key={i} className={`m-tl-b ${x.kind}${x.live ? ' live' : ''}${h < 30 ? ' thin' : ''}`} style={st as React.CSSProperties}
-        onClick={() => o && onOpen(o)} aria-label={`${fmtM(x.s)}–${fmtM(x.e)} ${x.text || (x.kind === 'slot' ? '시간 기록' : '휴게')}`}>
-        <b>{x.kind === 'slot' ? x.text : `☕️ ${x.text || '휴게'}`}</b>
-        <span>{fmtM(x.s)}–{x.live ? '지금' : fmtM(x.e)} · {fmtDur(x.e - x.s)}</span>
-      </button>
-    );
-  };
-  return (
-    <section className="m-card m-tlc" aria-label="시간표">
-      <div className="m-tl-h">
-        <div className="m-sum-t">시간표</div>
-        <span className="m-tl-lg"><i className="work" />근무 <i className="slot" />기록 <i className="break" />휴게</span>
-        <span className="m-sp" />
-        <button className="m-btn sm" onClick={() => {
-          const s = nowMin != null ? Math.max(0, Math.floor((nowMin - 30) / 10) * 10) : 9 * 60;
-          onOpen({ ref: null, s, e: Math.min(1440, s + 30), kind: 'slot' });
-        }}>＋ 기록</button>
-      </div>
-      <div className="m-tl" ref={wrap}>
-        <div className="m-tl-in" style={{ height: 1440 * PX }}>
-          {Array.from({ length: 24 }, (_, h) => (
-            <div key={h} className="m-tl-hr" style={{ top: h * 60 * PX }}><i>{String(h).padStart(2, '0')}</i></div>
-          ))}
-          <div className="m-tl-att">
-            {tl.filter((x) => x.kind === 'work' || x.kind === 'off').map((x, i) => (
-              <i key={i} className={`${x.kind}${x.live ? ' live' : ''}`} style={{ top: x.s * PX, height: Math.max(2, (x.e - x.s) * PX) }} />
-            ))}
-          </div>
-          <div className="m-tl-lane slots" onClick={(e) => tapEmpty(e, 'slot')}>
-            {tl.map((x, i) => (x.kind === 'slot' ? box(x, i) : null))}
-          </div>
-          <div className="m-tl-lane brks" onClick={(e) => tapEmpty(e, 'break')}>
-            {tl.map((x, i) => (x.kind === 'break' || x.kind === 'rest' ? box(x, i) : null))}
-          </div>
-          {nowMin != null && <div className="m-tl-now" style={{ top: nowMin * PX }} />}
-        </div>
-      </div>
-      <p className="m-hint">빈 곳을 누르면 그 시각에 새로 적어요 · 칸을 누르면 고쳐요</p>
     </section>
   );
 }

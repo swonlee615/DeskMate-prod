@@ -315,7 +315,7 @@ function WeekStrip({ ws, date, onGo }: { ws: Workspace; date: string; onGo: (k: 
 }
 
 /** 상자를 여는 값 — 이미 있는 것(ref)이거나 새로 끈 구간 */
-interface OpenSpan { ref: SpanRef | null; s: number; e: number; kind: 'slot' | 'break' }
+export interface OpenSpan { ref: SpanRef | null; s: number; e: number; kind: 'slot' | 'break' }
 const gFloor = (m: number) => Math.floor(Math.max(0, m) / GSTEP) * GSTEP;
 
 /** 휴게 상자로 열기 — 진행 중이라 길이가 0 이면 최소 한 칸 (v3 openSlot) */
@@ -328,7 +328,7 @@ function openBrk(d: Day, idx: number, now: number): OpenSpan {
 const openLog = (l: Log): OpenSpan => ({ ref: { type: l.kind, id: l.id }, s: l.s, e: l.e, kind: l.kind === 'slot' ? 'slot' : 'break' });
 
 /** 시간표 (v3 gridHtml · bindGrid) — 근태 · 시간 기록 · 근무 밖 휴게를 칠하고, 끌어서 새 구간을 연다 */
-function Grid({ d, logs, now, isToday, onOpen }: { d: Day; logs: Log[]; now: number; isToday: boolean; onOpen: (o: OpenSpan) => void }) {
+export function Grid({ d, logs, now, isToday, onOpen }: { d: Day; logs: Log[]; now: number; isToday: boolean; onOpen: (o: OpenSpan) => void }) {
   const slots = logsOf(logs, d.date, 'slot');
   const rests = logsOf(logs, d.date, 'rest');
   const cells = useMemo(() => {
@@ -485,7 +485,7 @@ function Conflicts({ ws, date, d }: { ws: Workspace; date: string; d: Day }) {
 const fmtM = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 
 /** 오른쪽 아래 목록 — 시간 기록 · 휴게 · 근무 밖 휴게 · 출근 · 퇴근 (v3 slotListHtml) */
-function SlotList({ d, logs, now, rows, onOpen, onGoto }: {
+export function SlotList({ d, logs, now, rows, onOpen, onGoto }: {
   d: Day; logs: Log[]; now: number; rows: ReturnType<typeof sessionRows>; onOpen: (o: OpenSpan) => void; onGoto: () => void;
 }) {
   type It = { at: number; el: React.ReactNode };

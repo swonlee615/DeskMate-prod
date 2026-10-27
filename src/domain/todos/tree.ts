@@ -12,6 +12,7 @@
  *
  * ▣ 끝낸 날 = 체크한 화면의 날짜 (소유자 결정). 월요일 화면에서 체크하면 월요일에 끝낸 것
  */
+import { keyOf } from '../../ui/v3fmt';
 
 /** today 할 일 · memo 하루 메모 · someday 미정(주) · wmemo 주 메모 — 자세한 건 week.ts */
 export type BlockArea = 'today' | 'memo' | 'someday' | 'wmemo';
@@ -212,7 +213,7 @@ export function carriedInto(blocks: Block[], today: string): Carried[] {
       if (depth === 0 && isHead(b)) { group = b.text.trim(); continue; }
       if (depth !== 0 || b.type !== 'check' || !b.text.trim()) continue;
       if (b.done && b.doneOn !== today) continue;
-      if (!b.done && b.pinnedOn === today) continue;
+      if (!b.done && stays(b, today)) continue;
       const kids: Row[] = [];
       for (let j = i + 1; j < rows.length && rows[j].depth > 0; j++) kids.push(rows[j]);
       out.push({ root: rows[i], kids, group, fromDate: date });
@@ -221,9 +222,16 @@ export function carriedInto(blocks: Block[], today: string): Carried[] {
   return out;
 }
 
+/**
+ * 오늘 하루는 적힌 날에 머무는 줄 — v3 는 자정에 넘기므로, 오늘 그 칸에 손댄 줄은 다음 자정까지 거기 있었다.
+ * · 오늘 손으로 지난 날로 옮긴 줄 (pinnedOn)
+ * · 오늘 지난 날 칸에 새로 적은 줄 (만든 날 = 오늘) — 안 그러면 첫 글자에 «→ 넘김» 으로 바뀌어 나머지 글자가 잠긴다
+ */
+const stays = (b: Block, today: string) => b.pinnedOn === today || keyOf(new Date(b.createdAt)) === today;
+
 /** 지난 날 화면에서 «오늘로 이어지고 있는» 줄인가 (v3 의 「→ 넘김」 자리) */
 export function continuesToToday(b: Block, depth: number, today: string): boolean {
-  return b.area === 'today' && depth === 0 && b.type === 'check' && !b.done && !!b.text.trim() && b.date < today && b.pinnedOn !== today;
+  return b.area === 'today' && depth === 0 && b.type === 'check' && !b.done && !!b.text.trim() && b.date < today && !stays(b, today);
 }
 
 // ─────────────────────────────────────────────────────────── 집계

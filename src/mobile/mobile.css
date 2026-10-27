@@ -512,3 +512,56 @@ body[data-mode="light"] .m-tm-hub { background: #fff; box-shadow: 0 0 0 1px rgba
 .m-wday i { font-style: normal; font-size: 9px; opacity: .7; }
 .m-wday.none { border-style: dashed; }
 .m-wr .m-lv { padding: 0 8px; }
+
+/* ── 덜 가두기 (2026-10-28) — 주간 · 하루 상세는 상자 대신 면 그대로, 구역은 간격과 선으로 */
+.m-wk-h .m-x, .m-dh-nav { background: transparent; width: 40px; height: 40px; font-size: 24px; color: var(--text-muted); }
+.m-wps { padding: 4px 2px 0; }
+.m-wps-sum { border-bottom-color: var(--border-soft); }
+
+/* 하루 상세 페이지 — 뒤로 단추 없음 (하단 «근태» 로 닫는다) */
+.m-page { padding-top: env(safe-area-inset-top); }
+.m-page .m-body { padding-top: 14px; }
+.m-day { display: flex; flex-direction: column; gap: 14px; }
+.m-dh { display: flex; align-items: center; gap: 2px; }
+.m-dh-t { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; text-align: left; }
+.m-dh-t b { display: inline-flex; align-items: center; gap: 6px; font-size: 24px; font-weight: 900; color: var(--text-strong); letter-spacing: -.02em; }
+.m-dh-t b i { font-style: normal; font-size: 12px; color: var(--text-muted); }
+.m-dh-t span { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+.m-strip { margin: 0 -6px; }
+
+/* 출퇴근 요약 한 줄 — 누르면 고치기 시트 */
+.m-dsum { padding: 0; display: flex; flex-direction: row; align-items: center; gap: 8px; border-top: 1px solid var(--border-soft); border-bottom: 1px solid var(--border-soft); }
+.m-dsum-r { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; min-height: 62px; text-align: left; }
+.m-dsum-rg { flex: 1; min-width: 0; font-size: 17px; font-weight: 700; color: var(--text-strong); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.m-dsum-rg em { font-style: normal; color: var(--text-dim); margin: 0 6px; font-weight: 400; }
+.m-dsum-rg i { font-style: normal; font-size: 11px; font-weight: 700; color: var(--blue); margin-left: 6px; }
+.m-dsum-n { display: flex; flex-direction: column; align-items: flex-end; }
+.m-dsum-n b { font-size: 17px; font-weight: 900; color: var(--text-strong); font-variant-numeric: tabular-nums; }
+.m-dsum-n b.hit { color: var(--green); }
+.m-dsum-n small { font-size: 12px; color: var(--text-muted); }
+.m-dsum-r .m-chev { color: var(--text-dim); font-size: 18px; }
+.m-sheet .m-sess { padding: 0; }
+
+/* 시간표 — PC 격자(v3 .tg) 를 폭 가득, 칸을 손가락 크기로 */
+.m-dsec { position: relative; }
+.m-tgs .tg-col, .m-tgs .tg { max-width: none; }
+.m-tgs .tg-c { height: 19px; }
+.m-tgs .tg-r > i.h { font-size: 11px; padding: 0; display: grid; place-items: center; }
+.m-tgl { margin-top: 10px; display: flex; flex-direction: column; gap: 4px; }
+.m-tgl .tg-item { min-height: 44px; }
+/* 「＋ 기록」 — 시간표 구역 안에서 화면 아래(하단 메뉴 바로 위)에 떠 있다. 구역을 벗어나면 같이 사라진다
+   bottom: 0 — 스크롤 영역의 아래 여백(.m-body padding = 하단 메뉴 높이)이 이미 띄워 준다 */
+.m-fab-dock { position: sticky; bottom: 0; height: 0; display: flex; justify-content: flex-end; pointer-events: none; z-index: 2; }
+.m-fab {
+  pointer-events: auto; transform: translateY(calc(-100% - 6px));
+  display: inline-flex; align-items: center; gap: 6px; height: 48px; padding: 0 18px 0 14px; border-radius: 24px;
+  background: #2b8fd8; color: #fff; font-size: 15px; font-weight: 800;
+  box-shadow: 0 6px 18px rgba(0,0,0,.28);
+}
+.m-fab svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; }
+.m-fab:active { transform: translateY(calc(-100% - 6px)) scale(.97); }
+.m-fab:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
+
+/* 할 일 · 메모 — PC 편집기 그대로, 폭만 폰에 */
+.m-notes { display: flex; flex-direction: column; gap: 12px; }
+.m-notes .txt { font-size: 16px; }

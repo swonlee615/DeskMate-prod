@@ -92,6 +92,14 @@ describe('보여주기 이월 — 옮기지 않는다', () => {
     expect(continuesToToday(a, 0, D2)).toBe(true);
     expect(continuesToToday(a, 0, D1)).toBe(false);
   });
+  it('지난 날 칸에 «오늘» 새로 적은 줄은 오늘 하루 그 날에 머문다 — 넘김으로 바뀌어 글자가 잠기지 않는다 (v3 는 다음 자정에 넘김)', () => {
+    const nowD2 = new Date(2026, 9, 27, 10).getTime();
+    const a = B(D1, '폰에서 적은 할 일', { createdAt: nowD2 });
+    expect(continuesToToday(a, 0, D2)).toBe(false);
+    expect(carriedInto([a], D2)).toHaveLength(0);
+    // 다음 날부터는 보통처럼 넘어간다
+    expect(continuesToToday(a, 0, '2026-10-28')).toBe(true);
+  });
   it('오늘 적은 줄은 이월 대상이 아니다', () => {
     expect(carriedInto([B(D2, '오늘 일')], D2)).toHaveLength(0);
   });

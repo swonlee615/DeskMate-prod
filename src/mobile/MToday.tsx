@@ -1,5 +1,5 @@
 /**
- * 모바일 근태 › 전체 — 지금 상태 · 근태 버튼 · 집중 타이머 · 습관 · 주별 근태 표 · D-Day/습관 상자
+ * 모바일 근태 › 전체 — 지금 상태 · 근태 버튼 · 집중 타이머 · 주별 근태 표 (습관 체크는 활동 탭) · D-Day/습관 상자
  * ★ PC 근태 «전체» 뷰(주별 표) + 우측 패널(집중 타이머)을 한 줄로 세운 것. 타이머는 PC 와 같은 하나다 (SYNC §9)
  * ★ 타이머는 PC 다이얼(부채꼴)을 그대로 쓰고 둘레만 폰에 맞춘 MTimer
  */
@@ -13,7 +13,7 @@ import { catVar, nextColor, timeline } from '../domain/attendance/logs';
 import { addDays, dateOf, fmtClock, fmtDur, hhmm, keyOf, leaveOf, LEAVES, rowDate, weekLabel, weekStart, weekTag } from '../ui/v3fmt';
 import { MTimer } from './MTimer';
 import { attDotCls } from '../pc/Worklog';
-import { HabitChips, Pend } from './parts';
+import { Pend } from './parts';
 import { PlansBox } from './MPlans';
 
 export const STATE_LABEL = { none: '출근 전', work: '근무 중', break: '휴식 중', off: '퇴근' } as const;
@@ -62,7 +62,6 @@ export function MToday({ ws, goDay }: { ws: Workspace; goDay: (date: string, edi
       </section>
 
       <MTimer ws={ws} />
-      <HabitChips ws={ws} date={ws.today} />
       <Weeks ws={ws} onDay={goDay} />
       <PlansBox ws={ws} />
     </>
