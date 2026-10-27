@@ -38,6 +38,7 @@ const SB_ICON = (
 export function PcWorkspace({ ws }: { ws: Workspace }) {
   const { backend, user, now, today, sync, days, day, nick, initial, presence } = ws;
   const [panelOpen, setPanelOpen] = useState(false);
+  const [preDraft, setPreDraft] = useState(false);
   const [sbOff, setSbOff] = useState(false);
   // ⌘Z — 글 칸 밖(체크를 누른 뒤 등)에서는 이 기기의 마지막 줄 동작을 되돌린다. 글 칸 안은 NoteEditor 가 맡는다
   const undoRef = ws.undoBlocks;
@@ -148,8 +149,8 @@ export function PcWorkspace({ ws }: { ws: Workspace }) {
         <aside className="panel">
           <div className="panel-head"><b id="panelTitle">집중 타이머</b><div className="hspace" />
             <button className="icon-btn" id="btnPanelClose" onClick={() => setPanelOpen(false)}>✕</button></div>
-          <div className="panel-body" id="panelTimer">
-            <TimerCard t={ws.timer} onSet={(m) => ws.say(m)} />
+          <div className={`panel-body${preDraft ? ' pre-draft' : ''}`} id="panelTimer">
+            <TimerCard t={ws.timer} onSet={(m) => ws.say(m)} onDraft={setPreDraft} />
             <TodayPanelBody day={day} now={now} goalHours={GOAL_HOURS} onOn={ws.onOn} onOff={ws.onOff} onRest={ws.onRest} />
           </div>
         </aside>

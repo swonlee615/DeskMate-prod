@@ -38,6 +38,8 @@ export interface Pomodoro {
   running: boolean;
   /** 남은 초 (0 이상) */
   remain: number;
+  /** 지금 세션 길이 (초) */
+  total: number;
   /** 0~1 진행 */
   pct: number;
   label: string;
@@ -95,7 +97,7 @@ export function usePomodoro(onFocusDone: (min: number) => void, onAutoStart: (mo
   const sec = Math.max(0, Math.ceil(remain));
 
   return {
-    cfg, mode: s.mode, running, remain,
+    cfg, mode: s.mode, running, remain, total,
     pct: total ? 1 - Math.max(0, remain) / total : 0,
     label: s.mode === 'focus' ? '집중' : s.mode === 'short' ? '짧은 휴식' : '긴 휴식',
     clock: `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`,
