@@ -5,7 +5,7 @@
  * ★ 고치는 일은 전부 `ws.editDay(date, 순수함수)` 로 한다 — 함수는 src/domain/attendance/edit.ts (v3 이식)
  *   Today · Memo 는 NoteEditor.tsx.
  * ★ 시간 기록 · 근무 밖 휴게는 `ws.saveSpan` 하나로 (종류 바꾸기 · 겹침 · 나누기 규칙은 거기에)
- * 아직 안 옮긴 것: 휴게 ↔ 시간 기록 겹침 안내(breakSlotConflicts) · 카테고리 이름(설정 화면) · 할 일에서 고르기
+ * 아직 안 옮긴 것: 카테고리 이름(설정 화면) · 할 일에서 고르기
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Workspace } from '../app/useWorkspace';
@@ -21,7 +21,7 @@ import { PendBanner } from './PendBanner';
 import { NoteEditor } from './NoteEditor';
 import { DDayLines, type OpenDDay } from './DDay';
 import { HabitStrip } from './Habits';
-import { catVar, logsOf, nextColor, slotOutside, type Log, type SpanRef } from '../domain/attendance/logs';
+import { breakConflicts, catVar, logsOf, nextColor, slotOutside, type Log, type SpanRef } from '../domain/attendance/logs';
 
 const GSTEP = 5;        // 격자 한 칸 = 5분
 const GCOLS = 12;       // 한 줄 = 1시간
@@ -200,6 +200,7 @@ export function DayPage({ ws, date, full, onClose, onFull, onGo, focusOff, onDD 
                 <span className="k ss-addk">차수 추가</span>
               </button>
             </div>
+            <Conflicts ws={ws} date={date} d={d} />
           </div>
 
           <div className="day-cols">
@@ -374,7 +375,10 @@ function Grid({ d, logs, now, isToday, onOpen }: { d: Day; logs: Log[]; now: num
       const em = Math.min(1439, Math.ceil((e - base) / 60000) - 1);
       for (let m = gFloor(sm); m <= em; m += GSTEP) work[m] = true;
     }
-    return { brk, brkOnly, slot, marks, work };
+    // 겹친 칸 — 판정은 breakConflicts 한 곳 (안내 · 정리와 같은 값)
+    const clash: Record<number, number> = {};
+    breakConflicts(d).forEach((c, ci) => { for (const [a, z] of c.parts) for (let g = gFloor(a); g < z; g += GSTEP) clash[g] = ci; });
+    return { brk, brkOnly, slot, marks, work, clash };
   }, [d, now, slots, rests]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 끌기 — 누른 칸에서 뗀 칸까지 (v3 S.drag)
@@ -426,20 +430,53 @@ function Grid({ d, logs, now, isToday, onOpen }: { d: Day; logs: Log[]; now: num
             const mk = cells.marks[g] ?? [];
             const isNow = g <= nowG && nowG < g + GSTEP;
             const cls = ['tg-c', c % 2 ? 'fine' : '', isNow ? 'now' : '', bk ? (bk.off ? 'nonwork' : bk.note ? 'brk memo' : 'brk') : '',
-              sl ? 'slot' : '', !bk && !sl && cells.work[g] ? 'work' : '', g >= lo && g <= hi ? 'sel' : ''].filter(Boolean).join(' ');
+              sl ? 'slot' : '', !bk && !sl && cells.work[g] ? 'work' : '', cells.clash[g] != null ? 'clash' : '', g >= lo && g <= hi ? 'sel' : ''].filter(Boolean).join(' ');
             const tip = [sl ? `${fmtM(sl.s)} ~ ${fmtM(sl.e)} · ${fmtDur(sl.e - sl.s)}\n${sl.text}` : '', bk?.t, ...mk.map((x) => x.tip)].filter(Boolean).join('\n');
             const st: Record<string, string> = {};
             if (sl) st['--c'] = catVar(sl.color ?? nextColor(0));
             else if (bk && !bk.off && bk.color) st['--hc'] = bk.color;
             return (
               <i key={c} className={cls} data-g={g} title={tip || undefined} style={st as React.CSSProperties}
-                data-slot={sl?.id} data-hc={!sl && bk && !bk.off && bk.color ? '' : undefined}>
+                data-slot={sl?.id} data-hc={!sl && bk && !bk.off && bk.color ? '' : undefined} data-cl={cells.clash[g]}>
                 {mk.map((x, j) => <u key={j} className={`tg-mk ${x.cls}`} style={{ left: `${Math.round(x.f * 100)}%` }} />)}
+                {cells.clash[g] != null && <u className="tg-cl" />}
               </i>
             );
           })}
         </div>
       ))}
+    </div></div>
+  );
+}
+
+/**
+ * 겹침 안내 (v3 conflictHtml) — 휴게가 시간 기록 안에 겹쳐 근무시간이 깎이고 있을 때만.
+ * 칩 = 겹친 쪽(내가 그은 기록)의 시각. 누르면 격자의 그 칸이 깜빡인다 (저장하지 않는다)
+ */
+function Conflicts({ ws, date, d }: { ws: Workspace; date: string; d: Day }) {
+  const conf = breakConflicts(d);
+  const [on, setOn] = useState<number | null>(null);
+  if (!conf.length) return null;
+  const min = conf.reduce((a, c) => a + c.min, 0);
+  const hit = (ci: number) => {
+    setOn(ci);
+    const cells = [...document.querySelectorAll<HTMLElement>(`#dayPage .tg-c[data-cl="${ci}"]`)];
+    document.querySelectorAll('#dayPage .tg-c.hot').forEach((x) => x.classList.remove('hot'));
+    cells.forEach((x) => x.classList.add('hot'));
+    cells[0]?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    setTimeout(() => cells.forEach((x) => x.classList.remove('hot')), 2400);
+  };
+  return (
+    <div className="conflict"><div className="cf-row">
+      <b>휴게 {conf.length}건이 시간 기록 안에 겹쳐 있어요 ({fmtDur(min)}).</b>
+      {' '}그만큼 근무시간에서 빠지고 있습니다 — 그 시간에 일한 게 맞다면 정리해 주세요.
+      <button className="mini-btn" id="cfFix" onClick={() => ws.fixConflicts(date)}>겹친 휴게 정리</button>
+      <div className="cf-hits">{conf.map((c, ci) => (
+        <button key={ci} className={`cf-hit${on === ci ? ' on' : ''}`} data-cfhit={ci} onClick={() => hit(ci)}
+          title={`격자에서 이 자리를 짚어 줍니다\n${c.kind === 'off' ? '비근무' : '휴게'} ${fmtM(c.gs)} ~ ${fmtM(c.ge % 1440)} 안에 겹쳤어요`}>
+          {fmtM(c.parts[0][0])}~{fmtM(c.parts[c.parts.length - 1][1] % 1440)}<u>{fmtDur(c.min)}</u><i>{c.kind === 'off' ? '비근무' : '휴게'}</i>
+        </button>
+      ))}</div>
     </div></div>
   );
 }

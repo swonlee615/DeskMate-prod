@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Day } from './types';
 import { dayParts, workMinutes } from './rules';
-import { overlapIds, slotOutside, splitRest, type Log } from './logs';
+import { breakConflicts, overlapIds, resolveConflicts, slotOutside, splitRest, type Log } from './logs';
 
 const D = '2026-10-21';
 const t = (hm: string) => { const [h, m] = hm.split(':').map(Number); return new Date(2026, 9, 21, h, m).getTime(); };
@@ -49,5 +49,29 @@ describe('근무 밖 · 근무 밖 휴게 (v3.1.225 · 239)', () => {
     expect(overlapIds(logs, D, 'slot', M('09:50'), M('10:10'))).toEqual(['a', 'b']);
     expect(overlapIds(logs, D, 'slot', M('09:50'), M('10:10'), 'a')).toEqual(['b']);
     expect(overlapIds(logs, D, 'slot', M('10:00'), M('10:00'))).toEqual([]);
+  });
+});
+
+describe('휴게 ↔ 시간 기록 겹침 (LOGIC §3 breakSlotConflicts · resolveBreakConflicts · v3.1.29 · 64 · 132)', () => {
+  const brk = (a: string, z: string, kind: 'break' | 'off' = 'break') => ({ s: t(a), e: t(z), kind });
+  it('겹친 구간을 휴게마다 돌려준다 — 맞닿은 기록은 한 덩어리 · 근무 밖 기록은 안 본다', () => {
+    const d = day({ breaks: [brk('12:00', '13:00'), brk('14:00', '16:30', 'off')],
+      slots: [{ s: M('12:30'), e: M('12:45') }, { s: M('12:45'), e: M('14:30') }, { s: M('08:00'), e: M('09:00') }] });
+    const c = breakConflicts(d);
+    expect(c.map((x) => [x.i, x.min, x.parts, x.kind])).toEqual([
+      [0, 30, [[M('12:30'), M('13:00')]], 'break'],
+      [1, 30, [[M('14:00'), M('14:30')]], 'off'],
+    ]);
+  });
+  it('정리 = 빼기 — 한복판이면 두 조각 · 비근무는 사람이 누를 때만 · 바꾼 수를 센다', () => {
+    const d = day({ breaks: [brk('12:00', '13:00'), brk('10:00', '11:30', 'off')], slots: [{ s: M('09:50'), e: M('10:45') }, { s: M('12:20'), e: M('12:40') }] });   // 비근무 «안» 에서 시작한 기록은 근무 밖이라 안 본다 (v3.1.132)
+    const a = resolveConflicts(d, false);
+    expect(a.n).toBe(1);
+    expect(a.day.breaks.filter((b) => b.kind === 'break').map((b) => [b.s, b.e])).toEqual([[t('12:00'), t('12:20')], [t('12:40'), t('13:00')]]);
+    expect(a.day.breaks.filter((b) => b.kind === 'off')).toHaveLength(1);
+    const b = resolveConflicts(d, true);
+    expect(b.n).toBe(2);
+    expect(breakConflicts(b.day)).toEqual([]);
+    expect(resolveConflicts(day(), true).n).toBe(0);
   });
 });

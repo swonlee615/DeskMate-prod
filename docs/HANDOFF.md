@@ -19,9 +19,9 @@
 | 주간 플래너 | PC 「주간」 탭 — 7일 칸 · 묶음 · 미정 · 주 메모 · 콤보/끌기로 옮기기 | `src/domain/todos/week.ts` · `src/pc/WeekPlanner.tsx` |
 | D-Day | 전체 뷰 캘린더 아래 · 주간 오른쪽 · 일간 상세 · 창(이모지 · 달력 · 고정 5개 · 아카이브 · 삭제 되돌리기) | `src/domain/dday.ts` · `src/pc/DDay.tsx` |
 | 습관 | D-Day 상자 「습관」 탭 · 오늘 패널 고리 · 일간 상세 칩 · 창(주기 · 시작/끝 · 쉬는 날 제외 · 아카이브 · 삭제 되돌리기). 체크는 `done.{날짜}` 필드 | `src/domain/habits.ts` · `src/pc/Habits.tsx` · `src/pc/pickers.tsx` |
-| 시간 기록 | 일간 상세 시간표를 끌어 「시간 기록 / 휴게」 · 근무시간 = (출근 구간 ∪ 시간 기록) − 휴게 · 근무 밖 휴게 · 종류 바꾸기 · 되돌리기 | `src/domain/attendance/logs.ts` · `src/pc/DayPage.tsx` |
+| 시간 기록 | 일간 상세 시간표를 끌어 「시간 기록 / 휴게」 · 근무시간 = (출근 구간 ∪ 시간 기록) − 휴게 · 근무 밖 휴게 · 종류 바꾸기 · 겹침 안내 · 되돌리기 | `src/domain/attendance/logs.ts` · `src/pc/DayPage.tsx` |
 | 모바일 | 근태 · 오늘 할 일 · 타이머 · 하루 고치기 시트 · **주간**(요일별 / 이번 주 할 일 · 지난 요일 접힘 · ⋯ 시트로 날짜 · 묶음 옮기기) | `src/mobile/` |
-| 시험 | 95개 (`npm test`) | `*.test.ts` |
+| 시험 | 97개 (`npm test`) | `*.test.ts` |
 | v3 따라잡기 | v3.1.255 까지 분류 · 스타일 원본 3.1.255 | `docs/V3-FOLLOW.md` |
 
 ## 2. 다음 할 일 (순서대로)
@@ -29,7 +29,7 @@
 0. **v3 따라가기 먼저** — `docs/V3-FOLLOW.md` 의 «작업을 시작할 때마다». 남은 «반영» · «확인» 없음 (2026-10-27)
 
 1. ~~모바일 주간~~ 됨 (주 메모 · 딸린 줄 펼치기는 아직 — PC 에서)
-2. 시간 기록 나머지 — 휴게 ↔ 시간 기록 겹침 안내(`breakSlotConflicts`) · 할 일에서 이름 고르기 · 카테고리 이름(설정 화면) · 모바일 시간표
+2. 시간 기록 나머지 — 할 일에서 이름 고르기 · 카테고리 이름(설정 화면) · 모바일 시간표
    → 동료 프레즌스 → 검색
 3. **배포** — Firebase Hosting (`firebase.json` 있음) · 승인된 도메인 · `authDomain` 교체 (`docs/RELEASE.md` §1)
 4. PC 앱 — 같은 리포에 `src-tauri/` 추가 (리포를 나누지 않는다)

@@ -6,8 +6,8 @@
  * ▣ 시간 기록(slot)은 근무시간에 들어간다 (dayParts 가 day.slots 로 받는다)
  * ▣ 근무 밖 휴게(rest)는 근무시간 · 휴게 합계 · 퇴근 어디에도 안 들어간다 — 시간표에 무늬와 메모로만
  */
-import type { Day } from './types';
-import { dayStartMs, offSpans, sessions } from './rules';
+import { MIN_BREAK_MS, type Day } from './types';
+import { dayStartMs, normalizeBreaks, offSpans, sessions } from './rules';
 
 export type LogKind = 'slot' | 'rest';
 
@@ -81,3 +81,50 @@ export function splitRest(day: Day, s: number, e: number): { inside: MIv[]; outs
 export type SpanRef = { type: 'slot' | 'rest'; id: string } | { type: 'brk'; idx: number };
 /** 상자에서 고른 것 — 종류 · 구간(분) · 이름(메모) · 카테고리 */
 export interface SpanInput { kind: 'slot' | 'break'; s: number; e: number; text: string; color: string | null }
+
+export interface Conflict { i: number; min: number; gs: number; ge: number; parts: MIv[]; kind: 'break' | 'off' }
+
+/**
+ * 휴게 ↔ 시간 기록 겹침 (v3 breakSlotConflicts) — 자동 휴게는 추정, 내가 그은 기록은 사실이다.
+ * 근무 안 기록만 본다 (v3.1.132 — 근무 밖 기록은 근무시간에서 «빠지고 있지» 않다). 맞닿은 기록은 한 덩어리.
+ * 안내 · 격자 · 정리가 전부 이 값 하나를 쓴다
+ */
+export function breakConflicts(day: Day): Conflict[] {
+  const slots = (day.slots ?? []).filter((x) => !slotOutside(day, x.s)).sort((a, b) => a.s - b.s);
+  if (!slots.length) return [];
+  const base = dayStartMs(day.date);
+  const out: Conflict[] = [];
+  day.breaks.forEach((b, i) => {
+    if (b.e == null) return;
+    const gs = Math.round((b.s - base) / 60000), ge = Math.round((b.e - base) / 60000);
+    const parts: MIv[] = [];
+    for (const x of slots) {
+      const a = Math.max(gs, x.s), z = Math.min(ge, x.e);
+      if (z - a < 1) continue;
+      const last = parts[parts.length - 1];
+      if (last && a <= last[1]) { last[1] = Math.max(last[1], z); continue; }
+      parts.push([a, z]);
+    }
+    const min = parts.reduce((t, [a, z]) => t + z - a, 0);
+    if (min >= 1) out.push({ i, min, gs, ge, parts, kind: b.kind === 'off' ? 'off' : 'break' });
+  });
+  return out;
+}
+
+/**
+ * 겹친 휴게 정리 = 빼기 (v3 resolveBreakConflicts · v3.1.29). 남은 0~N 조각을 그대로 둔다 (1분 미만은 버린다).
+ * 비근무는 차수의 경계라 사람이 «누를» 때만 자른다 (withOff · v3.1.64). n = 실제로 바꾼 휴게 수
+ */
+export function resolveConflicts(day: Day, withOff: boolean): { day: Day; n: number } {
+  const list = breakConflicts(day).filter((c) => withOff || c.kind !== 'off');
+  if (!list.length) return { day, n: 0 };
+  const base = dayStartMs(day.date);
+  const hit = new Set(list.map((c) => c.i));
+  const kept = list.flatMap((c) => {
+    let free: MIv[] = [[c.gs, c.ge]];
+    for (const [a, z] of c.parts) free = free.flatMap(([x, y]): MIv[] => (z <= x || a >= y ? [[x, y]] : [...(a > x ? [[x, a] as MIv] : []), ...(z < y ? [[z, y] as MIv] : [])]));
+    return free.filter(([a, z]) => (z - a) * 60000 >= MIN_BREAK_MS).map(([a, z]) => ({ ...day.breaks[c.i], s: base + a * 60000, e: base + z * 60000 }));
+  });
+  const breaks = day.breaks.filter((_, i) => !hit.has(i)).concat(kept).sort((a, b) => a.s - b.s);
+  return { day: normalizeBreaks({ ...day, breaks }), n: list.length };
+}

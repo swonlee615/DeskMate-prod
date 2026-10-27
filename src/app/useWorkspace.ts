@@ -11,8 +11,8 @@ import type { AttEvent, AttEventType, AttState, Day, Leave } from '../domain/att
 import { deriveDay } from '../domain/attendance/replay';
 import { dateKey, dayEndMs, dayStartMs, sessions, stateOf } from '../domain/attendance/rules';
 import { addBreakSpan, canCarry, editBreak, removeBreak, resolveAt, resolveCarry } from '../domain/attendance/edit';
-import { logsOf, overlapIds, splitRest, type Log, type SpanInput, type SpanRef } from '../domain/attendance/logs';
-import { addDays, dateOf, keyOf, weekStart } from '../ui/v3fmt';
+import { breakConflicts, logsOf, overlapIds, resolveConflicts, splitRest, type Log, type SpanInput, type SpanRef } from '../domain/attendance/logs';
+import { addDays, dateOf, fmtDur, keyOf, weekStart } from '../ui/v3fmt';
 import { usePomodoro, type Pomodoro } from './usePomodoro';
 import { deleteChunk, inverseOf, triFix, triToggle, type Block, type Patch } from '../domain/todos/tree';
 import { ddCanPin, ddClean, ddLabel, type DDay } from '../domain/dday';
@@ -120,6 +120,8 @@ export interface Workspace {
    */
   saveSpan: (date: string, orig: SpanRef | null, v: SpanInput) => string | null;
   deleteSpan: (date: string, orig: SpanRef) => void;
+  /** 「겹친 휴게 정리」 — 사람이 누른 정리라 비근무까지 자른다 (v3.1.64) */
+  fixConflicts: (date: string) => void;
   nick: string;
   initial: string;
   presence: 'active' | 'break' | 'offline';
@@ -401,7 +403,8 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
     const at = Date.now();
     const ms = (m: number) => dayStartMs(date) + m * 60000;
     const undo: (() => void)[] = [];
-    const kill = (id: string) => { repo.patchLog(id, { deletedAt: at }); undo.push(() => repo.patchLog(id, { deletedAt: null })); };
+    const gone = new Set<string>();
+    const kill = (id: string) => { gone.add(id); repo.patchLog(id, { deletedAt: at }); undo.push(() => repo.patchLog(id, { deletedAt: null })); };
     const add = (kind: Log['kind'], s: number, e: number, color: string | null) => {
       for (const id of overlapIds(logs, date, kind, s, e)) kill(id);
       const l: Log = { id: newId(), date, kind, s, e, text, color, createdAt: at };
@@ -427,8 +430,12 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
       msg = v.kind === 'break' ? '휴게로 바꿨어요 — 근무시간에서 빠져요' : '시간 기록으로 바꿨어요 — 근무시간에 들어가요';
     }
     if (v.kind === 'slot') {
-      if (ref?.type === 'slot') patch(ref.id, v.s, v.e); else add('slot', v.s, v.e, v.color);
+      if (ref?.type === 'slot') { gone.add(ref.id); patch(ref.id, v.s, v.e); } else add('slot', v.s, v.e, v.color);
       msg ||= ref ? '시간 기록을 고쳤어요' : '시간 기록을 남겼어요';
+      // 적었다는 건 그 시간에 일했다는 뜻 — 겹친 휴게는 그 자리에서 정리한다. 비근무는 안 건드린다 (v3.1.64)
+      const slots = [...logsOf(logs, date, 'slot').filter((x) => !gone.has(x.id)), { s: v.s, e: v.e }];
+      const r = resolveConflicts({ ...d, slots }, false);
+      if (r.n) { d = { ...r.day, slots: d.slots }; msg += ` · 겹친 휴게 ${r.n}건을 정리했어요`; }
     } else if (ref?.type === 'rest') {
       patch(ref.id, v.s, v.e);
       msg ||= '휴게를 고쳤어요';
@@ -455,6 +462,17 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
       { label: '되돌리기', run: () => { repo.patchLog(orig.id, { deletedAt: null }); setToast(null); } });
   };
 
+  const fixConflicts = (date: string) => {
+    const d = dayOf(date);
+    const back = breakConflicts(d).reduce((a, c) => a + c.min, 0);
+    const r = resolveConflicts(d, true);
+    if (!r.n) { say('정리할 게 없어요'); return; }
+    const left = breakConflicts(r.day).length;
+    const e = overrideDay(date, r.day);
+    say(left ? `휴게 ${r.n}건을 정리했는데 ${left}건이 아직 겹쳐 있어요 — 알려 주세요` : `겹친 휴게 ${r.n}건을 정리해 ${fmtDur(back)}을 근무시간으로 돌렸어요`,
+      { label: '되돌리기', run: () => { repo.deleteEvent(e); setToast(null); } });
+  };
+
   const nick = user.name ?? user.email?.split('@')[0] ?? '나';
 
   return {
@@ -464,7 +482,7 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
     blocks, addBlock, patchBlocks, editBlocks, undoBlocks, lastEditAt, toggleBlock, removeBlock, newId,
     ddays, saveDDay, pinDDay, archiveDDay, deleteDDay,
     habits, offDay, saveHabit, archiveHabit, deleteHabit, toggleHabit,
-    logs, saveSpan, deleteSpan,
+    logs, saveSpan, deleteSpan, fixConflicts,
     nick, initial: nick.slice(0, 1).toUpperCase(),
     presence: state === 'break' ? 'break' : state === 'work' ? 'active' : 'offline',
   };
