@@ -1,5 +1,5 @@
 /**
- * 모바일 «더보기» — 계정 · D-Day · 습관 관리
+ * 모바일 「D-Day | 습관」 상자 — PC 근태 전체 뷰의 D-Day 상자(v3 DDayBox, 알약 탭)와 같은 자리 · 같은 묶음
  * ★ 저장은 PC 창과 같은 ws.saveDDay · pinDDay · saveHabit … (규칙은 dday.ts · habits.ts)
  * ★ 날짜는 폰 기본 날짜 고르기(`input type=date`), 이모지는 폰 이모지 자판
  */
@@ -9,53 +9,47 @@ import { DD_PIN_MAX, ddDateLabel, ddLabel, ddLive, type DDay } from '../domain/d
 import { HB_SPANS, hbFreqLabel, hbLive, hbSpanEnd, hbSpanOf, hbStreak, type Habit, type HbSpan, type HbType } from '../domain/habits';
 import { Sheet } from './parts';
 
-export function MMore({ ws, onAccount }: { ws: Workspace; onAccount: () => void }) {
+export function PlansBox({ ws }: { ws: Workspace }) {
+  const [tab, setTab] = useState<'dd' | 'hb'>('dd');
   const [dd, setDd] = useState<DDay | 'new' | null>(null);
   const [hb, setHb] = useState<Habit | 'new' | null>(null);
   const dds = ddLive(ws.ddays, ws.today);
   const hbs = hbLive(ws.habits, ws.today);
   return (
-    <>
-      <ul className="m-card m-list">
-        <li className="m-row">
-          <div className="m-row-l"><b>{ws.nick}</b><span>{ws.user.email ?? (ws.backend.mode === 'local' ? '개발 모드 · 이 기기에만 저장' : '')}</span></div>
-          {ws.backend.mode === 'cloud' && <button className="m-link" onClick={onAccount}>계정</button>}
-        </li>
-      </ul>
-
-      <section>
-        <div className="m-sec-h"><b>D-Day</b><span className="m-sp" /><button className="m-link" onClick={() => setDd('new')}>＋ 추가</button></div>
-        {dds.length ? (
-          <ul className="m-card m-list">
-            {dds.map((x) => (
-              <li key={x.id} className="m-row" onClick={() => setDd(x)}>
-                <span className="m-emo">{x.emoji || '📌'}</span>
-                <div className="m-row-l"><b>{x.title}{x.pinned && <small> · 고정</small>}</b><span>{ddDateLabel(x.date, ws.today)}</span></div>
-                <div className="m-row-r"><b>{ddLabel(x.date, ws.today)}</b></div>
-              </li>
-            ))}
-          </ul>
-        ) : <p className="m-empty">다가오는 날을 적어 두면 오늘 화면에 보여요.</p>}
-      </section>
-
-      <section>
-        <div className="m-sec-h"><b>습관</b><span className="m-sp" /><button className="m-link" onClick={() => setHb('new')}>＋ 추가</button></div>
-        {hbs.length ? (
-          <ul className="m-card m-list">
-            {hbs.map((h) => { const st = hbStreak(h, ws.today, ws.offDay); return (
-              <li key={h.id} className="m-row" onClick={() => setHb(h)}>
-                <span className="m-emo">{h.emoji || '✅'}</span>
-                <div className="m-row-l"><b>{h.title}</b><span>{hbFreqLabel(h)}{h.end ? ` · ${h.end}까지` : ''}</span></div>
-                <div className="m-row-r"><b>{st.n}{st.unit}</b><small className="m-hint">연속</small></div>
-              </li>
-            ); })}
-          </ul>
-        ) : <p className="m-empty">매일 할 일을 습관으로 만들면 체크할 수 있어요.</p>}
-      </section>
+    <section className="m-card m-plans" aria-label="D-Day · 습관">
+      <div className="m-plans-h">
+        <div className="m-seg">
+          <button className={tab === 'dd' ? 'on' : ''} onClick={() => setTab('dd')}>D-Day</button>
+          <button className={tab === 'hb' ? 'on' : ''} onClick={() => setTab('hb')}>습관</button>
+        </div>
+        <button className="m-x" aria-label={tab === 'dd' ? 'D-Day 추가' : '습관 추가'} onClick={() => (tab === 'dd' ? setDd('new') : setHb('new'))}>＋</button>
+      </div>
+      {tab === 'dd' && (dds.length ? (
+        <ul className="m-list">
+          {dds.map((x) => (
+            <li key={x.id} className="m-row" onClick={() => setDd(x)}>
+              <span className="m-emo">{x.emoji || '📌'}</span>
+              <div className="m-row-l"><b>{x.title}{x.pinned && <small> · 고정</small>}</b><span>{ddDateLabel(x.date, ws.today)}</span></div>
+              <div className="m-row-r"><b className="m-ddn">{ddLabel(x.date, ws.today)}</b></div>
+            </li>
+          ))}
+        </ul>
+      ) : <p className="m-empty">다가오는 날을 ＋ 로 적어 두세요.</p>)}
+      {tab === 'hb' && (hbs.length ? (
+        <ul className="m-list">
+          {hbs.map((h) => { const st = hbStreak(h, ws.today, ws.offDay); return (
+            <li key={h.id} className="m-row" onClick={() => setHb(h)}>
+              <span className="m-emo">{h.emoji || '✅'}</span>
+              <div className="m-row-l"><b>{h.title}</b><span>{hbFreqLabel(h)}{h.end ? ` · ${h.end}까지` : ''}</span></div>
+              <div className="m-row-r"><b>{st.n}{st.unit}</b><small className="m-hint">연속</small></div>
+            </li>
+          ); })}
+        </ul>
+      ) : <p className="m-empty">매일 할 일을 ＋ 로 습관으로 만들어 두세요.</p>)}
 
       {dd && <DDaySheet ws={ws} x={dd === 'new' ? null : dd} onClose={() => setDd(null)} />}
       {hb && <HabitSheet ws={ws} h={hb === 'new' ? null : hb} onClose={() => setHb(null)} />}
-    </>
+    </section>
   );
 }
 

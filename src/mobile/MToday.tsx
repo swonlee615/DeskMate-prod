@@ -1,15 +1,15 @@
 /**
- * 모바일 «오늘» — 지금 상태 · 근태 버튼 · 집중 타이머 · 습관 · D-Day · 오늘 할 일 · 메모 · 이번 주
- * ★ PC 전체 탭 + 우측 패널(타이머 · 오늘 패널)을 한 줄로 세운 것. 타이머는 PC 와 같은 하나다 (SYNC §9)
+ * 모바일 근태 › 전체 — 지금 상태 · 근태 버튼 · 집중 타이머 · 습관 · 오늘 할 일 · 메모 · 이번 주 · D-Day/습관 상자
+ * ★ PC 근태 «전체» 뷰 + 우측 패널(집중 타이머 · 오늘 패널)을 한 줄로 세운 것. 타이머는 PC 와 같은 하나다 (SYNC §9)
  */
 import type { Workspace } from '../app/useWorkspace';
 import { GOAL_HOURS } from '../app/useWorkspace';
 import { PRESETS } from '../app/usePomodoro';
 import { dayGoalMin, dayParts, openBreak, sessions } from '../domain/attendance/rules';
 import { catVar, nextColor, timeline } from '../domain/attendance/logs';
-import { ddLabel, ddLive, ddPinned } from '../domain/dday';
 import { addDays, dateOf, fmtClock, fmtDur, hhmm, keyOf, mmss, weekStart, weekTag } from '../ui/v3fmt';
 import { HabitChips, Pend, Todos } from './parts';
+import { PlansBox } from './MPlans';
 
 export const STATE_LABEL = { none: '출근 전', work: '근무 중', break: '휴식 중', off: '퇴근' } as const;
 
@@ -58,10 +58,10 @@ export function MToday({ ws, goDay }: { ws: Workspace; goDay: (date: string, edi
 
       <Timer ws={ws} />
       <HabitChips ws={ws} date={ws.today} />
-      <DDays ws={ws} />
       <Todos ws={ws} date={ws.today} area="today" />
       <Todos ws={ws} date={ws.today} area="memo" />
       <WeekSummary ws={ws} onDay={goDay} />
+      <PlansBox ws={ws} />
     </>
   );
 }
@@ -128,7 +128,7 @@ function Timer({ ws }: { ws: Workspace }) {
   const t = ws.timer;
   const rest = t.mode !== 'focus';
   return (
-    <section className="m-card m-timer" aria-label="집중 타이머">
+    <section className="m-card m-timer" id="m-timer" aria-label="집중 타이머">
       <div className="m-ring">
         <svg viewBox="0 0 128 128" aria-hidden="true">
           <circle cx="64" cy="64" r={R} className="bg" />
@@ -153,20 +153,6 @@ function Timer({ ws }: { ws: Workspace }) {
         <p className="m-hint">모든 기기에서 같은 타이머예요</p>
       </div>
     </section>
-  );
-}
-
-function DDays({ ws }: { ws: Workspace }) {
-  // 고정한 것 — 없으면 PC 오른쪽 상자처럼 다가오는 것부터
-  const pin = ddPinned(ws.ddays);
-  const list = pin.length ? pin : ddLive(ws.ddays, ws.today).filter((x) => x.date >= ws.today).slice(0, 3);
-  if (!list.length) return null;
-  return (
-    <div className="m-dd" aria-label="D-Day">
-      {list.map((x) => (
-        <div key={x.id} className="m-dd-i"><b>{ddLabel(x.date, ws.today)}</b><span>{x.emoji} {x.title}</span></div>
-      ))}
-    </div>
   );
 }
 

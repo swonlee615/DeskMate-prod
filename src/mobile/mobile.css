@@ -408,3 +408,22 @@
 .m-sec-h { display: flex; align-items: center; margin: 6px 4px 8px; }
 .m-sec-h b { font-size: 13px; color: var(--text-muted); }
 .m-emo { flex: none; width: 32px; font-size: 22px; text-align: center; }
+
+/* ── PC 와 같은 메뉴 (2026-10-28) — 머리 타이머 알약 · 설정 · 하루 상세 페이지 · 준비 중 */
+.m-pill svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; }
+.m-pill.timer { background: var(--surface-3); color: var(--text-strong); }
+.m-pill.timer.on { background: color-mix(in srgb, var(--blue) 14%, var(--surface-2)); color: var(--blue); }
+.m-pill.timer.on.rest { background: color-mix(in srgb, var(--yellow) 16%, var(--surface-2)); color: var(--yellow); }
+.m-gear { width: 36px; height: 36px; background: transparent; display: grid; place-items: center; }
+.m-gear svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linejoin: round; }
+.m-page { position: fixed; inset: 0; z-index: 15; background: var(--main); display: flex; flex-direction: column; animation: m-up .22s cubic-bezier(.22, 1, .36, 1); }
+.m-page-h { display: flex; align-items: center; padding: calc(10px + env(safe-area-inset-top)) 16px 6px; }
+@keyframes m-up { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .m-page { animation: none; } }
+.m-soon { padding: 48px 24px; text-align: center; display: flex; flex-direction: column; gap: 8px; }
+.m-soon b { font-size: 17px; color: var(--text-strong); }
+.m-soon p { font-size: 14px; color: var(--text-muted); }
+.m-plans { padding: 12px 0 4px; }
+.m-plans-h { display: flex; align-items: center; gap: 8px; padding: 0 12px 6px 16px; }
+.m-plans-h .m-seg { flex: 1; }
+.m-ddn { color: var(--red); }
