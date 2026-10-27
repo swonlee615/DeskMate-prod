@@ -373,17 +373,24 @@ function DaySheet({ ws, date, onClose }: { ws: Workspace; date: string; onClose:
 
 // ───────────────────────────────────────────── 팀 · 더보기
 
+/** 팀 — 오늘 근무 랭킹 (PC 와 같은 ws.ranking · 상태는 ws.mateStatus) */
 function TeamTab({ ws }: { ws: Workspace }) {
   return (
-    <>
-      <ul className="m-card m-list">
-        <li className="m-row">
-          <span className="m-av">{ws.initial}<i className={`m-dot ${ws.state}`} /></span>
-          <div className="m-row-l"><b>{ws.nick} <small>(나)</small></b><span>{STATE_LABEL[ws.state]}</span></div>
-        </li>
-      </ul>
-      <p className="m-empty">아직 팀원이 없어요.</p>
-    </>
+    <ul className="m-card m-list">
+      {ws.ranking.map((r) => {
+        const st = r.me ? null : ws.mateStatus(r.id);
+        const p = r.me ? (ws.state === 'work' ? 'work' : ws.state === 'break' ? 'break' : 'none') : st?.presence === 'active' || st?.presence === 'dnd' ? 'work' : st?.presence === 'break' ? 'break' : 'none';
+        return (
+          <li key={r.id} className="m-row">
+            <span className="m-rank">{r.rank}</span>
+            <span className="m-av" style={r.m ? { background: r.m.color } : undefined}>{r.m ? r.m.emoji || r.m.nick.slice(0, 1) : ws.initial}<i className={`m-dot ${p}`} /></span>
+            <div className="m-row-l"><b>{r.nick}{r.me && <small> (나)</small>}</b>
+              <span>{r.me ? STATE_LABEL[ws.state] : st ? `${st.emoji ? st.emoji + ' ' : ''}${st.topic || st.label}` : ''}</span></div>
+            <div className="m-row-r"><b>{fmtDur(r.min)}</b></div>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 

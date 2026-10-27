@@ -212,3 +212,6 @@
 .m-pick button.wide { grid-column: span 2; }
 .m-pick button.on { border-color: var(--blue); color: var(--blue); background: color-mix(in srgb, var(--blue) 8%, var(--surface-2)); }
 .m-sheet > .m-btn { flex: none; margin-top: 8px; }
+
+/* ── 팀 (오늘 근무 랭킹) */
+.m-rank { flex: none; width: 20px; text-align: center; font-size: 13px; font-weight: 700; color: var(--text-muted); font-variant-numeric: tabular-nums; }

@@ -19,6 +19,7 @@ import { PendBanner } from './PendBanner';
 import { WeekPlanner } from './WeekPlanner';
 import { DDayBox, DDayModal, type DDTab } from './DDay';
 import { HabitModal, HabitRings } from './Habits';
+import { MateRows, Ranking } from './Team';
 import type { DDay } from '../domain/dday';
 import type { Habit } from '../domain/habits';
 import './pc.css';
@@ -108,7 +109,7 @@ export function PcWorkspace({ ws }: { ws: Workspace }) {
           </div>
           <div className="sb-scroll" id="sbScroll">
             <button className="sb-section" aria-expanded="true"><span className="sb-caret">▾</span><span className="nm">팀원</span></button>
-            <p className="hint" style={{ padding: '2px 18px 8px' }}>아직 팀원이 없어요</p>
+            <MateRows ws={ws} />
             {backend.mode === 'local' && <p className="hint" style={{ padding: '2px 18px' }}>개발 모드 · 이 기기에만 저장</p>}
           </div>
           <div className="sb-foot">
@@ -166,6 +167,7 @@ export function PcWorkspace({ ws }: { ws: Workspace }) {
             <TimerCard t={ws.timer} onSet={(m) => ws.say(m)} onDraft={setPreDraft} />
             <TodayPanelBody day={day} now={now} goalHours={GOAL_HOURS} onOn={ws.onOn} onOff={ws.onOff} onRest={ws.onRest} />
             <HabitRings ws={ws} />
+            <Ranking ws={ws} />
           </div>
         </aside>
       </div>

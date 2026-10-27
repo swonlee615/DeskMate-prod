@@ -9,10 +9,11 @@ import type { Backend, DayEvents, Item, Repo, SyncStatus, User } from '../data';
 import { deviceId, deviceKind, newId } from '../data/device';
 import type { AttEvent, AttEventType, AttState, Day, Leave } from '../domain/attendance/types';
 import { deriveDay } from '../domain/attendance/replay';
-import { dateKey, dayEndMs, dayStartMs, sessions, stateOf } from '../domain/attendance/rules';
+import { dateKey, dayEndMs, dayParts, dayStartMs, sessions, stateOf } from '../domain/attendance/rules';
 import { addBreakSpan, canCarry, editBreak, removeBreak, resolveAt, resolveCarry } from '../domain/attendance/edit';
 import { breakConflicts, logsOf, overlapIds, resolveConflicts, splitRest, type Log, type SpanInput, type SpanRef } from '../domain/attendance/logs';
 import { addDays, dateOf, fmtDur, keyOf, weekStart } from '../ui/v3fmt';
+import { buildTeam, leaderboard, ROSTER, STATUS_ORDER, statusAt, type LbRow, type Member, type MateStatus } from '../domain/sim/team';
 import { usePomodoro, type Pomodoro } from './usePomodoro';
 import { deleteChunk, inverseOf, triFix, triToggle, type Block, type Patch } from '../domain/todos/tree';
 import { ddCanPin, ddClean, ddLabel, type DDay } from '../domain/dday';
@@ -122,6 +123,12 @@ export interface Workspace {
   deleteSpan: (date: string, orig: SpanRef) => void;
   /** 「겹친 휴게 정리」 — 사람이 누른 정리라 비근무까지 자른다 (v3.1.64) */
   fixConflicts: (date: string) => void;
+  // ── 가상 동료 (v3 sim — 대화 · 허들은 아직)
+  /** 지금 상태 — 일하는 사람이 위 (v3 사이드바 순서) */
+  mates: { m: Member; st: MateStatus }[];
+  /** 오늘 근무 랭킹 — 나도 같은 줄에 */
+  ranking: LbRow[];
+  mateStatus: (id: string) => MateStatus | null;
   nick: string;
   initial: string;
   presence: 'active' | 'break' | 'offline';
@@ -475,6 +482,15 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
 
   const nick = user.name ?? user.email?.split('@')[0] ?? '나';
 
+  // ── 가상 동료 — 날짜 씨앗으로 매번 같은 하루 (저장하지 않는다)
+  const team = useMemo(() => buildTeam(today), [today]);
+  const nowMin = (() => { const t = new Date(now); return t.getHours() * 60 + t.getMinutes(); })();
+  const mates = useMemo(() => ROSTER.map((m) => ({ m, st: statusAt(team[m.id], m, nowMin) }))
+    .sort((a, b) => STATUS_ORDER[a.st.key] - STATUS_ORDER[b.st.key] || a.m.nick.localeCompare(b.m.nick)), [team, nowMin]);
+  const myMin = dayParts(day, now).workMs / 60000;
+  const ranking = useMemo(() => leaderboard(team, nowMin, myMin, nick), [team, nowMin, Math.floor(myMin), nick]); // eslint-disable-line react-hooks/exhaustive-deps
+  const mateStatus = (id: string) => mates.find((x) => x.m.id === id)?.st ?? null;
+
   return {
     backend, user, now, today, sync, days, day, state,
     unavailable: range.unavailable, calMonth, setCalMonth, wpWeek, setWpWeek, toast, timer, say, warn,
@@ -483,6 +499,7 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
     ddays, saveDDay, pinDDay, archiveDDay, deleteDDay,
     habits, offDay, saveHabit, archiveHabit, deleteHabit, toggleHabit,
     logs, saveSpan, deleteSpan, fixConflicts,
+    mates, ranking, mateStatus,
     nick, initial: nick.slice(0, 1).toUpperCase(),
     presence: state === 'break' ? 'break' : state === 'work' ? 'active' : 'offline',
   };
