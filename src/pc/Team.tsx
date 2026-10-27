@@ -1,7 +1,7 @@
 /**
  * 가상 동료 — 사이드바 줄 · 오늘 근무 랭킹 (v3 renderSidebar 의 DM 줄 · renderPanel 의 #lb · fitLb)
  * ★ 마크업 · 클래스는 v3 와 같다. 동료의 상태는 ws.mates / ws.ranking (src/domain/sim/team.ts)
- * 아직 안 옮긴 것: 대화방(누르면 DM) · 허들 · 안 읽은 수 · 알림 끄기
+ * 대화 · 채널 · DM · 허들은 옮기지 않는다 (2026-10-27 소유자) — 동료는 상태 · 랭킹만
  */
 import { useLayoutEffect } from 'react';
 import type { Workspace } from '../app/useWorkspace';

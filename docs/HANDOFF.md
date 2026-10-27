@@ -31,7 +31,8 @@
 
 1. ~~모바일 주간~~ 됨 (주 메모 · 딸린 줄 펼치기는 아직 — PC 에서)
 2. 시간 기록 나머지 — 할 일에서 이름 고르기 · 카테고리 이름(설정 화면) · 모바일 시간표
-   → 동료 나머지(대화 · 허들 · 동료 설정 — v3 `dialogue.js` · `sim.js` 의 _planMessages · _planHuddles) → 검색
+   → 검색
+   - **동료 대화 · 채널 · DM · 허들은 옮기지 않는다** (2026-10-27 소유자). 동료는 상태 · 랭킹만
 3. **배포** — Firebase Hosting (`firebase.json` 있음) · 승인된 도메인 · `authDomain` 교체 (`docs/RELEASE.md` §1)
 4. PC 앱 — 같은 리포에 `src-tauri/` 추가 (리포를 나누지 않는다)
 
