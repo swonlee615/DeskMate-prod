@@ -13,6 +13,7 @@
 .sync-busy i { background: var(--blue); }
 .sync-off { color: var(--yellow); }
 .sync-off i { background: var(--yellow); }
+.sync-ic { width: 14px; height: 14px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; }
 
 /* ───────────── 로그인 · 메일 인증 · 계정 — v3 에는 없는 화면. v3 토큰으로 칠한다 */
 .boot { height: 100%; background: var(--main); }

@@ -1,14 +1,18 @@
 /**
- * 모바일 근태 › 전체 — 지금 상태 · 근태 버튼 · 집중 타이머 · 습관 · 오늘 할 일 · 메모 · 이번 주 · D-Day/습관 상자
- * ★ PC 근태 «전체» 뷰 + 우측 패널(집중 타이머 · 오늘 패널)을 한 줄로 세운 것. 타이머는 PC 와 같은 하나다 (SYNC §9)
+ * 모바일 근태 › 전체 — 지금 상태 · 근태 버튼 · 집중 타이머 · 습관 · 주별 근태 표 · D-Day/습관 상자
+ * ★ PC 근태 «전체» 뷰(주별 표) + 우측 패널(집중 타이머)을 한 줄로 세운 것. 타이머는 PC 와 같은 하나다 (SYNC §9)
+ * ★ 타이머 카드는 PC 부품(TimerCard · v3 다이얼) 그대로 — 모양이 PC 최신과 늘 같다
  */
+import { useState } from 'react';
 import type { Workspace } from '../app/useWorkspace';
-import { GOAL_HOURS } from '../app/useWorkspace';
-import { PRESETS } from '../app/usePomodoro';
-import { dayGoalMin, dayParts, openBreak, sessions } from '../domain/attendance/rules';
+import { GOAL_HOURS, WEEKS_SHOWN } from '../app/useWorkspace';
+import type { Day, Leave } from '../domain/attendance/types';
+import { dayGoalMin, dayParts, openBreak, sessions, workMinutes } from '../domain/attendance/rules';
 import { catVar, nextColor, timeline } from '../domain/attendance/logs';
-import { addDays, dateOf, fmtClock, fmtDur, hhmm, keyOf, mmss, weekStart, weekTag } from '../ui/v3fmt';
-import { HabitChips, Pend, Todos } from './parts';
+import { addDays, dateOf, fmtClock, fmtDur, hhmm, keyOf, leaveOf, LEAVES, mmss, rowDate, weekLabel, weekStart, weekTag } from '../ui/v3fmt';
+import { TimerCard } from '../pc/TimerCard';
+import { attDotCls } from '../pc/Worklog';
+import { HabitChips, Pend } from './parts';
 import { PlansBox } from './MPlans';
 
 export const STATE_LABEL = { none: '출근 전', work: '근무 중', break: '휴식 중', off: '퇴근' } as const;
@@ -56,11 +60,11 @@ export function MToday({ ws, goDay }: { ws: Workspace; goDay: (date: string, edi
         <Desks ws={ws} />
       </section>
 
-      <Timer ws={ws} />
+      <section className="m-card m-timer" id="m-timer" aria-label="집중 타이머">
+        <TimerCard t={ws.timer} onSet={(m) => ws.say(m)} onDraft={() => {}} />
+      </section>
       <HabitChips ws={ws} date={ws.today} />
-      <Todos ws={ws} date={ws.today} area="today" />
-      <Todos ws={ws} date={ws.today} area="memo" />
-      <WeekSummary ws={ws} onDay={goDay} />
+      <Weeks ws={ws} onDay={goDay} />
       <PlansBox ws={ws} />
     </>
   );
@@ -121,42 +125,79 @@ function Desks({ ws }: { ws: Workspace }) {
   );
 }
 
-const R = 54, C = 2 * Math.PI * R;
-
-/** 집중 타이머 — PC 다이얼과 같은 하나 (어느 기기에서 누르든 같이 돈다) */
-function Timer({ ws }: { ws: Workspace }) {
-  const t = ws.timer;
-  const rest = t.mode !== 'focus';
+/**
+ * 주별 근태 표 (PC 전체 뷰 Worklog 와 같은 줄) — 날짜 · 출근–퇴근 · 근무 + 점 · 근태. 누르면 그 날 상세
+ * 폰 폭이라 날짜 아래 둘째 줄에 «출근 – 퇴근 · 비고(이어짐 · N회)»
+ */
+function Weeks({ ws, onDay }: { ws: Workspace; onDay: (k: string) => void }) {
+  const [shut, setShut] = useState<Record<string, boolean>>({});
+  const nowD = new Date(ws.now);
+  const w0 = weekStart(dateOf(ws.today));
+  const weeks: { start: Date; rows: string[] }[] = [];
+  for (let w = 0; w < WEEKS_SHOWN; w++) {
+    const start = addDays(w0, -7 * w);
+    const rows: string[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const k = keyOf(addDays(start, i));
+      const d = ws.days[k];
+      if (k === ws.today || (k < ws.today && d && (d.onAt != null || d.leave))) rows.push(k);
+    }
+    if (rows.length) weeks.push({ start, rows });
+  }
   return (
-    <section className="m-card m-timer" id="m-timer" aria-label="집중 타이머">
-      <div className="m-ring">
-        <svg viewBox="0 0 128 128" aria-hidden="true">
-          <circle cx="64" cy="64" r={R} className="bg" />
-          <circle cx="64" cy="64" r={R} className={`fg${rest ? ' rest' : ''}`} strokeDasharray={C} strokeDashoffset={C * (1 - t.pct)} />
-        </svg>
-        <div className="m-ring-c">
-          <b>{t.clock}</b>
-          <span>{t.label}{t.running ? '' : ' · 대기'}</span>
-        </div>
-      </div>
-      <div className="m-timer-r">
-        <div className="m-timer-a">
-          <button className={`m-btn${t.running ? '' : ' go'}`} onClick={t.toggle}>{t.running ? '일시정지' : '시작'}</button>
-          <button className="m-x" onClick={t.skip} aria-label="다음 세션으로">⏭</button>
-          <button className="m-x" onClick={t.reset} aria-label="처음부터">↺</button>
-        </div>
-        <div className="m-chips">
-          {PRESETS.map((n) => (
-            <button key={n} className={t.cfg.focusMin === n ? 'on' : ''} onClick={() => t.setFocusMin(n)}>{n}</button>
-          ))}
-        </div>
-        <p className="m-hint">모든 기기에서 같은 타이머예요</p>
-      </div>
-    </section>
+    <>
+      {weeks.map((g) => {
+        const wk = keyOf(g.start);
+        let sum = 0;
+        for (const k of g.rows) { const d = ws.days[k]; if (d?.onAt != null) sum += workMinutes(d, ws.now); }
+        const open = !shut[wk];
+        return (
+          <section key={wk} className="m-wkt">
+            <button className="m-wkt-h" aria-expanded={open} onClick={() => setShut((x) => ({ ...x, [wk]: open }))}>
+              <i className={`m-chev${open ? ' on' : ''}`} aria-hidden="true">›</i><b>{weekLabel(g.start)}</b><em>· {fmtDur(sum)}</em>
+            </button>
+            {open && (
+              <ul className="m-card m-wkt-l">
+                {g.rows.map((k) => <WRow key={k} k={k} d={ws.days[k]} isToday={k === ws.today} now={ws.now} nowD={nowD} onLeave={ws.onLeave} onOpen={() => onDay(k)} />)}
+              </ul>
+            )}
+          </section>
+        );
+      })}
+    </>
   );
 }
 
-function WeekSummary({ ws, onDay }: { ws: Workspace; onDay: (k: string) => void }) {
+function WRow({ k, d, isToday, now, nowD, onLeave, onOpen }: {
+  k: string; d: Day | undefined; isToday: boolean; now: number; nowD: Date; onLeave: (k: string, l: Leave) => void; onOpen: () => void;
+}) {
+  const rd = rowDate(k, nowD);
+  const ses = d ? sessions(d) : [];
+  const last = ses[ses.length - 1];
+  const off = last ? last.off ?? (d?.pending ? d.pending.guessOff : null) : null;
+  const note = [d?.pending ? '확인 필요' : '', d?.carriedFrom ? '이어짐' : '', ses.length > 1 ? `출근 ${ses.length}회` : ''].filter(Boolean).join(' · ');
+  const lv = leaveOf(d?.leave);
+  return (
+    <li className={`m-wr${isToday ? ' today' : ''}`} onClick={(e) => { if (!(e.target as HTMLElement).closest('.m-lv')) onOpen(); }}>
+      <div className="m-wr-d">
+        <b>{rd.b}<small>{rd.span}</small></b>
+        <span>{ses.length ? `${hhmm(ses[0].on)} – ${off != null ? hhmm(off) : '근무 중'}` : '출근 기록 없음'}{note && <em className={d?.pending ? 'warn' : ''}> · {note}</em>}</span>
+      </div>
+      <div className="m-wr-w">{d?.onAt != null
+        ? <>{d.offAt != null ? fmtDur(workMinutes(d, now)) : <em>–</em>}<i className={`att-dot ${attDotCls(d, now, GOAL_HOURS)}`} aria-hidden="true" /></>
+        : <em>–</em>}</div>
+      <label className={`m-lv${d?.leave ? ' on' : ''}`} style={lv[2] ? { '--lv': lv[2] } as React.CSSProperties : undefined}>
+        <i aria-hidden="true" />{lv[1]}
+        <select aria-label={`${rd.b} 근태`} value={d?.leave ?? ''} onChange={(e) => onLeave(k, e.target.value as Leave)}>
+          {LEAVES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+        </select>
+      </label>
+    </li>
+  );
+}
+
+/** 이번 주 요약 — 활동 탭 맨 위 (요일 막대 · 총 근무 · 출근 · 일 평균 · 평균 출근) */
+export function WeekSummary({ ws, onDay }: { ws: Workspace; onDay: (k: string) => void }) {
   const ws0 = weekStart(dateOf(ws.today));
   const goal = GOAL_HOURS * 60;
   let total = 0, n = 0, onSum = 0;

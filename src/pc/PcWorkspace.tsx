@@ -92,6 +92,15 @@ export function PcWorkspace({ ws }: { ws: Workspace }) {
             <span className="ri"><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="7.1" /><path d="M10 5.7v4.5l3 1.8" /></svg></span>
             <small>근태</small>
           </button>
+          {/* 아직 안 옮긴 메뉴 — v3 와 같은 자리에 «오픈 전» 으로 (2026-10-28 소유자). 홈(대화)은 옮기지 않는다 */}
+          <button className="rail-btn soon" data-view="dash" aria-disabled="true" title="활동 — 준비 중이에요" onClick={() => ws.say('활동은 준비 중이에요')}>
+            <span className="ri"><svg viewBox="0 0 20 20"><path d="M4 16.2V9.4M10 16.2V3.8M16 16.2v-4.6" /></svg></span>
+            <small>활동</small>
+          </button>
+          <button className="rail-btn soon" data-view="later" aria-disabled="true" title="저장됨 — 준비 중이에요" onClick={() => ws.say('저장됨은 준비 중이에요')}>
+            <span className="ri"><svg viewBox="0 0 20 20"><path d="M5.6 3.6h8.8v13.1L10 13.2l-4.4 3.5V3.6Z" /></svg></span>
+            <small>저장됨</small>
+          </button>
           <div className="rail-spacer" />
           <button className="rail-btn" id="btnSettings" onClick={openAccount}>
             <span className="ri"><svg viewBox="0 0 20 20"><path d="M8.6 3.1h2.8l.28 1.72c.46.18.89.43 1.28.73l1.63-.62 1.4 2.42-1.32 1.14c.04.27.06.55.06.84s-.02.57-.06.84l1.32 1.14-1.4 2.42-1.63-.62c-.39.3-.82.55-1.28.73l-.28 1.72H8.6l-.28-1.72a5.3 5.3 0 0 1-1.28-.73l-1.63.62-1.4-2.42 1.32-1.14a5.5 5.5 0 0 1 0-1.68L4.01 7.35l1.4-2.42 1.63.62c.39-.3.82-.55 1.28-.73L8.6 3.1Z" /><circle cx="10" cy="10" r="2.3" /></svg></span>

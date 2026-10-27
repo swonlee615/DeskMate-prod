@@ -266,22 +266,9 @@
 .m-bad { font-size: 13px; color: var(--red); }
 .m-sum-t em { font-style: normal; font-weight: 400; margin-left: 4px; }
 
-/* ── 집중 타이머 (고리) */
-.m-timer { display: flex; align-items: center; gap: 16px; padding: 16px; }
-.m-ring { position: relative; width: 128px; height: 128px; flex: none; }
-.m-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
-.m-ring circle { fill: none; stroke-width: 9; }
-.m-ring .bg { stroke: var(--surface-3); }
-.m-ring .fg { stroke: var(--tc, var(--blue)); stroke-linecap: round; transition: stroke-dashoffset .25s linear; }
-.m-ring .fg.rest { stroke: var(--yellow); }
-.m-ring-c { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-.m-ring-c b { font-size: 28px; font-weight: 900; color: var(--text-strong); font-variant-numeric: tabular-nums; }
-.m-ring-c span { font-size: 12px; color: var(--text-muted); }
-.m-timer-r { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
-.m-timer-a { display: flex; gap: 6px; }
-.m-timer-a .m-btn { height: 44px; font-size: 15px; }
-.m-timer-a .m-x { height: 44px; }
-.m-timer .m-chips { margin-top: 0; }
+/* ── 집중 타이머 — PC 부품(.timer-card · 다이얼) 그대로, 카드 안에 가운데로 */
+.m-timer { padding: 16px 12px 14px; display: flex; justify-content: center; }
+.m-timer .timer-card { width: 100%; max-width: 320px; }
 .m-chips.wrap { flex-wrap: wrap; }
 .m-chips.wrap button { flex: none; padding: 0 14px; }
 
@@ -427,3 +414,46 @@
 .m-plans-h { display: flex; align-items: center; gap: 8px; padding: 0 12px 6px 16px; }
 .m-plans-h .m-seg { flex: 1; }
 .m-ddn { color: var(--red); }
+
+/* ── 주별 근태 표 (PC Worklog 의 줄을 폰 폭으로) */
+.m-wkt-h { width: 100%; display: flex; align-items: baseline; gap: 6px; margin: 6px 4px 8px; text-align: left; font-size: 14px; }
+.m-wkt-h b { color: var(--text-strong); font-weight: 800; }
+.m-wkt-h em { font-style: normal; color: var(--text-muted); }
+.m-wkt-h .m-chev { align-self: center; color: var(--text-muted); }
+.m-wkt-l { list-style: none; overflow: hidden; }
+.m-wr {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 10px;
+  min-height: 60px; padding: 9px 10px 9px 16px; cursor: pointer;
+}
+.m-wr + .m-wr { border-top: 1px solid var(--border); }
+.m-wr.today { background: color-mix(in srgb, var(--blue) 7%, transparent); }
+.m-wr-d { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.m-wr-d b { font-size: 15px; color: var(--text-strong); }
+.m-wr-d b small { font-size: 12px; font-weight: 400; color: var(--text-muted); margin-left: 6px; }
+.m-wr-d span { font-size: 13px; color: var(--text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.m-wr-d em { font-style: normal; }
+.m-wr-d em.warn { color: var(--yellow); font-weight: 700; }
+.m-wr-w { display: inline-flex; align-items: center; gap: 5px; font-size: 15px; font-weight: 700; color: var(--text-strong); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.m-wr-w em { font-style: normal; font-weight: 400; color: var(--text-dim); }
+.m-wr .att-dot { position: static; margin: 0; }
+
+/* ── 이번 주 할 일 (PC wp-side 와 같은 묶음) */
+.m-wps { padding: 16px 12px 8px 16px; }
+.m-wps-h { display: flex; align-items: baseline; gap: 8px; }
+.m-wps-h h3 { flex: 1; font-size: 17px; font-weight: 900; color: var(--text-strong); }
+.m-wps-h em { font-style: normal; font-size: 14px; font-weight: 700; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.m-wps-bar { height: 5px; border-radius: 3px; background: var(--surface-3); margin: 12px 4px 0 0; overflow: hidden; }
+.m-wps-bar i { display: block; height: 100%; background: var(--blue); border-radius: inherit; }
+.m-wps-sum { display: flex; align-items: baseline; gap: 6px; margin-top: 10px; padding-bottom: 12px; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text-muted); }
+.m-wps-sum b { color: var(--text-strong); }
+.m-wps-sum i { font-style: normal; color: var(--text-dim); }
+.m-wps-l { padding-top: 4px; }
+.m-wps-sep { display: flex; align-items: center; gap: 10px; margin: 14px 4px 2px 0; font-size: 12px; font-weight: 700; color: var(--text-muted); }
+.m-wps-sep::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.m-wday {
+  flex: none; display: inline-flex; align-items: center; gap: 3px; height: 28px; padding: 0 8px 0 10px; border-radius: 8px;
+  border: 1px solid var(--border); font-size: 12px; color: var(--text-muted);
+}
+.m-wday i { font-style: normal; font-size: 9px; opacity: .7; }
+.m-wday.none { border-style: dashed; }
+.m-wr .m-lv { padding: 0 8px; }

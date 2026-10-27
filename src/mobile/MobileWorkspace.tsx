@@ -14,7 +14,7 @@ import { AccountDialog } from '../ui/AccountDialog';
 import { SyncBadge } from '../ui/SyncBadge';
 import { fmtDur } from '../ui/v3fmt';
 import { MobileWeek } from './MobileWeek';
-import { MToday, STATE_LABEL } from './MToday';
+import { MToday, STATE_LABEL, WeekSummary } from './MToday';
 import { MDay } from './MDay';
 import './mobile.css';
 
@@ -55,7 +55,10 @@ export function MobileWorkspace({ ws }: { ws: Workspace }) {
           </div>
           {view === 'all' ? <MToday ws={ws} goDay={goDay} /> : <MobileWeek ws={ws} />}
         </>}
-        {tab === 'dash' && <Soon what="활동" items="근무 히트맵 · 근태 카드 · 순위 이력 · 습관 달성" />}
+        {tab === 'dash' && <>
+          <WeekSummary ws={ws} onDay={goDay} />
+          <Soon what="내 분석" items="근무 히트맵 · 근태 카드 · 순위 이력 · 습관 달성" />
+        </>}
         {tab === 'team' && <TeamTab ws={ws} />}
         {tab === 'later' && <Soon what="저장됨" items="보관한 D-Day · 습관 · 저장한 메모" />}
       </main>

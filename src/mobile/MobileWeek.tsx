@@ -1,25 +1,22 @@
 /**
  * 모바일 주간 — PC 주간 플래너(v3 weekPlannerHtml)와 같은 판정(week.ts)을 폰 모양으로
  *
- * ★ 「요일별」 = 날짜 칸을 세로로 · 지난 요일은 접어 둔다 (펼치면 보인다)
- * ★ 「이번 주 할 일」 = 오른쪽 목록 그대로 (묶음별 · 미분류 맨 아래 · 완료는 접힘)
- * ★ 옮기기는 끌기 대신 ⋯ 시트 — PC 콤보 · 끌기와 같은 moveItem 하나를 부른다
+ * ★ PC 주간 오른쪽 「이번 주 할 일」 상자와 같은 모양 (2026-10-28 소유자 — 요일별 칸은 폰에서 뺐다)
+ *   달성 막대 · 근무 · 출근 · 일 평균 · 묶음별 목록 · 완료 · 줄마다 요일 칩
+ * ★ 요일 칩을 누르면 옮기기 시트 — PC 콤보 · 끌기와 같은 moveItem 하나를 부른다
  * 아직 안 옮긴 것: 주 메모 · 딸린 줄 펼치기 (폰에서는 바깥 할 일만 — PC 주간과 같다)
  */
 import { useState } from 'react';
 import type { Workspace } from '../app/useWorkspace';
 import { descendants, rangeRate } from '../domain/todos/tree';
-import { addItem, cellGroups, listGroups, moveItem, weekDays, weekItems, weekKeyOf, type Change, type WGroup, type WItem } from '../domain/todos/week';
-import { addDays, dateOf, DOW, fmtDur, keyOf, weekTag } from '../ui/v3fmt';
+import { addItem, listGroups, moveItem, weekDays, weekItems, weekKeyOf, type Change, type WGroup, type WItem } from '../domain/todos/week';
+import { addDays, dateOf, DOW, keyOf, weekTag } from '../ui/v3fmt';
 import { workMinutes } from '../pc/Worklog';
 
 const md = (k: string) => { const d = dateOf(k); return `${d.getMonth() + 1}/${d.getDate()}`; };
-const dayName = (k: string) => `${md(k)} (${DOW[dateOf(k).getDay()]})`;
 
 export function MobileWeek({ ws }: { ws: Workspace }) {
   const { blocks, days, now, today, wpWeek: wk } = ws;
-  const [seg, setSeg] = useState<'day' | 'list'>('day');
-  const [open, setOpen] = useState<Record<string, boolean>>({});
   const [sheet, setSheet] = useState<WItem | null>(null);
   const keys = weekDays(wk);
   const isThis = wk === weekKeyOf(today);
@@ -53,74 +50,46 @@ export function MobileWeek({ ws }: { ws: Workspace }) {
   const undone = listGroups(items, false);
   const done = listGroups(items, true);
   const doneN = done.reduce((a, g) => a + g.items.length, 0);
-  const some = cellGroups(items, '');
+  const dcnt = keys.filter((k) => days[k]?.onAt != null).length;
+  const pct = rate.n ? Math.round((rate.done / rate.n) * 100) : 0;
 
   return (
     <>
       <div className="m-wk-h">
         <button className="m-x" aria-label="이전 주" onClick={() => ws.setWpWeek(keyOf(addDays(dateOf(wk), -7)))}>‹</button>
-        <div className="m-wk-t">
-          <b>{tag.month}월 {tag.no}주</b>
-          <span>근무 {fmtDur(total)} · 할 일 {rate.done}/{rate.n}</span>
-        </div>
+        <div className="m-wk-t"><b>{tag.month}월 {tag.no}주</b></div>
         <button className="m-x" aria-label="다음 주" onClick={() => ws.setWpWeek(keyOf(addDays(dateOf(wk), 7)))}>›</button>
-        {!isThis && <button className="m-link" onClick={() => ws.setWpWeek(weekKeyOf(today))}>오늘</button>}
+        {!isThis && <button className="m-link" onClick={() => ws.setWpWeek(weekKeyOf(today))}>이번 주</button>}
       </div>
 
-      <div className="m-seg" role="tablist">
-        <button role="tab" aria-selected={seg === 'day'} className={seg === 'day' ? 'on' : ''} onClick={() => setSeg('day')}>요일별</button>
-        <button role="tab" aria-selected={seg === 'list'} className={seg === 'list' ? 'on' : ''} onClick={() => setSeg('list')}>이번 주 할 일</button>
-      </div>
-
-      {seg === 'day' ? (
-        <>
-          {keys.map((k) => {
-            const gs = cellGroups(items, k);
-            const n = gs.reduce((a, g) => a + g.items.length, 0);
-            const past = k < today;
-            const shown = open[k] ?? !past;
-            const d = days[k];
-            return (
-              <section key={k} className={`m-card m-wd${k === today ? ' today' : ''}${past ? ' past' : ''}`}>
-                <button className="m-wd-h" aria-expanded={shown} onClick={() => setOpen((o) => ({ ...o, [k]: !shown }))}>
-                  <b>{dayName(k)}</b>
-                  {k === today && <em>오늘</em>}
-                  <span className="m-sp" />
-                  {d?.onAt != null && <span>{fmtDur(workMinutes(d, now))}</span>}
-                  <span className="m-wd-n">{n ? `${gs.reduce((a, g) => a + g.items.filter((x) => x.b.done).length, 0)}/${n}` : '–'}</span>
-                  <i className={`m-chev${shown ? ' on' : ''}`} aria-hidden="true">›</i>
-                </button>
-                {shown && <>
-                  <Groups gs={gs} row={row} />
-                  <MAdd onAdd={(t) => add(k, t)} />
-                </>}
-              </section>
-            );
-          })}
-          <section className="m-card m-wd">
-            <div className="m-wd-h"><b>날짜 미정</b></div>
-            <Groups gs={some} row={row} />
-            <MAdd onAdd={(t) => add('', t)} />
-          </section>
-        </>
-      ) : (
-        <>
-          {undone.length ? <section className="m-card m-wd"><Groups gs={undone} row={row} /></section> : <p className="m-empty">남은 할 일이 없어요.</p>}
-          {doneN > 0 && (
-            <section className="m-card m-wd">
-              <button className="m-wd-h" aria-expanded={!!open.done} onClick={() => setOpen((o) => ({ ...o, done: !o.done }))}>
-                <b>완료 {doneN}</b><span className="m-sp" /><i className={`m-chev${open.done ? ' on' : ''}`} aria-hidden="true">›</i>
-              </button>
-              {open.done && <Groups gs={done} row={row} />}
-            </section>
-          )}
-        </>
-      )}
+      <section className="m-card m-wps" aria-label="이번 주 할 일">
+        <div className="m-wps-h">
+          <h3>{isThis ? '이번 주 할 일' : '그 주 할 일'}</h3><em>{rate.done} / {rate.n}</em>
+        </div>
+        <div className="m-wps-bar"><i style={{ width: `${pct}%` }} /></div>
+        <div className="m-wps-sum">
+          <span>근무 <b>{fmtDurH(total)}</b></span><i>·</i><span>출근 <b>{dcnt}일</b></span><i>·</i>
+          <span>일 평균 <b>{dcnt ? fmtDurH(total / dcnt) : '–'}</b></span>
+        </div>
+        <div className="m-wps-l">
+          {items.length ? <>
+            <Groups gs={undone} row={row} />
+            {doneN > 0 && <><div className="m-wps-sep"><span>완료 {doneN}</span></div><Groups gs={done} row={row} /></>}
+          </> : <p className="m-empty">이 주에는 적어 둔 할 일이 없어요. 아래에 적으면 요일 미정으로 들어가요.</p>}
+          <MAdd onAdd={(t) => add('', t)} />
+        </div>
+      </section>
 
       {sheet && <MoveSheet it={sheet} keys={keys} items={items} today={today} onMove={(to) => move(sheet, to)}
         onDelete={() => { ws.removeBlock(sheet.b); setSheet(null); }} onClose={() => setSheet(null)} />}
     </>
   );
+}
+
+/** 0.0H — PC 주간 플래너 표기 (v3 fmtDurH) */
+function fmtDurH(mins: number) {
+  const t = (Math.round(mins) / 60).toFixed(1);
+  return (t.endsWith('.0') ? t.slice(0, -2) : t) + 'H';
 }
 
 function Groups({ gs, row }: { gs: WGroup[]; row: (it: WItem) => React.ReactNode }) {
@@ -144,7 +113,9 @@ function MItem({ it, ws, onMore }: { it: WItem; ws: Workspace; onMore: () => voi
         onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) (e.target as HTMLInputElement).blur(); }} />
       {tri && <span className={`m-wi-sub${tri.state === 'full' ? ' full' : ''}`}>{tri.ok}/{tri.n}</span>}
       {it.key && b.date < it.key && !b.done && <span className="m-born">D+{Math.round((dateOf(it.key).getTime() - dateOf(b.date).getTime()) / 86400000)}</span>}
-      <button className="m-x sm" aria-label="옮기기 · 지우기" onClick={onMore}>⋯</button>
+      <button className={`m-wday${it.key ? '' : ' none'}`} aria-label="요일 · 묶음 옮기기 · 지우기" onClick={onMore}>
+        {it.key ? DOW[dateOf(it.key).getDay()] : '미정'}<i aria-hidden="true">▾</i>
+      </button>
     </div>
   );
 }
