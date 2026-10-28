@@ -48,6 +48,8 @@ export interface Workspace {
   day: Day;
   state: AttState;
   unavailable: boolean;
+  /** 활동이 보는 기간 — 그만큼 받아 둔다 (null = 놓기) */
+  setDashSpan: (span: [string, string] | null) => void;
   calMonth: Date;
   /** 주간 플래너가 보는 주 (월요일 키) */
   wpWeek: string;
@@ -149,6 +151,8 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
   const [calMonth, setCalMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   // 주간 플래너가 보고 있는 주 (월요일). 앱을 켜면 늘 이번 주부터 (v3 wkCur — 메모리에만)
   const [wpWeek, setWpWeek] = useState(() => keyOf(weekStart(new Date())));
+  // 활동이 보고 있는 기간 (월간 · 연간이면 받아 두는 기간을 그만큼 넓힌다 — 보이는 것만, 떠나면 놓는다)
+  const [dashSpan, setDashSpan] = useState<[string, string] | null>(null);
   const [toast, setToast] = useState<Toast | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
 
@@ -158,12 +162,12 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
   const from = useMemo(() => {
     const tblFrom = keyOf(addDays(weekStart(dateOf(today)), -7 * (WEEKS_SHOWN - 1)));
     const calFrom = keyOf(calMonth);
-    return [tblFrom, calFrom, wpWeek].sort()[0];
-  }, [today, calMonth, wpWeek]);
+    return [tblFrom, calFrom, wpWeek, ...(dashSpan ? [dashSpan[0]] : [])].sort()[0];
+  }, [today, calMonth, wpWeek, dashSpan]);
   const to = useMemo(() => {
     const calTo = keyOf(new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 0));
-    return [calTo, today, keyOf(addDays(dateOf(wpWeek), 6))].sort()[2];
-  }, [today, calMonth, wpWeek]);
+    return [calTo, today, keyOf(addDays(dateOf(wpWeek), 6)), ...(dashSpan ? [dashSpan[1]] : [])].sort().at(-1) as string;
+  }, [today, calMonth, wpWeek, dashSpan]);
   useEffect(() => repo.watchRange(from, to, setRange), [repo, from, to]);
   // 기록이 바뀌면(이 기기 버튼 · 다른 기기) 그 자리에서 다시 센다 — 다음 분까지 기다리지 않는다
   useEffect(bumpNow, [range, bumpNow]);
@@ -517,7 +521,7 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
 
   return {
     backend, user, now, today, sync, days, day, state,
-    unavailable: range.unavailable, calMonth, setCalMonth, wpWeek, setWpWeek, toast, timer, say, warn,
+    unavailable: range.unavailable, setDashSpan, calMonth, setCalMonth, wpWeek, setWpWeek, toast, timer, say, warn,
     onOn, onOff, onRest, onLeave, dayOf, editDay, pendingDays, resolvePending, canCarry: canCarryFor,
     blocks, addBlock, patchBlocks, editBlocks, undoBlocks, lastEditAt, toggleBlock, removeBlock, newId,
     ddays, saveDDay, pinDDay, archiveDDay, deleteDDay,
