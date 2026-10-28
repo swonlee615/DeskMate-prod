@@ -9,3 +9,5 @@
 /* 오픈 전 레일 메뉴 — 자리는 v3 그대로, 흐리게 */
 .rail-btn.soon { opacity: .45; }
 .rail-btn.soon:hover { opacity: .7; }
+.set-nav-i.soon { opacity: .45; }
+.set-nav-i.soon:hover { opacity: .7; }

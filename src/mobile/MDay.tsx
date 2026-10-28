@@ -9,7 +9,7 @@
  * ★ 할 일 · 메모 = PC 편집기 그대로(`NoteEditor`) — 보면서 그 자리에서 적는다
  * 고치는 일은 전부 PC 와 같은 edit.ts · ws.saveSpan
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Workspace } from '../app/useWorkspace';
 import { GOAL_HOURS } from '../app/useWorkspace';
 import type { Day, Leave } from '../domain/attendance/types';
@@ -17,6 +17,7 @@ import { dayGoalMin, dayParts, dayStartMs } from '../domain/attendance/rules';
 import {
   addSessionAt, canAddSession, dropSession, mergeSession, sessionRows, sessionSlot, sessionWhy, setSessionTime,
 } from '../domain/attendance/edit';
+import { catChoices, catKey, labelPicks } from '../domain/attendance/cats';
 import { breakConflicts, logsOf, nextColor, slotOutside, type SpanRef } from '../domain/attendance/logs';
 import { addDays, dateOf, DOW, dayLabel, fmtDur, hhmm, keyOf, leaveOf, LEAVES, normTime, weekStart } from '../ui/v3fmt';
 import { Grid, SlotList, type OpenSpan } from '../pc/DayPage';
@@ -104,7 +105,7 @@ export function MDay({ ws, date, setDate, editOpen }: { ws: Workspace; date: str
           )}
           {listOpen && (
             <div className="tg-list m-tgl">
-              <SlotList d={d} logs={ws.logs} now={ws.now} rows={rows} onOpen={open} onGoto={() => setSesOpen(true)} />
+              <SlotList d={d} logs={ws.logs} cats={ws.cats} now={ws.now} rows={rows} onOpen={open} onGoto={() => setSesOpen(true)} />
             </div>
           )}
           <button className="m-fab" onClick={() => setSpan(nowSlot())} aria-label="시간 기록 · 휴게 적기">
@@ -353,6 +354,7 @@ function SpanSheet({ ws, date, d, o, onClose }: { ws: Workspace; date: string; d
   const outNow = o.ref?.type !== 'brk' && sM != null && (d.onAt == null || slotOutside(d, sM));
   const brkEm = outNow ? '쉰 시간을 남겨요 · 근무시간과 퇴근 시각에는 영향이 없어요' : '근무시간에서 빠져요 · 2시간을 넘기면 퇴근으로 봐요';
   const locked = isSlot && !text.trim();
+  const picks = useMemo(() => labelPicks(ws.blocks, ws.logs, date, ws.today), [ws.blocks, ws.logs, date, ws.today]);
   const save = () => {
     if (sM == null || eM == null) { ws.say('시각을 HH:MM 으로 적어 주세요'); return; }
     const why = ws.saveSpan(date, o.ref, { kind, s: sM, e: eM, text, color: isSlot ? color ?? nextColor(0) : color });
@@ -373,15 +375,20 @@ function SpanSheet({ ws, date, d, o, onClose }: { ws: Workspace; date: string; d
         </div>
       )}
       <p className="m-hint m-span-why">{isSlot ? '무엇을 했는지 남겨요 · 근무시간에 들어가요' : brkEm}</p>
-      <input className="m-field" autoComplete="off" placeholder={isSlot ? '무엇을 했나요? (필수)' : '메모 (선택)'} value={text} onChange={(x) => setText(x.target.value)}
+      {/* 할 일 · 최근에 쓴 기록에서 고르기 (PC 콤보와 같은 labelPicks) — 폰은 기본 제안 목록(datalist)이 키보드 위에 뜬다 */}
+      <input className="m-field" autoComplete="off" list={isSlot ? 'm-span-picks' : undefined} placeholder={isSlot ? '무엇을 했나요? (필수)' : '메모 (선택)'} value={text} onChange={(x) => setText(x.target.value)}
         onKeyDown={(x) => { if (x.key === 'Enter' && !x.nativeEvent.isComposing && !locked) save(); }} />
+      <datalist id="m-span-picks">{picks.map((p) => <option key={p.t} value={p.t}>{p.kind}{p.done ? ' · 끝냄' : ''}</option>)}</datalist>
       {/* 기록 = 카테고리 · 휴게 = 메모 칩 — 같은 높이의 한 줄이라 종류를 바꿔도 시트 높이가 그대로 */}
       <div className="m-span-row">
         {isSlot
           ? <>
               <span className="m-span-lb">카테고리</span>
-              {/* PC 와 같이 지금 색 하나 (이름 붙이기 · 고르기는 설정 → 시간 기록을 옮길 때) */}
-              <span className="m-cat"><i style={{ background: color ?? nextColor(0) }} />이름 없음</span>
+              {/* 이름 붙인 것 + 지금 색 (PC 와 같은 catChoices) · 이름은 설정 → 시간 기록 카테고리 */}
+              {catChoices(ws.cats, color).map((c) => (
+                <button key={c.color} className={`m-cat${c.color === catKey(color) ? ' on' : ''}`} onClick={() => setColor(c.color)}>
+                  <i style={{ background: c.color }} />{c.name || '이름 없음'}</button>
+              ))}
             </>
           : MEMO_CHIPS.map((m) => <button key={m} className={`m-chip${text === m ? ' on' : ''}`} onClick={() => setText(m)}>{m}</button>)}
       </div>

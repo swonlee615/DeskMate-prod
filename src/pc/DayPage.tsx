@@ -21,6 +21,7 @@ import { PendBanner } from './PendBanner';
 import { NoteEditor } from './NoteEditor';
 import { DDayLines, type OpenDDay } from './DDay';
 import { HabitStrip } from './Habits';
+import { catChoices, catKey, catName, labelPicks, type Cat, type LabelPick } from '../domain/attendance/cats';
 import { breakConflicts, catVar, logsOf, nextColor, slotOutside, type Log, type SpanRef } from '../domain/attendance/logs';
 
 const GSTEP = 5;        // 격자 한 칸 = 5분
@@ -215,7 +216,7 @@ export function DayPage({ ws, date, full, onClose, onFull, onGo, focusOff, onDD 
               <div className="tg-wrap">
                 <Grid d={d} logs={ws.logs} now={now} isToday={isToday} onOpen={setBrkDlg} />
                 <div className="tg-list" id="tgList">
-                  <SlotList d={d} logs={ws.logs} now={now} rows={rows} onOpen={setBrkDlg} onGoto={() => setOpen(true)} />
+                  <SlotList d={d} logs={ws.logs} cats={ws.cats} now={now} rows={rows} onOpen={setBrkDlg} onGoto={() => setOpen(true)} />
                 </div>
               </div>
               <div className="tg-foot"><div className="tg-legend">
@@ -485,7 +486,8 @@ function Conflicts({ ws, date, d }: { ws: Workspace; date: string; d: Day }) {
 const fmtM = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 
 /** 오른쪽 아래 목록 — 시간 기록 · 휴게 · 근무 밖 휴게 · 출근 · 퇴근 (v3 slotListHtml) */
-export function SlotList({ d, logs, now, rows, onOpen, onGoto }: {
+export function SlotList({ d, logs, cats, now, rows, onOpen, onGoto }: {
+  cats: Cat[];
   d: Day; logs: Log[]; now: number; rows: ReturnType<typeof sessionRows>; onOpen: (o: OpenSpan) => void; onGoto: () => void;
 }) {
   type It = { at: number; el: React.ReactNode };
@@ -509,11 +511,11 @@ export function SlotList({ d, logs, now, rows, onOpen, onGoto }: {
     const out = slotOutside(d, s.s);
     items.push({ at: base + s.s * 60000 + 0.1, el: (
       <div key={s.id} className={`tg-item r2${out ? ' outside' : ''}`} data-slot={s.id} onClick={() => onOpen(openLog(s))}
-        title={`${fmtM(s.s)} ~ ${fmtM(s.e)} · ${fmtDur(s.e - s.s)}${s.text ? `\n${s.text}` : ''}${out ? '\n\n출퇴근 기록 밖에 적은 기록이에요 — 근무시간에는 들어갑니다' : ''}`}>
+        title={`${fmtM(s.s)} ~ ${fmtM(s.e)} · ${fmtDur(s.e - s.s)}${catName(cats, s.color) ? `\n[${catName(cats, s.color)}]` : ''}${s.text ? `\n${s.text}` : ''}${out ? '\n\n출퇴근 기록 밖에 적은 기록이에요 — 근무시간에는 들어갑니다' : ''}`}>
         <i style={{ background: s.color ?? undefined }} />
         <span className="rg">{fmtM(s.s)} ~ {fmtM(s.e)}</span>
         <span className="du">{fmtDur(s.e - s.s)}</span>
-        <div className="tg-mid">{s.text && <span className="lb">{s.text}</span>}</div>
+        <div className="tg-mid">{catName(cats, s.color) && <span className="cat-tag" style={{ '--c': catVar(s.color ?? '') } as React.CSSProperties}>{catName(cats, s.color)}</span>}{s.text && <span className="lb">{s.text}</span>}</div>
       </div>) });
   }
   d.breaks.forEach((b, idx) => {
@@ -537,7 +539,9 @@ export function SlotList({ d, logs, now, rows, onOpen, onGoto }: {
         {restBar(r.color)}
         <span className="rg">{fmtM(r.s)} ~ {fmtM(r.e)}</span>
         <span className="du">{fmtDur(r.e - r.s)}</span>
-        <div className="tg-mid"><span className="cat-tag kind-brk">☕️ 휴게</span>{r.text && <span className="lb">{r.text}</span>}</div>
+        <div className="tg-mid">{r.color
+          ? <span className="cat-tag" style={{ '--c': catKey(r.color) } as React.CSSProperties}>☕️ {catName(cats, r.color) || '휴게'}</span>
+          : <span className="cat-tag kind-brk">☕️ 휴게</span>}{r.text && <span className="lb">{r.text}</span>}</div>
       </div>) });
   }
   if (!items.length) return <p className="hint" style={{ padding: '10px 4px' }}>아직 기록이 없어요.</p>;
@@ -645,6 +649,64 @@ const toMin = (raw: string) => {
   return h * 60 + m;
 };
 
+/**
+ * 「무엇을 했나요?」 — 치는 대로 남고, 목록에 있는 말이면 골라 넣는다 (v3.1.19 fillSlotTodo · `.ap-cb` 콤보)
+ * ★ 상자를 열며 준 첫 포커스에는 안 펼친다 — 목록이 저장 · 삭제를 덮는다 (v3.1.40). 누르거나 치면 펼친다
+ */
+function LabelCombo({ picks, value, placeholder, onChange, onEnter }: { picks: LabelPick[]; value: string; placeholder: string; onChange: (v: string) => void; onEnter: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [cur, setCur] = useState(-1);
+  const [up, setUp] = useState(false);
+  const inp = useRef<HTMLInputElement>(null);
+  const first = useRef(true);
+  const norm = (v: string) => v.toLowerCase().replace(/\s+/g, '');
+  const q = norm(value);
+  const items = picks.filter((a) => !q || norm(a.t).includes(q)).slice(0, 30);
+  const show = (v: boolean) => {
+    if (v && !picks.length) return;
+    setOpen(v);
+    if (v && inp.current) setUp(window.innerHeight - inp.current.getBoundingClientRect().bottom < 214);
+  };
+  const choose = (i: number) => { const a = items[i]; setOpen(false); setCur(-1); if (a) onChange(a.t); inp.current?.focus(); };
+  let last = '';
+  return (
+    <div className={`ap-cb slot-cb${open ? ' open' : ''}${open && up ? ' up' : ''}`} id="slotLabelCb">
+      <input ref={inp} id="slotLabel" className="ap-add" autoComplete="off" autoFocus role="combobox" aria-expanded={open} aria-autocomplete="list"
+        placeholder={placeholder} value={value}
+        onFocus={() => { if (first.current) { first.current = false; return; } show(true); }}
+        onClick={() => show(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 80)}
+        onChange={(x) => { onChange(x.target.value); setCur(-1); if (!open) show(true); }}
+        onKeyDown={(x) => {
+          if (x.nativeEvent.isComposing) return;
+          if (x.key === 'ArrowDown' || x.key === 'ArrowUp') {
+            x.preventDefault();
+            if (!open) { show(true); return; }
+            setCur((c) => Math.max(0, Math.min(items.length - 1, c + (x.key === 'ArrowDown' ? 1 : -1))));
+          } else if (x.key === 'Escape' && open) { x.preventDefault(); x.stopPropagation(); setOpen(false); }
+          else if (x.key === 'Enter') { x.preventDefault(); if (open && cur >= 0) choose(cur); else onEnter(); }
+        }} />
+      <button className="ap-cb-arrow" type="button" tabIndex={-1} aria-label="할 일 목록 열기"
+        onMouseDown={(x) => x.preventDefault()} onClick={() => { if (open) setOpen(false); else { inp.current?.focus(); show(true); } }}>
+        <svg viewBox="0 0 20 20"><path d="m6 8 4 4 4-4" /></svg></button>
+      <div className="ap-menu" id="slotLabelMenu" role="listbox" hidden={!open}>
+        {items.length ? items.map((a, i) => {
+          const head = a.kind !== last ? <div className="ap-mgrp">{a.kind}</div> : null;
+          last = a.kind;
+          return (
+            <div key={a.t} style={{ display: 'contents' }}>
+              {head}
+              <button className={`ap-opt${i === cur ? ' on' : ''}`} role="option" aria-selected={i === cur} type="button"
+                onMouseDown={(x) => { x.preventDefault(); choose(i); }} onMouseEnter={() => setCur(i)}>
+                <span className="ao-n">{a.t}</span>{a.done && <i className="ao-dn">✓ 끝냄</i>}</button>
+            </div>
+          );
+        }) : <div className="ap-opt none">맞는 게 없어요 — <b>적은 그대로</b> 씁니다</div>}
+      </div>
+    </div>
+  );
+}
+
 /** 시간 기록 · 휴게 상자 (v3 slotModal) — 종류 고르기 · 이름(메모) · 카테고리 · 삭제 */
 function SpanDialog({ ws, date, d, o, onClose }: { ws: Workspace; date: string; d: Day; o: OpenSpan; onClose: () => void }) {
   const orig = o.ref?.type === 'brk' ? d.breaks[o.ref.idx] : null;
@@ -661,6 +723,7 @@ function SpanDialog({ ws, date, d, o, onClose }: { ws: Workspace; date: string; 
   const outNow = !o.ref || o.ref.type !== 'brk' ? sM != null && (d.onAt == null || slotOutside(d, sM)) : false;
   const brkEm = outNow ? '쉰 시간을 남깁니다 · 근무시간과 퇴근 시각에는 영향이 없습니다' : '근무시간에서 빠집니다 · 2시간을 넘기면 퇴근으로 간주됩니다';
   const locked = isSlot && !text.trim();
+  const picks = useMemo(() => labelPicks(ws.blocks, ws.logs, date, ws.today), [ws.blocks, ws.logs, date, ws.today]);
   const save = () => {
     if (sM == null || eM == null) { ws.say('시각을 HH:MM 으로 적어 주세요'); return; }
     const why = ws.saveSpan(date, o.ref, { kind, s: sM, e: eM, text, color: isSlot ? color ?? nextColor(0) : color });
@@ -692,11 +755,9 @@ function SpanDialog({ ws, date, d, o, onClose }: { ws: Workspace; date: string; 
         )}
         <div className="field" id="slotLabelField">
           <label id="slotLabelLb">{isSlot ? <>무엇을 했나요?<i className="slot-req">*</i></> : '메모 (선택)'}</label>
-          <div className="ap-cb slot-cb" id="slotLabelCb">
-            <input id="slotLabel" className="ap-add" autoComplete="off" autoFocus placeholder={isSlot ? '예) 와이어프레임 정리' : '예) 점심 · 병원 · 회의 이동'}
-              value={text} onChange={(x) => setText(x.target.value)}
-              onKeyDown={(x) => { if (x.key === 'Enter' && !x.nativeEvent.isComposing && !locked) save(); }} />
-          </div>
+          <LabelCombo picks={picks} value={text} placeholder={isSlot ? '예) 와이어프레임 정리' : '예) 점심 · 병원 · 회의 이동'}
+            onChange={setText} onEnter={() => { if (!locked) save(); }} />
+          {picks.length > 0 && <p className="f-hint" id="slotTodoHint">할 일 목록에서 고를 수도 있어요</p>}
           {!isSlot && (
             <div className="memo-chips" id="slotMemoChips">
               {MEMO_CHIPS.map((m) => <button type="button" key={m} data-memo={m} onClick={() => setText(m)}>{m}</button>)}
@@ -707,8 +768,15 @@ function SpanDialog({ ws, date, d, o, onClose }: { ws: Workspace; date: string; 
           <div className="field" id="slotColorField">
             <label>카테고리 <span className="hint3">설정 → 시간 기록에서 관리해요</span></label>
             <div className="cats" id="slotColors">
-              <button type="button" className="cat on" data-c={color} title={isSlot ? '이름 없는 색' : '이름 없는 색 — 다시 누르면 해제'}
-                onClick={() => { if (!isSlot) setColor(null); }}><i style={{ background: color }} /><span><em>이름 없음</em></span></button>
+              {catChoices(ws.cats, color).map((c) => {
+                const on = c.color === catKey(color);
+                return (
+                  <button type="button" key={c.color} className={`cat${on ? ' on' : ''}`} data-c={c.color}
+                    title={`${c.name || '이름 없는 색'}${!isSlot && on ? ' — 다시 누르면 해제' : ''}`}
+                    onClick={() => setColor(!isSlot && on ? null : c.color)}>
+                    <i style={{ background: c.color }} /><span>{c.name || <em>이름 없음</em>}</span></button>
+                );
+              })}
             </div>
           </div>
         )}

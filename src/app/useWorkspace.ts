@@ -11,6 +11,7 @@ import type { AttEvent, AttEventType, AttState, Day, Leave } from '../domain/att
 import { deriveDay } from '../domain/attendance/replay';
 import { dateKey, dayEndMs, dayParts, dayStartMs, sessions, stateOf } from '../domain/attendance/rules';
 import { addBreakSpan, canCarry, editBreak, removeBreak, resolveAt, resolveCarry } from '../domain/attendance/edit';
+import { catsOf, cleanCats, type Cat } from '../domain/attendance/cats';
 import { breakConflicts, logsOf, overlapIds, resolveConflicts, splitRest, type Log, type SpanInput, type SpanRef } from '../domain/attendance/logs';
 import { addDays, dateOf, fmtDur, keyOf, weekStart } from '../ui/v3fmt';
 import { buildTeam, leaderboard, ROSTER, STATUS_ORDER, statusAt, type LbRow, type Member, type MateStatus } from '../domain/sim/team';
@@ -22,6 +23,8 @@ import { HB_MAX, hbClean, hbDoneAt, hbFreqLabel, type Habit, type HbInput, type 
 
 /** 집중 타이머 문서 — 사람 하나에 하나 */
 const POMO_ID = 'pomo';
+/** 시간 기록 카테고리 문서 — 사람 하나에 하나 (목록 통째로 한 필드) */
+const CATS_ID = 'cats';
 
 export const GOAL_HOURS = 8; // 설정 화면을 옮기기 전까지 v3 기본값
 /** 근태 표가 보여 주는 주 수 (이번 주 포함) */
@@ -119,6 +122,10 @@ export interface Workspace {
   deleteSpan: (date: string, orig: SpanRef) => void;
   /** 「겹친 휴게 정리」 — 사람이 누른 정리라 비근무까지 자른다 (v3.1.64) */
   fixConflicts: (date: string) => void;
+  /** 카테고리 = 이름 붙인 색 (v3 cfg.cats) — 저장한 적 없으면 12색 · 이름 없음 */
+  cats: Cat[];
+  /** recolor — 한 카테고리의 색만 바꿨을 때. 그 색으로 적은 기록도 같이 칠한다 (v3.1.86 — 색이 곧 키라 안 칠하면 이름을 잃는다) */
+  setCats: (list: Cat[], recolor?: [string, string]) => void;
   // ── 가상 동료 (v3 sim — 대화 · 허들은 아직)
   /** 지금 상태 — 일하는 사람이 위 (v3 사이드바 순서) */
   mates: { m: Member; st: MateStatus }[];
@@ -234,6 +241,18 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
   );
   const timerRef = useRef<Pomodoro | null>(null);
   timerRef.current = timer;
+
+  const catsDoc = items.find((x) => x.id === CATS_ID) as (Item & { list?: Cat[] }) | undefined;
+  const cats = useMemo(() => catsOf(catsDoc?.list), [catsDoc]);
+  const setCats: Workspace['setCats'] = (list, recolor) => {
+    const next = cleanCats(list);
+    if (!next.length) { say('카테고리는 하나 이상 있어야 해요'); return; }
+    if (catsDoc) repo.patchItem(CATS_ID, { list: next }); else repo.addItem({ id: CATS_ID, kind: 'cats', list: next } as Item);
+    if (!recolor) return;
+    // ponytail: 받아 둔 기간의 기록만 다시 칠한다 — 그보다 옛 기록은 옛 색에 남아 이름을 잃는다. 넓히려면 서버에서 색으로 찾아 고치기
+    const [from, to] = recolor.map((c) => c.toLowerCase());
+    for (const l of logs) if (!l.deletedAt && l.color?.toLowerCase() === from) repo.patchLog(l.id, { color: to });
+  };
 
   // 버튼 하나가 무엇을 «취소» 했는지는 이벤트를 하나 더 얹어 재생해 보면 안다
   const after = (e: AttEvent) => deriveDay(today, [...(byDate[today] ?? []), e], Date.now());
@@ -503,7 +522,7 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
     blocks, addBlock, patchBlocks, editBlocks, undoBlocks, lastEditAt, toggleBlock, removeBlock, newId,
     ddays, saveDDay, pinDDay, archiveDDay, deleteDDay,
     habits, offDay, saveHabit, archiveHabit, deleteHabit, toggleHabit,
-    logs, saveSpan, deleteSpan, fixConflicts,
+    logs, saveSpan, deleteSpan, fixConflicts, cats, setCats,
     mates, ranking, mateStatus,
     nick, initial: nick.slice(0, 1).toUpperCase(),
     presence: state === 'break' ? 'break' : state === 'work' ? 'active' : 'offline',

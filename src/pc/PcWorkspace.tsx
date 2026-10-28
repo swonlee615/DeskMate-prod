@@ -7,6 +7,7 @@
  */
 import { PomoClock } from '../ui/Live';
 import { useEffect, useState } from 'react';
+import { SettingsModal } from './Settings';
 import type { Workspace } from '../app/useWorkspace';
 import { GOAL_HOURS } from '../app/useWorkspace';
 import { AccountDialog } from '../ui/AccountDialog';
@@ -69,6 +70,7 @@ export function PcWorkspace({ ws }: { ws: Workspace }) {
   }, [undoRef]);
   const [drawer, setDrawer] = useState(false);
   const [acctOpen, setAcctOpen] = useState(false);
+  const [setOpen, setSetOpen] = useState(false);
   // 일간 상세 — 목록 위 «레이어» (넓은 화면) 또는 전체 페이지 (v3 openDay · dayPeekFull)
   const [dayKey, setDayKey] = useState<string | null>(null);
   const [dayFull, setDayFull] = useState(false);
@@ -104,7 +106,7 @@ export function PcWorkspace({ ws }: { ws: Workspace }) {
             <small>저장됨</small>
           </button>
           <div className="rail-spacer" />
-          <button className="rail-btn" id="btnSettings" onClick={openAccount}>
+          <button className="rail-btn" id="btnSettings" onClick={() => { setDrawer(false); setSetOpen(true); }}>
             <span className="ri"><svg viewBox="0 0 20 20"><path d="M8.6 3.1h2.8l.28 1.72c.46.18.89.43 1.28.73l1.63-.62 1.4 2.42-1.32 1.14c.04.27.06.55.06.84s-.02.57-.06.84l1.32 1.14-1.4 2.42-1.63-.62c-.39.3-.82.55-1.28.73l-.28 1.72H8.6l-.28-1.72a5.3 5.3 0 0 1-1.28-.73l-1.63.62-1.4-2.42 1.32-1.14a5.5 5.5 0 0 1 0-1.68L4.01 7.35l1.4-2.42 1.63.62c.39-.3.82-.55 1.28-.73L8.6 3.1Z" /><circle cx="10" cy="10" r="2.3" /></svg></span>
             <small>설정</small>
           </button>
@@ -191,6 +193,7 @@ export function PcWorkspace({ ws }: { ws: Workspace }) {
         {ws.toast?.action && <button className="tu" onClick={ws.toast.action.run}>{ws.toast.action.label}</button>}
       </div>
 
+      {setOpen && <SettingsModal ws={ws} onClose={() => setSetOpen(false)} />}
       {acctOpen && (
         <AccountDialog auth={backend.auth} user={user} pending={sync?.pending ?? 0} onClose={() => setAcctOpen(false)} />
       )}
