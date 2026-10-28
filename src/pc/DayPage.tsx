@@ -320,7 +320,7 @@ export interface OpenSpan { ref: SpanRef | null; s: number; e: number; kind: 'sl
 const gFloor = (m: number) => Math.floor(Math.max(0, m) / GSTEP) * GSTEP;
 
 /** 휴게 상자로 열기 — 진행 중이라 길이가 0 이면 최소 한 칸 (v3 openSlot) */
-function openBrk(d: Day, idx: number, now: number): OpenSpan {
+export function openBrk(d: Day, idx: number, now: number): OpenSpan {
   const b = d.breaks[idx], base = dayStartMs(d.date);
   const s = Math.max(0, Math.min(1439, Math.round((b.s - base) / 60000)));
   const e = Math.min(1440, Math.round((spanEnd(d, b, now) - base) / 60000));

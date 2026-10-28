@@ -20,7 +20,8 @@ import {
 import { catChoices, catKey, labelPicks } from '../domain/attendance/cats';
 import { breakConflicts, logsOf, nextColor, slotOutside, type SpanRef } from '../domain/attendance/logs';
 import { addDays, dateOf, DOW, dayLabel, fmtDur, hhmm, keyOf, leaveOf, LEAVES, normTime, weekStart } from '../ui/v3fmt';
-import { Grid, SlotList, type OpenSpan } from '../pc/DayPage';
+import { type OpenSpan } from '../pc/DayPage';
+import { MTimeline } from './MTimeline';
 import { NoteEditor } from '../pc/NoteEditor';
 import { HabitChips, Pend, Sheet, TimeBox } from './parts';
 
@@ -51,7 +52,6 @@ export function MDay({ ws, date, setDate, editOpen }: { ws: Workspace; date: str
   useEffect(() => { setSesOpen(!!editOpen); }, [editOpen, date]);
   // 한 번에 한 판만 — 시간 기록이 쌓여도 · 할 일이 길어도 페이지가 아래로 늘어나지 않게
   const [pane, setPane] = useState<Pane>('tg');
-  const [listOpen, setListOpen] = useState(false);
   const dt = dateOf(date);
   const isToday = date === ws.today;
 
@@ -69,8 +69,6 @@ export function MDay({ ws, date, setDate, editOpen }: { ws: Workspace; date: str
     const s = Math.max(0, Math.floor((m - 30) / 10) * 10);
     return { ref: null, s, e: Math.min(1440, s + 30), kind: 'slot' };
   };
-  const rows = sessionRows(d);
-  const nLogs = logsOf(ws.logs, date).length + d.breaks.length;
 
   return (
     <div className="m-day">
@@ -96,18 +94,7 @@ export function MDay({ ws, date, setDate, editOpen }: { ws: Workspace; date: str
 
       {pane === 'tg' && (
         <section className="m-dsec m-tgs" aria-label="시간표">
-          <Grid d={d} logs={ws.logs} now={ws.now} isToday={isToday} onOpen={open} />
-          {nLogs + rows.length > 0 && (
-            <button className="m-acc-h m-tgl-h" aria-expanded={listOpen} onClick={() => setListOpen((v) => !v)}>
-              <span>기록 목록</span><em>{logsOf(ws.logs, date, 'slot').length}건 기록 · 휴게 {d.breaks.filter((x) => x.kind === 'break').length + logsOf(ws.logs, date, 'rest').length}건</em>
-              <i className={`m-acc-c${listOpen ? ' on' : ''}`} aria-hidden="true">⌄</i>
-            </button>
-          )}
-          {listOpen && (
-            <div className="tg-list m-tgl">
-              <SlotList d={d} logs={ws.logs} cats={ws.cats} now={ws.now} rows={rows} onOpen={open} onGoto={() => setSesOpen(true)} />
-            </div>
-          )}
+          <MTimeline ws={ws} d={d} isToday={isToday} onOpen={open} />
           <button className="m-fab" onClick={() => setSpan(nowSlot())} aria-label="시간 기록 · 휴게 적기">
             <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 4v12M4 10h12" /></svg>기록
           </button>

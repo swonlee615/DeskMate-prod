@@ -167,3 +167,13 @@ export function timeline(day: Day, logs: Log[], now: number): TLSpan[] {
   }
   return out.filter((x) => x.e > x.s || x.live).sort((a, b) => a.s - b.s);
 }
+
+/**
+ * 폰 시간표가 보여 줄 시간대 [시작 시, 끝 시) — 구간이 있는 시간 앞뒤 1시간 (오늘이면 지금 시각도 넣는다).
+ * 아무것도 없으면 09~18시. 나머지 시간은 «펼치기» 로 연다
+ */
+export function tlHours(spans: { s: number; e: number }[], nowM: number | null): [number, number] {
+  const ms = [...spans.flatMap((x) => [x.s, x.e]), ...(nowM == null ? [] : [nowM])];
+  if (!ms.length) return [9, 18];
+  return [Math.max(0, Math.floor(Math.min(...ms) / 60) - 1), Math.min(24, Math.ceil(Math.max(...ms) / 60) + 1)];
+}

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Day } from './types';
 import { dayParts, workMinutes } from './rules';
-import { breakConflicts, overlapIds, resolveConflicts, slotOutside, splitRest, timeline, type Log } from './logs';
+import { breakConflicts, overlapIds, resolveConflicts, slotOutside, splitRest, timeline, tlHours, type Log } from './logs';
 
 const D = '2026-10-21';
 const t = (hm: string) => { const [h, m] = hm.split(':').map(Number); return new Date(2026, 9, 21, h, m).getTime(); };
@@ -93,5 +93,14 @@ describe('timeline — 모바일 시간표가 그리는 구간', () => {
   it('근무 중이면 지금까지 · live', () => {
     const tl = timeline(day({ offAt: null }), [], t('10:30'));
     expect(tl).toEqual([expect.objectContaining({ kind: 'work', s: M('09:00'), e: M('10:30'), live: true })]);
+  });
+});
+
+describe('폰 시간표 시간대 (tlHours)', () => {
+  it('구간 앞뒤 1시간 · 지금 시각 포함 · 없으면 9~18시 · 0~24 안', () => {
+    expect(tlHours([{ s: 9 * 60 + 5, e: 18 * 60 + 30 }], null)).toEqual([8, 20]);
+    expect(tlHours([{ s: 600, e: 660 }], 22 * 60 + 10)).toEqual([9, 24]);
+    expect(tlHours([], null)).toEqual([9, 18]);
+    expect(tlHours([{ s: 10, e: 1440 }], null)).toEqual([0, 24]);
   });
 });
