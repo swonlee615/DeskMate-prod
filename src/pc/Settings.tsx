@@ -6,17 +6,8 @@ import { useEffect, useState } from 'react';
 import type { Workspace } from '../app/useWorkspace';
 import { catVar, SLOT_COLORS } from '../domain/attendance/logs';
 import { CAT_EX, nextCatColor, type Cat } from '../domain/attendance/cats';
+import { SET_NAV } from '../ui/settingsNav';
 
-const NAV: { k: string; ni: string; nm: string; on?: boolean }[] = [
-  { k: 'general', ni: '⚙️', nm: '일반' },
-  { k: 'ws', ni: '🏢', nm: '워크스페이스' },
-  { k: 'members', ni: '👥', nm: '멤버 설정' },
-  { k: 'pomo', ni: '🍅', nm: '뽀모도로' },
-  { k: 'slot', ni: '⏱️', nm: '시간 기록', on: true },
-  { k: 'away', ni: '💻', nm: '자리비움 · 업무 앱' },
-  { k: 'data', ni: '🗄', nm: '데이터' },
-  { k: 'plugin', ni: '🧩', nm: '플러그인' },
-];
 
 export function SettingsModal({ ws, onClose }: { ws: Workspace; onClose: () => void }) {
   useEffect(() => {
@@ -30,11 +21,12 @@ export function SettingsModal({ ws, onClose }: { ws: Workspace; onClose: () => v
         <div className="set-wrap">
           <nav className="set-nav">
             <div className="set-nav-t">설정</div>
-            {NAV.map((n) => (
+            {SET_NAV.map((n) => [
+              n.sep && <div key={`${n.k}-sep`} className="set-nav-sep" />,
               <button key={n.k} className={`set-nav-i${n.on ? ' on' : ' soon'}`} data-set-nav={n.k} aria-disabled={!n.on}
                 onClick={() => { if (!n.on) ws.say(`${n.nm} 설정은 준비 중이에요`); }}>
-                <span className="ni">{n.ni}</span><span className="nm">{n.nm}</span></button>
-            ))}
+                <span className="ni">{n.ni}</span><span className="nm">{n.nm}</span></button>,
+            ])}
           </nav>
           <div className="modal-body set-body">
             <section className="set-panel on" data-set-panel="slot">

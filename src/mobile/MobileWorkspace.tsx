@@ -18,6 +18,7 @@ import { MobileWeek } from './MobileWeek';
 import { MToday, STATE_LABEL, WeekSummary } from './MToday';
 import { MDay } from './MDay';
 import { CloseX, HabitChips } from './parts';
+import { SET_NAV, SLOT_HINT } from '../ui/settingsNav';
 import { CAT_EX, nextCatColor, type Cat } from '../domain/attendance/cats';
 import { catVar, SLOT_COLORS } from '../domain/attendance/logs';
 import './mobile.css';
@@ -30,9 +31,11 @@ export function MobileWorkspace({ ws }: { ws: Workspace }) {
   const [view, setView] = useState<'all' | 'week'>('all');
   const [day, setDay] = useState<{ date: string; edit: boolean } | null>(null);
   const [acctOpen, setAcctOpen] = useState(false);
+  // 설정 › 한 칸 (PC 설정 창의 오른쪽 칸을 폰에서는 한 단계 안으로)
+  const [setSub, setSetSub] = useState<string | null>(null);
   // 탭 · 보기(전체/주간)를 바꾸면 늘 맨 위에서 — 스크롤 칸 하나를 함께 써서 앞 탭의 위치가 남았다
   const body = useRef<HTMLElement>(null);
-  useLayoutEffect(() => { body.current?.scrollTo(0, 0); }, [tab, view]);
+  useLayoutEffect(() => { body.current?.scrollTo(0, 0); }, [tab, view, setSub]);
   const goDay = (date: string, edit = false) => setDay({ date, edit });
   const t = ws.timer;
   const toTimer = () => {
@@ -43,7 +46,9 @@ export function MobileWorkspace({ ws }: { ws: Workspace }) {
   return (
     <div className="m-app">
       <header className="m-head">
-        <h1>{TITLE[tab]}</h1>
+        {tab === 'set' && setSub
+          ? <button className="m-back" onClick={() => setSetSub(null)} aria-label="설정으로"><i aria-hidden="true">‹</i><h1>{SET_NAV.find((n) => n.k === setSub)?.nm}</h1></button>
+          : <h1>{TITLE[tab]}</h1>}
         <span className="m-sp" />
         <SyncBadge s={ws.sync} />
         <button className={`m-pill timer${t.running ? ' on' : ''}${t.mode === 'focus' ? '' : ' rest'}`} onClick={toTimer} aria-label={`집중 타이머 · ${t.label}${t.running ? ' 중' : ' 대기'}`}>
@@ -66,7 +71,7 @@ export function MobileWorkspace({ ws }: { ws: Workspace }) {
         </>}
         {tab === 'team' && <TeamTab ws={ws} />}
         {tab === 'later' && <Soon what="저장됨" items="보관한 D-Day · 습관 · 저장한 메모" />}
-        {tab === 'set' && <Settings ws={ws} onAccount={() => setAcctOpen(true)} />}
+        {tab === 'set' && (setSub ? <SetPanel ws={ws} k={setSub} /> : <Settings ws={ws} onAccount={() => setAcctOpen(true)} onOpen={setSetSub} />)}
       </main>
 
       {day && (
@@ -86,7 +91,7 @@ export function MobileWorkspace({ ws }: { ws: Workspace }) {
           icon={<><circle cx="8" cy="7.4" r="2.9" /><path d="M2.9 16.2c0-2.6 2.3-4.2 5.1-4.2s5.1 1.6 5.1 4.2" /><path d="M13.6 5.1a2.6 2.6 0 0 1 0 4.9M15.2 12.4c1.4.5 2.4 1.7 2.4 3.4" /></>} />
         <TabBtn on={tab === 'later'} onClick={() => { setTab('later'); setDay(null); }} label="저장됨"
           icon={<path d="M5.6 3.6h8.8v13.1L10 13.2l-4.4 3.5V3.6Z" />} />
-        <TabBtn on={tab === 'set'} onClick={() => { setTab('set'); setDay(null); }} label="설정"
+        <TabBtn on={tab === 'set'} onClick={() => { setTab('set'); setDay(null); setSetSub(null); }} label="설정"
           icon={<><path d="M8.6 3.1h2.8l.28 1.72c.46.18.89.43 1.28.73l1.63-.62 1.4 2.42-1.32 1.14c.04.27.06.55.06.84s-.02.57-.06.84l1.32 1.14-1.4 2.42-1.63-.62c-.39.3-.82.55-1.28.73l-.28 1.72H8.6l-.28-1.72a5.3 5.3 0 0 1-1.28-.73l-1.63.62-1.4-2.42 1.32-1.14a5.5 5.5 0 0 1 0-1.68L4.01 7.35l1.4-2.42 1.63.62c.39-.3.82-.55 1.28-.73L8.6 3.1Z" /><circle cx="10" cy="10" r="2.3" /></>} />
       </nav>
 
@@ -119,7 +124,9 @@ function Soon({ what, items }: { what: string; items: string }) {
 }
 
 /** 설정 — PC 레일 맨 아래 «설정» 과 같은 자리. 지금은 계정만 (나머지 설정은 PC 설정 화면을 옮길 때 같이) */
-function Settings({ ws, onAccount }: { ws: Workspace; onAccount: () => void }) {
+const SEP = SET_NAV.findIndex((n) => n.sep);
+
+function Settings({ ws, onAccount, onOpen }: { ws: Workspace; onAccount: () => void; onOpen: (k: string) => void }) {
   const cloud = ws.backend.mode === 'cloud';
   return (
     <>
@@ -130,11 +137,31 @@ function Settings({ ws, onAccount }: { ws: Workspace; onAccount: () => void }) {
         {cloud && <i className="m-chev" aria-hidden="true">›</i>}
       </li>
     </ul>
-    <h3 className="m-set-h">시간 기록 카테고리</h3>
-    <p className="m-set-hint">색마다 이름을 붙이면 카테고리가 돼요. 기록에는 색만 남아서 이름을 바꿔도 지난 기록이 따라와요.</p>
-    <CatList ws={ws} />
+    {/* PC 설정 창의 칸 목록 그대로 (SET_NAV) — 누르면 한 단계 안으로 */}
+    {[SET_NAV.slice(0, SEP), SET_NAV.slice(SEP)].map((grp, gi) => (
+      <ul className="m-card m-list m-setl" key={gi}>
+        {grp.map((n) => (
+          <li key={n.k} className={`m-row${n.on ? '' : ' soon'}`} aria-disabled={!n.on}
+            onClick={() => (n.on ? onOpen(n.k) : ws.say(`${n.nm} 설정은 준비 중이에요`))}>
+            <span className="m-set-ni" aria-hidden="true">{n.ni}</span>
+            <div className="m-row-l"><b>{n.nm}</b>{!n.on && <span>준비 중</span>}</div>
+            {n.on && <i className="m-chev" aria-hidden="true">›</i>}
+          </li>
+        ))}
+      </ul>
+    ))}
     </>
   );
+}
+
+/** 설정 › 한 칸 — PC SettingsModal 의 set-panel 과 같은 내용 */
+function SetPanel({ ws, k }: { ws: Workspace; k: string }) {
+  if (k === 'slot') return <>
+    <h3 className="m-set-h">시간 기록 카테고리</h3>
+    <p className="m-set-hint">{SLOT_HINT}</p>
+    <CatList ws={ws} />
+  </>;
+  return null;
 }
 
 /** PC 설정 › 시간 기록의 CatList 와 같은 일 — 색 점을 누르면 아래에 팔레트, 이름은 칸을 떠날 때 저장 */

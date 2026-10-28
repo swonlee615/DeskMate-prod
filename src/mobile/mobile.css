@@ -614,3 +614,10 @@ button.m-cat.on { color: var(--text-strong); font-weight: 700; box-shadow: inset
 .m-catl .m-pal button:disabled { opacity: .2; }
 .m-catl .m-add-cat { justify-content: center; color: var(--blue); font-size: 14px; font-weight: 600; min-height: 44px; }
 .m-body > * { flex-shrink: 0; }
+/* 설정 목록 (PC 설정 창의 칸) · 안쪽 화면의 머리 «‹ 칸 이름» */
+.m-setl .m-row { min-height: 52px; padding: 8px 16px; }
+.m-setl .m-row.soon { opacity: .5; }
+.m-set-ni { width: 28px; text-align: center; font-size: 18px; flex: none; }
+.m-back { display: flex; align-items: center; gap: 4px; min-width: 0; min-height: 44px; margin-left: -6px; }
+.m-back i { font-style: normal; font-size: 28px; line-height: 1; color: var(--blue); font-weight: 400; }
+.m-back h1 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
