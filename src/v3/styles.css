@@ -7771,6 +7771,17 @@ body[data-mode="light"] .huddle { color: #36705a; }
 .memo-bm.on { color: var(--blue); }
 .memo-bm.on svg { fill: currentColor; }
 .memo-bm:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+/* 저장됨 고정 (v3.1.262) — 북마크 단추와 같은 틀. 켜지면 채운 핀(파랑). 목록 줄에는 제목 뒤에 작은 핀 */
+.sv-pin { flex: none; width: 28px; height: 28px; border: 0; background: transparent; border-radius: 6px;
+  display: grid; place-items: center; color: var(--text-muted); cursor: pointer; }
+.sv-pin svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; }
+.sv-pin:hover { background: var(--tint-3); color: var(--text-strong); }
+.sv-pin.on { color: var(--blue); }
+.sv-pin.on svg path:first-child { fill: currentColor; }
+.sv-pin:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+.sv-dh .sv-pin + .memo-bm { margin-left: 0; }
+.sv-pinmark { flex: none; display: inline-grid; color: var(--blue); margin-left: auto; }
+.sv-pinmark svg { width: 12px; height: 12px; fill: currentColor; stroke: currentColor; stroke-width: 1.2; stroke-linejoin: round; }
 .note h4 .memo-bm { margin-top: -6px; margin-bottom: -6px; }   /* 제목 줄 높이를 키우지 않는다 */
 /* v3.1.208 — 라이트에서 고른 줄(`--surface-3`) 위의 흐린 글자가 4.37:1 이었다 (4.5 미달). 고른 줄만 한 단 진하게 */
 .sv-it.on .s, .sv-it.on .src { color: var(--text-muted); }
@@ -7837,7 +7848,10 @@ body:not([data-mode="light"]) .blk.done .txt { color: color-mix(in srgb, var(--t
   border-radius: 8px; padding: 2px 0; }
 .hb-ring:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
 .hb-rg { position: relative; width: 52px; height: 52px; display: block; }
-.hb-rg svg { position: absolute; inset: 0; width: 52px; height: 52px; }
+/* ★ v3.1.261 — `> svg` 로 좁혔다. 맨 `.hb-rg svg` 는 고리 안의 **체크 배지(`.hb-ok`) 아이콘**에도 걸려,
+     그 아이콘이 `absolute · inset:0` 으로 배지의 왼쪽 위에 붙었다 — 체크가 초록 원 가운데서 2.5px 쯤 비켜 보였다 (소유자).
+     v3.1.245 의 타이머 손잡이(`.dial svg`)와 같은 실수다: 판 규칙은 판에만 건다. */
+.hb-rg > svg { position: absolute; inset: 0; width: 52px; height: 52px; }
 .hb-rg circle { fill: none; stroke-width: 4; }
 .hb-rg .tr { stroke: var(--ring-track); }
 .hb-rg .fg { stroke: var(--blue); stroke-linecap: round; transition: stroke-dasharray .25s ease; }

@@ -26,7 +26,7 @@
 | 저장 상태 배지 | 서버에 안 닿으면(연결 끊김 · 개발용 이 기기 저장) 전부 «오프라인» + 연결 끊김 아이콘 | `src/ui/SyncBadge.tsx` |
 | 타이머 동기화 | 타이머가 사람 하나에 하나 — 폰에서 시작하면 PC 에도 돈다 (SYNC §9) | `src/app/usePomodoro.ts` |
 | 시험 | 105개 (`npm test`) | `*.test.ts` |
-| v3 따라잡기 | v3.1.257 까지 분류 · 스타일 원본 3.1.255 | `docs/V3-FOLLOW.md` |
+| v3 따라잡기 | v3.1.262 까지 분류 · 스타일 원본 3.1.262 | `docs/V3-FOLLOW.md` |
 
 ## 2. 다음 할 일 (순서대로)
 
@@ -45,7 +45,7 @@
 
 ## 3. 일하는 방식 (소유자와 정한 것)
 
-- **v3 최신 버전이 정답지다.** v3 원본: `../v2.7.7` (읽기만 — 고치지 않는다. 폴더 이름과 달리 늘 최신 — 지금 v3.1.256). 화면은 `src/index.html` · `src/styles.css` · `src/js/app.js`(화면) · `src/js/worklog.js`(규칙), 문서는 `LOGIC.md` · `DESIGN.md` · `PRD.md` · `CHANGELOG.md`
+- **v3 최신 버전이 정답지다.** v3 원본: `../v2.7.7` (읽기만 — 고치지 않는다. 폴더 이름과 달리 늘 최신 — 지금 v3.1.262). 화면은 `src/index.html` · `src/styles.css` · `src/js/app.js`(화면) · `src/js/worklog.js`(규칙), 문서는 `LOGIC.md` · `DESIGN.md` · `PRD.md` · `CHANGELOG.md`
 - PC 화면은 v3 와 **똑같이** — v3 가 그리는 마크업 · 클래스를 찾아 같은 모양으로 React 에 옮긴다. CSS 는 새로 쓰지 않는다
 - 사용자 경험이 v3 와 같으면 구조는 개발에 편한 쪽으로 정하고 묻지 않는다. **화면 · 동작이 v3 와 달라질 때만** 소유자에게 묻는다
 - 판정 · 규칙은 `src/domain` 에 순수 함수로, 테스트를 먼저. 버튼이 하는 일은 `src/app/useWorkspace.ts` 한 곳 (PC · 모바일 공통)
