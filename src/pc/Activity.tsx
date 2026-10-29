@@ -3,7 +3,8 @@
  *
  * ★ 마크업 · 클래스 · id 는 v3 renderAnalytics 와 같다 (스타일은 v3 styles.css 그대로). 숫자는 전부 domain/stats — 폰과 같은 함수
  * ★ 날짜 하나를 가리키는 그림(막대 · 리듬 줄 · 히트맵 칸)은 누르면 그 날 상세 — 기록 없는 날은 안 열린다 (v3.1.212)
- * ★ 아직 안 옮긴 것: «이번 주 해석» (Claude 리포트) · 순위 «최근 6개월까지» 안내
+ * ★ 아직 안 옮긴 것: «이번 주 해석» (Claude 리포트)
+ * ★ 순위 이력은 v3 의 «최근 6개월까지» 안내 없이 기록이 있는 데까지 (SYNC §11 · 2026-10-30 소유자)
  */
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { Workspace } from '../app/useWorkspace';
