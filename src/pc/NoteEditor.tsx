@@ -11,6 +11,7 @@
  *   한글 조합 중 Enter 는 무시한다
  * ★ 부분 체크(LOGIC §6-3) — 딸린 할 일이 있는 줄은 `ok/n` 이 항상 서고, 일부만 끝나면 가운데 줄(-)
  * ★ ⠿ 끌어서 옮기기 — 덩어리째, 같은 묶음의 형제 자리로 · ⌘Z — 이 기기의 마지막 동작 (글자 치기는 브라우저 몫)
+ * ★ 폰 — 키보드 위 도구 줄(`KbBar`): 할 일 · 글머리 · 내어쓰기 · 들여쓰기 · 키보드 내리기. 동작은 위 키와 같은 함수
  * 아직 안 옮긴 것: 여러 줄 고르기 · 이미지 · `@날짜` · 글자 서식
  */
 import { useLayoutEffect, useRef, useState } from 'react';
@@ -20,6 +21,7 @@ import {
   moveChunk, outdent, removeEmpty, triOf, type Block, type BlockArea, type Patch, type Row, type Tri,
 } from '../domain/todos/tree';
 import { dateOf, hhmm } from '../ui/v3fmt';
+import { KbBar } from '../mobile/KbBar';
 
 const HEAD_N: Record<string, number> = { h1: 1, h2: 2, h3: 3 };
 
@@ -138,6 +140,32 @@ export function NoteEditor({ ws, date, area, title, ph, icon }: {
   const editable = lines.filter((l) => !l.moved && !l.ghostHead);
   const idxOf = (id: string) => editable.findIndex((l) => l.row.b.id === id);
 
+  /** 들여쓰기 · 내어쓰기 — PC Tab/⇧Tab 과 폰 도구 줄이 같은 함수를 부른다 */
+  const shiftLine = (line: Line, el: HTMLElement, out: boolean) => {
+    if (line.carriedFrom) return;
+    const b = line.row.b;
+    const at = caretOf(el) ?? (el.textContent ?? '').length;
+    flush(b.id, el);
+    const p = out ? outdent(blocks, b) : indent(blocks, b, line.row.depth);
+    if (p) { ws.patchBlocks([p]); focusNext.current = { id: b.id, at }; }
+    else if (!out && line.row.depth >= 8) ws.say('8단까지 들여쓸 수 있어요');
+  };
+  /** 줄 종류 바꾸기 — PC 는 `[] ` · `- ` 를 쳐서, 폰은 도구 줄에서 */
+  const setType = (line: Line, el: HTMLElement, type: Block['type']) => {
+    const b = line.row.b;
+    if (line.carriedFrom || b.type === type) return;
+    const at = caretOf(el) ?? 0;
+    flush(b.id, el);
+    ws.patchBlocks([{ id: b.id, type }]);
+    focusNext.current = { id: b.id, at };
+  };
+
+  // ── 폰 — 고치는 줄을 알아 두면 키보드 위 도구 줄이 그 줄에 일한다
+  const mobile = document.body.dataset.platform === 'mobile';
+  const [cur, setCur] = useState<string | null>(null);
+  const curLine = cur ? editable.find((l) => l.row.b.id === cur) ?? null : null;
+  const curEl = () => (cur ? box.current?.querySelector<HTMLElement>(`[data-edit="${CSS.escape(cur)}"]`) ?? null : null);
+
   const onKey = (e: React.KeyboardEvent<HTMLDivElement>, line: Line) => {
     const el = e.currentTarget;
     const b = line.row.b;
@@ -203,11 +231,7 @@ export function NoteEditor({ ws, date, area, title, ph, icon }: {
 
     if (e.key === 'Tab') {
       e.preventDefault();
-      if (line.carriedFrom) return;
-      flush(b.id, el);
-      const p = e.shiftKey ? outdent(blocks, b) : indent(blocks, b, line.row.depth);
-      if (p) { ws.patchBlocks([p]); focusNext.current = { id: b.id, at }; }
-      else if (!e.shiftKey && line.row.depth >= 8) ws.say('8단까지 들여쓸 수 있어요');
+      shiftLine(line, el, e.shiftKey);
       return;
     }
 
@@ -269,7 +293,9 @@ export function NoteEditor({ ws, date, area, title, ph, icon }: {
   const dragSet = drag ? new Set(lineIds(drag)) : null;
 
   return (
-    <div className={area === 'wmemo' ? 'note memo wp-memo' : `note ${area}`} data-area={area} ref={box}>
+    <div className={area === 'wmemo' ? 'note memo wp-memo' : `note ${area}`} data-area={area} ref={box}
+      onFocus={mobile ? (e) => setCur((e.target as HTMLElement).dataset.edit ?? null) : undefined}
+      onBlur={mobile ? () => setTimeout(() => { if (!box.current?.contains(document.activeElement)) setCur(null); }, 0) : undefined}>
       <h4>{icon}<span>{title}</span></h4>
       {lines.map((ln) => (
         <BlockRow key={ln.row.b.id} ln={ln} area={area} ph={ph} viewDate={date}
@@ -279,6 +305,12 @@ export function NoteEditor({ ws, date, area, title, ph, icon }: {
           onKey={onKey} onInput={onInput} onBlur={(id, el) => flush(id, el)}
           onCheck={(b) => ws.toggleBlock(b, date)} onDel={(b) => ws.removeBlock(b)} />
       ))}
+      {mobile && curLine && (
+        <KbBar area={area} type={curLine.row.b.type} depth={curLine.row.depth} fixed={!!curLine.carriedFrom}
+          onShift={(out) => { const el = curEl(); if (el) shiftLine(curLine, el, out); }}
+          onType={(t) => { const el = curEl(); if (el) setType(curLine, el, t); }}
+          onDone={() => (document.activeElement as HTMLElement | null)?.blur()} />
+      )}
       {/* 빈 날 — 적을 자리는 «화면» 이 준다. 빈 줄을 데이터로 깔지 않는다 (결함표 B11) */}
       {!own.length && (
         <div className="blk" data-area={area} style={{ '--ind': 0 } as React.CSSProperties}>

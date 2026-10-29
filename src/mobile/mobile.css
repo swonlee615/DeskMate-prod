@@ -818,3 +818,15 @@ button.m-cat.on { color: var(--text-strong); font-weight: 700; box-shadow: inset
 .m-tcs button { width: 36px; height: 36px; border-radius: 50%; background: var(--c); }
 .m-tcs button.on { box-shadow: 0 0 0 2px var(--main), 0 0 0 4px var(--c); }
 @media (prefers-reduced-motion: reduce) { .m-tgl, .m-tgl i { transition: none; } }
+
+/* 편집기 — 키보드 위 도구 줄 (노션 앱처럼: 한 줄 · 아이콘만 · 위에 머리카락 선) */
+.m-kb { position: fixed; left: 0; right: 0; z-index: 60; display: flex; align-items: center; gap: 2px; height: 46px; padding: 0 6px;
+  background: var(--surface-2); border-top: 1px solid var(--border-soft); box-shadow: 0 -1px 0 rgba(0,0,0,.02); }
+.m-kb.flat { height: calc(46px + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom); }
+.m-kb-b { width: 44px; height: 40px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; color: var(--text-muted); -webkit-tap-highlight-color: transparent; }
+.m-kb-b:active { background: var(--tint-2, rgba(127,127,127,.12)); }
+.m-kb-b.on { color: var(--text-strong); background: var(--tint-2, rgba(127,127,127,.12)); }
+.m-kb-b:disabled { opacity: .28; }
+.m-kb-sep { width: 1px; height: 22px; margin: 0 4px; background: var(--border-soft); }
+.m-kb-sp { flex: 1; }
+.m-wk-memo { margin-top: 12px; }

@@ -4,7 +4,8 @@
  * ★ PC 주간 오른쪽 「이번 주 할 일」 상자와 같은 모양 (2026-10-28 소유자 — 요일별 칸은 폰에서 뺐다)
  *   달성 막대 · 근무 · 출근 · 일 평균 · 묶음별 목록 · 완료 · 줄마다 요일 칩
  * ★ 요일 칩을 누르면 옮기기 시트 — PC 콤보 · 끌기와 같은 moveItem 하나를 부른다
- * 아직 안 옮긴 것: 주 메모 · 딸린 줄 펼치기 (폰에서는 바깥 할 일만 — PC 주간과 같다)
+ * ★ 주 메모 = PC 주간의 Memo 와 같은 편집기 (맨 아래)
+ * 아직 안 옮긴 것: 딸린 줄 펼치기 (폰에서는 바깥 할 일만 — PC 주간과 같다)
  */
 import { useState } from 'react';
 import type { Workspace } from '../app/useWorkspace';
@@ -13,6 +14,8 @@ import { addItem, listGroups, moveItem, weekDays, weekItems, weekKeyOf, type Cha
 import { addDays, dateOf, DOW, keyOf, weekTag } from '../ui/v3fmt';
 import { workMinutes } from '../pc/Worklog';
 import { CloseX } from './parts';
+import { NoteEditor } from '../pc/NoteEditor';
+import { MEMO_IC } from './MDay';
 
 const md = (k: string) => { const d = dateOf(k); return `${d.getMonth() + 1}/${d.getDate()}`; };
 
@@ -79,6 +82,11 @@ export function MobileWeek({ ws }: { ws: Workspace }) {
           </> : <p className="m-empty">이 주에는 적어 둔 할 일이 없어요. 아래에 적으면 요일 미정으로 들어가요.</p>}
           <MAdd onAdd={(t) => add('', t)} />
         </div>
+      </section>
+
+      {/* 주 메모 — PC 주간 플래너의 Memo 와 같은 칸 (그 주 월요일 날짜 · area wmemo) */}
+      <section className="m-dsec m-notes m-wk-memo">
+        <NoteEditor ws={ws} date={wk} area="wmemo" title="Memo" ph="이번 주 메모를 입력하세요" icon={MEMO_IC} />
       </section>
 
       {sheet && <MoveSheet it={sheet} keys={keys} items={items} today={today} onMove={(to) => move(sheet, to)}

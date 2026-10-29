@@ -37,7 +37,7 @@ const msAt = (date: string, hm: string) => dayStartMs(date) + (toMin(hm) ?? 0) *
 const workOf = (d: Day | undefined, now: number) => (d?.onAt != null ? dayParts(d, now).workMs / 60000 : 0);
 
 const TODO_IC = <svg className="nh-ic" viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="m2.4 10.3 2.1 2.1 3.8-4.5" /><path d="M10.4 8h7.2" /><path d="M10.4 12.6h7.2" /></svg>;
-const MEMO_IC = <svg className="nh-ic" viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M2.6 5.6h14.8" /><path d="M2.6 10h14.8" /><path d="M2.6 14.4h9.4" /></svg>;
+export const MEMO_IC = <svg className="nh-ic" viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M2.6 5.6h14.8" /><path d="M2.6 10h14.8" /><path d="M2.6 14.4h9.4" /></svg>;
 
 type Pane = 'tg' | 'todo' | 'memo';
 
