@@ -7,8 +7,10 @@
  */
 import type { Day, Leave } from './attendance/types';
 import { dayGoalMin, dayParts, dayStartMs } from './attendance/rules';
-import type { Log } from './attendance/logs';
+import { timeline, type Log } from './attendance/logs';
 import type { Block } from './todos/tree';
+import { hbApplies, hbDoneAt, hbRatio, hbWeekCount, type Habit, type OffDay } from './habits';
+import { buildTeam, leaderboard, ROSTER } from './sim/team';
 import { addDays, dateOf, keyOf, weekStart } from '../ui/v3fmt';
 
 export type PeriodKind = 'week' | 'month' | 'year';
@@ -29,7 +31,12 @@ export function period(kind: PeriodKind, off: number, today: string): Period {
   return { kind, from: keyOf(f), to: live ? today : keyOf(e), end: keyOf(e), label, live };
 }
 
-export interface DayRow { key: string; dow: number; work: number; rest: number; on: number | null; off: number | null; leave: Leave; goal: number; has: boolean }
+export interface MIv { s: number; e: number }
+export interface DayRow {
+  key: string; dow: number; work: number; rest: number; on: number | null; off: number | null; leave: Leave; goal: number; has: boolean;
+  /** 출퇴근 리듬 — 근무 차수 · 근태 휴게(메모 함께) · 비근무 합 (분 · 00:00 기준). 그림이 다시 계산하지 않게 여기서 싣는다 (v2.9.84) */
+  segs: MIv[]; brks: (MIv & { note: string })[]; nonwork: number;
+}
 
 /** 그 기간의 하루하루 (v3 series) — 기록 없는 날도 줄은 있다 (막대 · 히트맵의 빈 칸) */
 export function series(days: Record<string, Day>, from: string, to: string, now: number, goalHours: number): DayRow[] {
@@ -37,7 +44,8 @@ export function series(days: Record<string, Day>, from: string, to: string, now:
   for (let d = dateOf(from); keyOf(d) <= to; d = addDays(d, 1)) {
     const key = keyOf(d);
     const day = days[key];
-    const p = day ? dayParts(day, now) : { workMs: 0, breakMs: 0 };
+    const p = day ? dayParts(day, now) : { workMs: 0, breakMs: 0, offMs: 0 };
+    const tl = day ? timeline(day, [], now) : [];
     const base = dayStartMs(key);
     const work = Math.max(0, p.workMs / 60000);
     out.push({
@@ -47,6 +55,9 @@ export function series(days: Record<string, Day>, from: string, to: string, now:
       leave: day?.leave ?? '',
       goal: dayGoalMin(goalHours, { leave: day?.leave ?? '' }),
       has: work > 0,
+      segs: tl.filter((x) => x.kind === 'work').map(({ s, e }) => ({ s, e })),
+      brks: tl.filter((x) => x.kind === 'break').map(({ s, e, text }) => ({ s, e, note: text.trim() })),
+      nonwork: p.offMs / 60000,
     });
   }
   return out;
@@ -141,4 +152,166 @@ export function yearHeat(year: number, rows: DayRow[], today: string): { weeks: 
     weeks[weeks.length - 1].push({ key, lv, work: r?.work ?? 0, leave: r?.leave ?? '', top: key === topKey, weekend: d.getDay() === 0 || d.getDay() === 6 });
   }
   return { weeks, th };
+}
+
+// ─────────────────────────────────────────────────────────── 월간 — 주간 히스토리 · 요일 리듬
+
+/**
+ * 주간 히스토리 (v3.1.194) — 그 달에 걸친 주를 월~일 «통째로» 센다 (주간 탭과 같은 숫자 · v3.1.116).
+ * 주 목표 = 그 주 평일 목표의 합 (연차가 낀 주는 줄어든다 · v3.1.209). out = 다른 달의 날 수
+ */
+export interface WeekRow { key: string; end: string; work: number; goal: number; days: number; hit: number; out: number }
+export function weekHistory(days: Record<string, Day>, p: Period, now: number, goalHours: number): WeekRow[] {
+  const out: WeekRow[] = [];
+  const mon = dateOf(p.from).getMonth();
+  for (let ws = weekStart(dateOf(p.from)); keyOf(ws) <= p.to; ws = addDays(ws, 7)) {
+    const key = keyOf(ws), end = keyOf(addDays(ws, 6));
+    const rs = series(days, key, end, now, goalHours);
+    const gd = rs.filter((r) => r.has && r.goal > 0);
+    out.push({
+      key, end,
+      work: rs.reduce((a, r) => a + (r.has ? r.work : 0), 0),
+      goal: rs.filter((r) => r.dow >= 1 && r.dow <= 5).reduce((a, r) => a + r.goal, 0),
+      days: gd.length, hit: gd.filter((r) => r.work >= r.goal).length,
+      out: rs.filter((r) => dateOf(r.key).getMonth() !== mon).length,
+    });
+  }
+  return out;
+}
+
+/** 요일 리듬 (v3.1.171 · 3.1.266) — 그 요일에 일한 날들 + 평균 휴게 · 비근무. 월~일 */
+export function dowRhythm(rows: DayRow[]) {
+  const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
+  return [1, 2, 3, 4, 5, 6, 0].map((dow) => {
+    const rs = rows.filter((r) => r.has && r.on != null && r.dow === dow);
+    return { dow, rs, n: rs.length, avgRest: avg(rs.map((r) => r.rest)), avgIdle: avg(rs.map((r) => r.nonwork)) };
+  });
+}
+
+// ─────────────────────────────────────────────────────────── 라벨별 (v3 labelSplit · v3.1.249)
+
+export interface LabelRow { kind: 'slot' | 'rest'; label: string; color: string | null; min: number }
+/** 시간 기록(이름) · 휴게(메모)를 따로 센다. 일한 날만. 메모 없는 휴게는 label '' (= 미분류) */
+export function labelSplit(rows: DayRow[], logs: Log[]): LabelRow[] {
+  const map = new Map<string, LabelRow>();
+  const add = (kind: LabelRow['kind'], label: string, color: string | null, min: number) => {
+    const k = `${kind}|${label.toLowerCase()}`;
+    const cur = map.get(k) ?? { kind, label, color: null, min: 0 };
+    cur.min += min;
+    if (!cur.color && color) cur.color = color.toLowerCase();
+    map.set(k, cur);
+  };
+  const worked = new Set(rows.filter((r) => r.has).map((r) => r.key));
+  for (const r of rows) if (worked.has(r.key)) for (const b of r.brks) add('rest', b.note.replace(/\s+/g, ' '), null, b.e - b.s);
+  for (const l of logs) {
+    if (l.deletedAt || !worked.has(l.date)) continue;
+    const t = l.text.trim().replace(/\s+/g, ' ');
+    add(l.kind, l.kind === 'slot' ? t || '(내용 없음)' : t, l.color, l.e - l.s);
+  }
+  return [...map.values()].filter((x) => x.min > 0.5).sort((a, b) => b.min - a.min);
+}
+
+// ─────────────────────────────────────────────────────────── 내 순위 이력 (v3.1.106 · 저장하지 않고 다시 센다)
+
+export interface RankPt { key: string; pos: number; n: number; my: number; live: boolean }
+/** 지난 날 내 등수 — 동료는 날짜 씨앗이라 언제 세도 같다. 안 나온 날은 null (v3 computeRank) */
+export function rankOn(key: string, myMin: number, nick: string): { pos: number; n: number } | null {
+  if (!myMin) return null;
+  const lb = leaderboard(buildTeam(key), 1440, myMin, nick);
+  return { pos: lb.find((r) => r.me)!.rank, n: lb.length };
+}
+/** 기간의 점들 — 오늘은 «진행 중» (todayRank = 지금 랭킹 · 패널과 같은 값 · D5) */
+export function rankSeries(rows: DayRow[], today: string, todayRank: { pos: number; n: number } | null, nick: string): RankPt[] {
+  return rows.flatMap((r): RankPt[] => {
+    const v = r.key === today ? (r.has ? todayRank : null) : r.key < today ? rankOn(r.key, Math.round(r.work), nick) : null;
+    return v ? [{ key: r.key, ...v, my: r.work, live: r.key === today }] : [];
+  });
+}
+/** 앞선 사람 수로 센다 (D3) — 상위% = 1 − Σ(n−pos)/Σ(n−1) · N명 환산 등수 = 1 + 상위%×(N−1). 오늘 · 혼자인 날은 뺀다 */
+export function rankStat(pts: RankPt[], N = ROSTER.length + 1) {
+  const done = pts.filter((x) => !x.live && x.n >= 2);
+  let win = 0, bouts = 0, best = Infinity;
+  for (const r of done) { win += r.n - r.pos; bouts += r.n - 1; best = Math.min(best, r.pos); }
+  const pct = bouts ? 1 - win / bouts : 0.5;
+  return { days: done.length, best: done.length ? best : null, avg: 1 + pct * (Math.max(2, N) - 1), pct: Math.round(pct * 100) };
+}
+
+// ─────────────────────────────────────────────────────────── 습관 표 (v3 hbCardHtml · 주간 = 날 · 월간 = 주 · 연간 = 달)
+
+export type HbTone = 'ok' | 'p2' | 'p1' | 'miss' | 'wait' | 'na' | 'fut' | 'pre';
+export interface HbCell { c: HbTone; t: string; now: boolean }
+export interface HbTable { heads: { t: string; s: string; now: boolean; fut: boolean }[]; rows: { h: Habit; cells: HbCell[]; rate: string }[]; note: string; rateLabel: string }
+const tone = (v: number): HbTone => (v >= 1 ? 'ok' : v <= 0 ? 'miss' : v < 0.5 ? 'p1' : 'p2');
+const md = (k: string) => { const d = dateOf(k); return `${d.getMonth() + 1}/${d.getDate()}`; };
+const DOW1 = '일월화수목금토';
+
+export function hbTable(all: Habit[], p: Period, today: string, offDay: OffDay): HbTable | null {
+  const list = all.filter((h) => h.start <= p.end);
+  if (!list.length) return null;
+  const inRange = (h: Habit, a: string, b: string) => !(b < h.start || (h.end && a > h.end));
+  const plus = (k: string, n: number) => keyOf(addDays(dateOf(k), n));
+  const pct = (v: number | null) => (v == null ? '—' : `${Math.round(v * 100)}%`);
+  if (p.kind === 'week') {
+    const ks = Array.from({ length: 7 }, (_, i) => plus(p.from, i));
+    return {
+      note: '', rateLabel: p.live ? '이번 주' : '그 주',
+      heads: ks.map((k) => ({ t: String(dateOf(k).getDate()), s: DOW1[dateOf(k).getDay()], now: k === today, fut: k > today })),
+      rows: list.map((h) => ({
+        h,
+        cells: ks.map((k): HbCell => {
+          const now = k === today;
+          if (k > today || !inRange(h, k, k)) return { c: 'fut', t: '', now };
+          const at = hbDoneAt(h, k);
+          if (h.type === 'perWeek') return at ? { c: hbWeekCount(h, k) >= h.n ? 'ok' : 'p2', t: '', now } : { c: 'fut', t: '', now };
+          if (!hbApplies(h, k, offDay)) return { c: 'na', t: '·', now };
+          return { c: at ? 'ok' : now ? 'wait' : 'miss', t: '', now };
+        }),
+        rate: h.type === 'perWeek' ? `${hbWeekCount(h, ks[0])}/${h.n}회` : (() => { const q = hbRatio(h, ks[0], ks[6], today, offDay); return `${q.ok}/${q.tot}일`; })(),
+      })),
+    };
+  }
+  if (p.kind === 'month') {
+    const wks: string[] = [];
+    for (let w = weekStart(dateOf(p.from)); keyOf(w) <= p.end; w = addDays(w, 7)) wks.push(keyOf(w));
+    return {
+      note: '한 칸 = 한 주 · 숫자 = 한 날 / 해당일 (주 N회는 횟수 / N)', rateLabel: p.live ? '이번 달' : '그 달',
+      heads: wks.map((ws, i) => ({ t: `${i + 1}주`, s: `${md(ws)}–${md(plus(ws, 6))}`, now: ws <= today && today <= plus(ws, 6), fut: ws > today })),
+      rows: list.map((h) => ({
+        h,
+        cells: wks.map((ws): HbCell => {
+          const we = plus(ws, 6), now = ws <= today && today <= we;
+          if (ws > today) return { c: 'fut', t: '', now };
+          if (!inRange(h, ws, we)) return { c: 'pre', t: '', now };
+          let a = 0, b = 0;
+          if (h.type === 'perWeek') { a = hbWeekCount(h, ws); b = h.n; }
+          else for (let i = 0; i < 7; i++) {
+            const k = plus(ws, i);
+            if (k < p.from || k > p.end || k > today || !hbApplies(h, k, offDay)) continue;
+            const at = hbDoneAt(h, k);
+            if (k === today && !at) continue;
+            b++; if (at) a++;
+          }
+          return b ? { c: tone(Math.min(1, a / b)), t: `${a}/${b}`, now } : { c: 'na', t: '', now };
+        }),
+        rate: pct(hbRatio(h, p.from, p.end, today, offDay).v),
+      })),
+    };
+  }
+  const y = dateOf(p.from).getFullYear();
+  const ms = Array.from({ length: 12 }, (_, m) => ({ a: keyOf(new Date(y, m, 1)), b: keyOf(new Date(y, m + 1, 0)) }));
+  return {
+    note: '한 칸 = 한 달 · 숫자 = 달성률(%)', rateLabel: p.live ? '올해' : '그 해',
+    heads: ms.map((x, m) => ({ t: String(m + 1), s: '', now: x.a <= today && today <= x.b, fut: x.a > today })),
+    rows: list.map((h) => ({
+      h,
+      cells: ms.map((x): HbCell => {
+        const now = x.a <= today && today <= x.b;
+        if (x.a > today) return { c: 'fut', t: '', now };
+        if (!inRange(h, x.a, x.b)) return { c: 'pre', t: '', now };
+        const q = hbRatio(h, x.a, x.b, today, offDay);
+        return q.v == null ? { c: 'na', t: '', now } : { c: tone(q.v), t: String(Math.round(q.v * 100)), now };
+      }),
+      rate: pct(hbRatio(h, ms[0].a, ms[11].b, today, offDay).v),
+    })),
+  };
 }

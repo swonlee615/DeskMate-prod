@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { DayRow } from './stats';
-import { period, restGrade, streak, yearHeat } from './stats';
+import { dowRhythm, labelSplit, period, rankStat, restGrade, streak, yearHeat } from './stats';
+import type { Log } from './attendance/logs';
 
-const row = (key: string, dow: number, work: number): DayRow => ({ key, dow, work, rest: 0, on: null, off: null, leave: '', goal: 480, has: work > 0 });
+const row = (key: string, dow: number, work: number): DayRow => ({ key, dow, work, rest: 0, on: null, off: null, leave: '', goal: 480, has: work > 0, segs: [], brks: [], nonwork: 0 });
 
 describe('활동 기간 (v3 periodRange · periodLabel)', () => {
   it('진행 중인 주는 오늘까지 · 지난 주는 일요일까지 · 월요일 시작', () => {
@@ -37,5 +38,30 @@ describe('휴게 비율 등급 · 히트맵', () => {
     expect(by['2026-01-07']).toMatchObject({ lv: 4, top: true });
     expect(by['2026-01-08'].lv).toBe(0);
     expect(by['2026-01-09'].lv).toBeNull();
+  });
+});
+
+describe('요일 리듬 · 라벨별 · 순위 요약', () => {
+  it('요일 리듬은 일한 날만 · 평균 휴게 · 비근무', () => {
+    const a = { ...row('2026-10-05', 1, 400), on: 540, rest: 30, nonwork: 60 };
+    const b = { ...row('2026-10-12', 1, 400), on: 600, rest: 60, nonwork: 0 };
+    const mon = dowRhythm([a, b, row('2026-10-19', 1, 0)])[0];
+    expect(mon).toMatchObject({ dow: 1, n: 2, avgRest: 45, avgIdle: 30 });
+  });
+  it('라벨별 — 대소문자 · 공백을 하나로, 메모 없는 휴게는 미분류(빈 이름) · 안 일한 날의 기록은 빼고', () => {
+    const r = { ...row('2026-10-05', 1, 400), brks: [{ s: 720, e: 780, note: '' }] };
+    const log = (id: string, date: string, text: string, s: number, e: number): Log => ({ id, date, kind: 'slot', s, e, text, color: '#5B97CF', createdAt: 0 } as Log);
+    const out = labelSplit([r, row('2026-10-06', 2, 0)], [log('1', '2026-10-05', 'Job', 540, 600), log('2', '2026-10-05', ' job ', 600, 630), log('3', '2026-10-06', 'Job', 0, 60)]);
+    expect(out).toEqual([{ kind: 'slot', label: 'Job', color: '#5b97cf', min: 90 }, { kind: 'rest', label: '', color: null, min: 60 }]);
+  });
+  it('순위 — 오늘 · 혼자인 날은 요약에서 뺀다', () => {
+    const st = rankStat([
+      { key: 'a', pos: 1, n: 13, my: 1, live: false },
+      { key: 'b', pos: 13, n: 13, my: 1, live: false },
+      { key: 'c', pos: 1, n: 13, my: 1, live: true },
+      { key: 'd', pos: 1, n: 1, my: 1, live: false },
+    ], 13);
+    expect(st).toMatchObject({ days: 2, best: 1, pct: 50 });
+    expect(st.avg).toBeCloseTo(7);
   });
 });
