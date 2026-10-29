@@ -5,6 +5,7 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Workspace } from '../app/useWorkspace';
+import { plainText } from '../domain/todos/inline';
 import { appendBlock, carriedInto, flatten, isHead, type BlockArea, type Row } from '../domain/todos/tree';
 import { hbOfDay } from '../domain/habits';
 import { addDays, dateOf, hhmm, keyOf, normTime } from '../ui/v3fmt';
@@ -75,8 +76,8 @@ export function Todos({ ws, date, area }: { ws: Workspace; date: string; area: B
           <li key={b.id} className={`${isHead(b) ? 'head' : ''}${b.done ? ' done' : ''}`} style={{ paddingLeft: depth * 22 }}>
             {b.type === 'check' && <button className={`m-cb${b.done ? ' on' : ''}`} aria-label={b.done ? '완료 취소' : '완료'} onClick={() => ws.toggleBlock(b, date)}>✓</button>}
             {b.type === 'bullet' && <span className="m-bul">•</span>}
-            <input className="m-todo-t" defaultValue={b.text} key={b.text} aria-label={isTodo ? '할 일' : '메모'}
-              onBlur={(e) => { if (e.target.value !== b.text) ws.patchBlocks([{ id: b.id, text: e.target.value }]); }}
+            <input className="m-todo-t" defaultValue={plainText(b.text)} key={b.text} aria-label={isTodo ? '할 일' : '메모'}
+              onBlur={(e) => { if (e.target.value !== plainText(b.text)) ws.patchBlocks([{ id: b.id, text: e.target.value }]); }}
               onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) (e.target as HTMLInputElement).blur(); }} />
             {from && depth === 0 && <span className="m-born">D+{Math.round((dateOf(date).getTime() - dateOf(from).getTime()) / 86400000)}</span>}
             <button className="m-x sm" aria-label="지우기" onClick={() => ws.removeBlock(b)}>✕</button>

@@ -9,6 +9,7 @@
  */
 import { useState } from 'react';
 import type { Workspace } from '../app/useWorkspace';
+import { plainText } from '../domain/todos/inline';
 import { descendants, rangeRate } from '../domain/todos/tree';
 import { addItem, listGroups, moveItem, weekDays, weekItems, weekKeyOf, type Change, type WGroup, type WItem } from '../domain/todos/week';
 import { addDays, dateOf, DOW, keyOf, weekTag } from '../ui/v3fmt';
@@ -117,8 +118,8 @@ function MItem({ it, ws, onMore }: { it: WItem; ws: Workspace; onMore: () => voi
     <div className={`m-wi${b.done ? ' done' : ''}`}>
       <button className={`m-cb${b.done ? ' on' : part ? ' part' : ''}`} aria-label={b.done ? '완료 취소' : '완료'}
         onClick={() => ws.toggleBlock(b, it.key || ws.today)}>{part ? '–' : '✓'}</button>
-      <input className="m-todo-t" defaultValue={b.text} key={b.text} aria-label="할 일"
-        onBlur={(e) => { if (e.target.value !== b.text) ws.patchBlocks([{ id: b.id, text: e.target.value }]); }}
+      <input className="m-todo-t" defaultValue={plainText(b.text)} key={b.text} aria-label="할 일"
+        onBlur={(e) => { if (e.target.value !== plainText(b.text)) ws.patchBlocks([{ id: b.id, text: e.target.value }]); }}
         onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) (e.target as HTMLInputElement).blur(); }} />
       {tri && <span className={`m-wi-sub${tri.state === 'full' ? ' full' : ''}`}>{tri.ok}/{tri.n}</span>}
       {it.key && b.date < it.key && !b.done && <span className="m-born">D+{Math.round((dateOf(it.key).getTime() - dateOf(b.date).getTime()) / 86400000)}</span>}
@@ -150,7 +151,7 @@ function MoveSheet({ it, keys, items, today, onMove, onDelete, onClose }: {
   return (
     <div className="m-sheet-bg" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="m-sheet" role="dialog" aria-label="할 일 옮기기">
-        <div className="m-sheet-h"><b className="m-sheet-it">{it.b.text || '(빈 할 일)'}</b><span className="m-sp" /><CloseX onClick={onClose} /></div>
+        <div className="m-sheet-h"><b className="m-sheet-it">{plainText(it.b.text) || '(빈 할 일)'}</b><span className="m-sp" /><CloseX onClick={onClose} /></div>
         <div className="m-sheet-sub">날짜</div>
         <div className="m-pick">
           {keys.map((k) => (

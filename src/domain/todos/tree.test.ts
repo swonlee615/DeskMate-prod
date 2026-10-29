@@ -176,3 +176,15 @@ describe('끌어서 옮기기 · 되돌리기', () => {
     expect(view(back, D1)).toEqual(['A', 'B']);
   });
 });
+
+describe('줄 전체 취소선 = 취소한 일 (v2.9.98 · LOGIC §6-3)', () => {
+  it('넘어가지 않고 · 넘김 표시도 없고 · 달성에서 빠지고 · 부분 체크에서는 해결', () => {
+    const x = B(D1, '~~안 하기로~~');
+    const part = B(D1, '~~할 일~~ 2건');
+    expect(carriedInto([x, part], D2).map((c) => c.root.b.text)).toEqual(['~~할 일~~ 2건']);
+    expect(continuesToToday(x, 0, D2)).toBe(false);
+    expect(rangeRate([x, part], D1, D1)).toEqual({ n: 1, done: 0 });
+    const p = B(D1, '상위'); const k1 = B(D1, '~~취소~~', { parent: p.id }); const k2 = B(D1, '하위', { parent: p.id, done: true });
+    expect(triOf([p, k1, k2], p.id)).toMatchObject({ ok: 2, n: 2, state: 'full' });
+  });
+});

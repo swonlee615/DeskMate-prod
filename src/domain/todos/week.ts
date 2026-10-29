@@ -18,6 +18,7 @@ import {
   descendants, flatten, isHead, posBetween, triOf, type Block, type BlockType, type NewBlockInput, type Patch, type Tri,
 } from './tree';
 import { addDays, dateOf, keyOf, weekStart } from '../../ui/v3fmt';
+import { isStruck } from './inline';
 
 export const weekKeyOf = (date: string) => keyOf(weekStart(dateOf(date)));
 export const weekDays = (wk: string) => Array.from({ length: 7 }, (_, i) => keyOf(addDays(dateOf(wk), i)));
@@ -47,7 +48,7 @@ function outerOfDay(blocks: Block[], date: string): { b: Block; title: string | 
   let title: string | null = null;
   flatten(blocks, date, 'today').forEach(({ b, depth }, i) => {
     if (depth === 0 && isHead(b)) { title = b.text.trim() || null; return; }
-    if (depth === 0 && b.type === 'check') out.push({ b, title, ord: i });
+    if (depth === 0 && b.type === 'check' && !isStruck(b)) out.push({ b, title, ord: i });   // 취소한 일은 «이번 주 할 일» 에 안 나온다
   });
   return out;
 }
@@ -75,7 +76,7 @@ export function weekItems(blocks: Block[], wk: string, today: string, keep?: str
       out.push({ b: x.b, key, title: x.title, tri: triOf(blocks, x.b.id), ord: x.ord });
     }
   }
-  const some = blocks.filter((b) => !b.deletedAt && b.area === 'someday' && !b.parent)
+  const some = blocks.filter((b) => !b.deletedAt && b.area === 'someday' && !b.parent && !isStruck(b))
     .filter((b) => (b.done || b.date >= thisWk ? b.date === wk : wk === thisWk))
     .filter((b) => b.text.trim() || b.id === keep)
     .sort((a, b) => a.pos - b.pos || (a.id < b.id ? -1 : 1));

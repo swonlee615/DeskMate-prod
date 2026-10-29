@@ -13,6 +13,7 @@
  * ▣ 끝낸 날 = 체크한 화면의 날짜 (소유자 결정). 월요일 화면에서 체크하면 월요일에 끝낸 것
  */
 import { keyOf } from '../../ui/v3fmt';
+import { isStruck } from './inline';
 
 /** today 할 일 · memo 하루 메모 · someday 미정(주) · wmemo 주 메모 — 자세한 건 week.ts */
 export type BlockArea = 'today' | 'memo' | 'someday' | 'wmemo';
@@ -212,6 +213,7 @@ export function carriedInto(blocks: Block[], today: string): Carried[] {
       const { b, depth } = rows[i];
       if (depth === 0 && isHead(b)) { group = b.text.trim(); continue; }
       if (depth !== 0 || b.type !== 'check' || !b.text.trim()) continue;
+      if (isStruck(b)) continue;   // 줄 전체 취소선 = 안 하기로 했다 — 딸린 줄도 같이 남는다 (v2.9.98)
       if (b.done && b.doneOn !== today) continue;
       if (!b.done && stays(b, today)) continue;
       const kids: Row[] = [];
@@ -231,7 +233,7 @@ const stays = (b: Block, today: string) => b.pinnedOn === today || keyOf(new Dat
 
 /** 지난 날 화면에서 «오늘로 이어지고 있는» 줄인가 (v3 의 「→ 넘김」 자리) */
 export function continuesToToday(b: Block, depth: number, today: string): boolean {
-  return b.area === 'today' && depth === 0 && b.type === 'check' && !b.done && !!b.text.trim() && b.date < today && !stays(b, today);
+  return b.area === 'today' && depth === 0 && b.type === 'check' && !b.done && !!b.text.trim() && !isStruck(b) && b.date < today && !stays(b, today);
 }
 
 // ─────────────────────────────────────────────────────────── 집계
@@ -240,7 +242,7 @@ export function continuesToToday(b: Block, depth: number, today: string): boolea
 export function rangeRate(blocks: Block[], from: string, to: string): { n: number; done: number } {
   let n = 0, done = 0;
   for (const b of blocks) {
-    if (b.deletedAt || (b.area !== 'today' && b.area !== 'someday') || b.type !== 'check' || !b.text.trim()) continue;   // 미정은 만든 주에 센다 (Q7)
+    if (b.deletedAt || (b.area !== 'today' && b.area !== 'someday') || b.type !== 'check' || !b.text.trim() || isStruck(b)) continue;   // 미정은 만든 주에 센다 (Q7) · 취소한 일은 안 센다
     if (b.date < from || b.date > to) continue;
     const parent = b.parent ? blocks.find((x) => x.id === b.parent && !x.deletedAt) : null;
     if (parent && !isHead(parent)) continue; // 딸린 줄은 세지 않는다 (바깥 줄만)
@@ -272,7 +274,7 @@ export interface Tri { ok: number; n: number; state: 'empty' | 'part' | 'full' }
 export function triOf(blocks: Block[], id: string): Tri | null {
   const k = triKids(blocks, id);
   if (!k.length) return null;
-  const ok = k.filter((b) => b.done).length;
+  const ok = k.filter((b) => b.done || isStruck(b)).length;   // 해결 = 완료 또는 전체 취소선 (LOGIC §6-3)
   return { ok, n: k.length, state: ok === 0 ? 'empty' : ok === k.length ? 'full' : 'part' };
 }
 
@@ -288,7 +290,7 @@ export function triToggle(blocks: Block[], b: Block, viewDate: string, now: numb
   const on = t ? t.state !== 'full' : !b.done;
   const set = (x: Block): Patch => ({ id: x.id, done: on, doneOn: on ? viewDate : null, doneAt: on ? now : null });
   const ps: Patch[] = [set(b)];
-  if (t) for (const d of descendants(blocks, b.id)) if (d.type === 'check' && d.text.trim() && !!d.done !== on) ps.push(set(d));
+  if (t) for (const d of descendants(blocks, b.id)) if (d.type === 'check' && d.text.trim() && !isStruck(d) && !!d.done !== on) ps.push(set(d));   // 취소한 줄은 안 건드린다
   return [...ps, ...triFix(applyPatches(blocks, ps), [b.id], viewDate)];
 }
 

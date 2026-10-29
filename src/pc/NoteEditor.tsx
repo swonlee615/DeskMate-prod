@@ -12,7 +12,8 @@
  * ★ 부분 체크(LOGIC §6-3) — 딸린 할 일이 있는 줄은 `ok/n` 이 항상 서고, 일부만 끝나면 가운데 줄(-)
  * ★ ⠿ 끌어서 옮기기 — 덩어리째, 같은 묶음의 형제 자리로 · ⌘Z — 이 기기의 마지막 동작 (글자 치기는 브라우저 몫)
  * ★ 폰 — 키보드 위 도구 줄(`KbBar`): 할 일 · 글머리 · 내어쓰기 · 들여쓰기 · 키보드 내리기. 동작은 위 키와 같은 함수
- * 아직 안 옮긴 것: 여러 줄 고르기 · 이미지 · `@날짜` · 글자 서식
+ * ★ 서식 · 칩 · 링크 — 저장은 v3 와 같은 글자 안 표시 (`domain/todos/inline`), 그리기 · 읽기는 `ui/inlineDom`. ⌘B · ⌘I · ⌘U · ⌘E · ⌘⇧S
+ * 아직 안 옮긴 것: 여러 줄 고르기 · 이미지 · `@날짜` 고르기 · 번호 목록
  */
 import { useLayoutEffect, useRef, useState } from 'react';
 import type { Workspace } from '../app/useWorkspace';
@@ -21,6 +22,8 @@ import {
   moveChunk, outdent, removeEmpty, triOf, type Block, type BlockArea, type Patch, type Row, type Tri,
 } from '../domain/todos/tree';
 import { dateOf, hhmm } from '../ui/v3fmt';
+import { mkJoin, mkLen, mkParse, mkSplit, mkToggle, plainText, type Mk } from '../domain/todos/inline';
+import { inlineHtml, inlineMark, inlineSel, readInline } from '../ui/inlineDom';
 import { KbBar } from '../mobile/KbBar';
 
 const HEAD_N: Record<string, number> = { h1: 1, h2: 2, h3: 3 };
@@ -36,26 +39,34 @@ interface Line {
   ghostHead?: string;
 }
 
-/** 커서 자리 (글자 수) */
-function caretOf(el: HTMLElement): number | null {
-  const sel = window.getSelection();
-  if (!sel || !sel.rangeCount || !el.contains(sel.anchorNode)) return null;
-  const r = sel.getRangeAt(0);
-  const pre = r.cloneRange();
-  pre.selectNodeContents(el);
-  pre.setEnd(r.startContainer, r.startOffset);
-  return pre.toString().length;
-}
+/** 커서 자리 — «내용 글자» 로 센다 (서식 표시는 0, 칩 · 링크는 토큰 길이 · v3 inlineSel) */
+function caretOf(el: HTMLElement): number | null { return inlineSel(el)?.s ?? null; }
 function selCollapsed() { const s = window.getSelection(); return !s || s.isCollapsed; }
-function placeCaret(el: HTMLElement, at: number | 'end') {
-  el.focus();
-  const sel = window.getSelection();
-  if (!sel) return;
-  const r = document.createRange();
-  const tn = el.firstChild;
-  if (!tn || tn.nodeType !== Node.TEXT_NODE) { r.selectNodeContents(el); r.collapse(at !== 0); }
-  else { const n = at === 'end' ? (tn.textContent ?? '').length : Math.min(at, (tn.textContent ?? '').length); r.setStart(tn, n); r.collapse(true); }
-  sel.removeAllRanges(); sel.addRange(r);
+const placeCaret = (el: HTMLElement, at: number | 'end') => inlineMark(el, at);
+/**
+ * 붙여넣기는 글자만 (v3.1.253 pasteText) — 그림 · 남의 서식이 «화면에만» 꽂혔다가 다시 그릴 때 사라지지 않게.
+ * 여러 줄은 한 줄로 이어 붙인다
+ * ponytail: 그림 붙여넣기 · 여러 줄을 여러 줄로 — 그림 칸을 옮길 때 같이
+ */
+function pastePlain(e: React.ClipboardEvent) {
+  e.preventDefault();
+  const t = e.clipboardData.getData('text/plain');
+  if (t) document.execCommand('insertText', false, t.replace(/\s*\r?\n\s*/g, ' '));
+}
+/** 링크는 그냥 눌러서 새 탭으로 (v3.1.30) — 글자를 고치려면 링크 옆을 누른다 */
+function openLink(e: React.MouseEvent) {
+  const a = (e.target as HTMLElement).closest<HTMLElement>('.lnk');
+  if (!a) return;
+  e.preventDefault();
+  const url = a.dataset.href ?? '';
+  if (/^https?:\/\//i.test(url)) window.open(url, '_blank', 'noopener');
+}
+/** ⌘B 굵게 · ⌘I 기울임 · ⌘U 밑줄 · ⌘E 코드 · ⌘⇧S 취소선 (v2.9.63 · 76) */
+function mkKey(e: React.KeyboardEvent): Mk | null {
+  if (!(e.metaKey || e.ctrlKey) || e.altKey) return null;
+  const k = e.key.toLowerCase();
+  if (e.shiftKey) return k === 's' ? 's' : null;
+  return k === 'b' ? 'b' : k === 'i' ? 'i' : k === 'u' ? 'u' : k === 'e' ? 'c' : null;
 }
 
 export function NoteEditor({ ws, date, area, title, ph, icon }: {
@@ -116,7 +127,7 @@ export function NoteEditor({ ws, date, area, title, ph, icon }: {
     const t = saveTimer.current.get(id);
     if (t) { window.clearTimeout(t); saveTimer.current.delete(id); }
     const b = blocks.find((x) => x.id === id);
-    const text = el.textContent ?? '';
+    const text = readInline(el);
     if (b && b.text !== text) ws.patchBlocks([{ id, text }], false);   // 글자 치기 — 되돌리기는 브라우저 몫
   };
   const scheduleSave = (id: string, el: HTMLElement) => {
@@ -144,7 +155,7 @@ export function NoteEditor({ ws, date, area, title, ph, icon }: {
   const shiftLine = (line: Line, el: HTMLElement, out: boolean) => {
     if (line.carriedFrom) return;
     const b = line.row.b;
-    const at = caretOf(el) ?? (el.textContent ?? '').length;
+    const at = caretOf(el) ?? mkLen(readInline(el));
     flush(b.id, el);
     const p = out ? outdent(blocks, b) : indent(blocks, b, line.row.depth);
     if (p) { ws.patchBlocks([p]); focusNext.current = { id: b.id, at }; }
@@ -170,18 +181,34 @@ export function NoteEditor({ ws, date, area, title, ph, icon }: {
     const el = e.currentTarget;
     const b = line.row.b;
     if (e.nativeEvent.isComposing || e.keyCode === 229) return;            // 한글 조합 중
-    const text = el.textContent ?? '';
-    const at = caretOf(el) ?? text.length;
+    const text = readInline(el);
+    const at = caretOf(el) ?? mkLen(text);
     const i = idxOf(b.id);
+
+    const mk = mkKey(e);
+    if (mk) {
+      // 브라우저도 같은 키로 제 태그를 넣는다 — 먼저 잡아서 막는다. 고른 글자가 없으면 아무 일도 안 한다
+      e.preventDefault();
+      const sel = inlineSel(el);
+      if (!sel || sel.s === sel.e || line.carriedFrom) return;
+      const s0 = Math.min(sel.s, sel.e), e0 = Math.max(sel.s, sel.e);
+      const next = mkToggle(text, s0, e0, mk);
+      if (next == null || next === text) return;
+      const t0 = saveTimer.current.get(b.id); if (t0) { window.clearTimeout(t0); saveTimer.current.delete(b.id); }
+      ws.patchBlocks([{ id: b.id, text: next }]);   // ⌘Z 한 번에 돌아온다
+      el.innerHTML = inlineHtml(next, today);
+      inlineMark(el, s0, e0);
+      return;
+    }
 
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       // 빈 줄 + 들여쓴 줄 → 한 단 내어쓰기 (노션)
-      if (!text.trim() && line.row.depth > 0 && !line.carriedFrom) {
+      if (!plainText(text).trim() && line.row.depth > 0 && !line.carriedFrom) {
         const p = outdent(blocks, b); if (p) { ws.patchBlocks([p]); focusNext.current = { id: b.id, at: 0 }; }
         return;
       }
-      const before = text.slice(0, at), after = text.slice(at);
+      const [before, after] = mkSplit(text, at);   // 서식을 지키며 자른다 (v3.1.136)
       // 되돌리면 «치던 글자 그대로» 로 돌아가게 — 아직 저장 안 된 글자를 기준으로 삼는다
       const t0 = saveTimer.current.get(b.id); if (t0) { window.clearTimeout(t0); saveTimer.current.delete(b.id); }
       const base = blocks.map((x) => (x.id === b.id ? { ...x, text } : x));
@@ -213,9 +240,9 @@ export function NoteEditor({ ws, date, area, title, ph, icon }: {
       if (!prev || prev.carriedFrom || prev.row.b.date !== b.date) return;
       const pb = prev.row.b;
       const kids = blocks.filter((x) => !x.deletedAt && x.parent === b.id);
-      const join = pb.text.length;
+      const join = mkLen(pb.text);
       ws.patchBlocks([
-        { id: pb.id, text: pb.text + text },
+        { id: pb.id, text: mkJoin([...mkParse(pb.text), ...mkParse(text)]) },   // 서식 경계를 다시 맞춘다 (`**보고**` + `**서**` → `**보고서**`)
         ...kids.map((k, j) => ({ id: k.id, parent: pb.id, pos: Date.now() + j })),
         { id: b.id, deletedAt: Date.now() },
       ]);
@@ -236,17 +263,17 @@ export function NoteEditor({ ws, date, area, title, ph, icon }: {
     }
 
     if (e.key === 'ArrowUp' && at === 0 && i > 0) { e.preventDefault(); placeCaret(box.current!.querySelector(`[data-edit="${CSS.escape(editable[i - 1].row.b.id)}"]`) as HTMLElement, 'end'); return; }
-    if (e.key === 'ArrowDown' && at === text.length && i < editable.length - 1) { e.preventDefault(); placeCaret(box.current!.querySelector(`[data-edit="${CSS.escape(editable[i + 1].row.b.id)}"]`) as HTMLElement, 0); }
+    if (e.key === 'ArrowDown' && at === mkLen(text) && i < editable.length - 1) { e.preventDefault(); placeCaret(box.current!.querySelector(`[data-edit="${CSS.escape(editable[i + 1].row.b.id)}"]`) as HTMLElement, 0); }
   };
 
   const onInput = (e: React.FormEvent<HTMLDivElement>, line: Line) => {
     const el = e.currentTarget;
     const b = line.row.b;
-    const text = el.textContent ?? '';
+    const text = readInline(el);
     // 줄 앞 표시 → 줄 종류 (`# ` 제목 · `- ` 글머리 · `[] ` 할 일)
     const md = !line.carriedFrom ? markdownType(text, area) : null;
     if (md && md.type !== b.type) {
-      el.textContent = md.text;
+      el.innerHTML = inlineHtml(md.text, today);
       ws.patchBlocks([{ id: b.id, type: md.type, text: md.text }]);
       focusNext.current = { id: b.id, at: 0 };
       return;
@@ -298,7 +325,7 @@ export function NoteEditor({ ws, date, area, title, ph, icon }: {
       onBlur={mobile ? () => setTimeout(() => { if (!box.current?.contains(document.activeElement)) setCur(null); }, 0) : undefined}>
       <h4>{icon}<span>{title}</span></h4>
       {lines.map((ln) => (
-        <BlockRow key={ln.row.b.id} ln={ln} area={area} ph={ph} viewDate={date}
+        <BlockRow key={ln.row.b.id} ln={ln} area={area} ph={ph} viewDate={date} today={today}
           tri={area === 'today' && ln.row.b.type === 'check' ? triOf(blocks, ln.row.b.id) : null}
           dnd={dragProps(ln)}
           dragCls={`${dragSet?.has(ln.row.b.id) ? ' dragging' : ''}${dropLine?.id === ln.row.b.id ? ` ${dropLine.cls}` : ''}`}
@@ -326,8 +353,8 @@ export function NoteEditor({ ws, date, area, title, ph, icon }: {
   );
 }
 
-function BlockRow({ ln, area, ph, viewDate, tri, dnd, dragCls, onKey, onInput, onBlur, onCheck, onDel }: {
-  ln: Line; area: BlockArea; ph: string; viewDate: string;
+function BlockRow({ ln, area, ph, viewDate, today, tri, dnd, dragCls, onKey, onInput, onBlur, onCheck, onDel }: {
+  ln: Line; area: BlockArea; ph: string; viewDate: string; today: string;
   tri: Tri | null; dnd: React.HTMLAttributes<HTMLDivElement>; dragCls: string;
   onKey: (e: React.KeyboardEvent<HTMLDivElement>, ln: Line) => void;
   onInput: (e: React.FormEvent<HTMLDivElement>, ln: Line) => void;
@@ -343,9 +370,9 @@ function BlockRow({ ln, area, ph, viewDate, tri, dnd, dragCls, onKey, onInput, o
     const el = ref.current;
     if (!el) return;
     // 그 뒤로는 «고치는 중이 아닐 때만» 바깥 값으로 맞춘다 — 치는 도중 다른 기기 변경으로 커서가 튀지 않게
-    if (!mounted.current || (document.activeElement !== el && el.textContent !== b.text)) el.textContent = b.text;
+    if (!mounted.current || (document.activeElement !== el && readInline(el) !== b.text)) el.innerHTML = inlineHtml(b.text, today);
     mounted.current = true;
-  }, [b.text]);
+  }, [b.text, today]);
   const style = { '--ind': depth } as React.CSSProperties;
 
   if (ln.ghostHead != null) {
@@ -371,7 +398,7 @@ function BlockRow({ ln, area, ph, viewDate, tri, dnd, dragCls, onKey, onInput, o
     return (
       <div className={`blk moved-blk${b.done ? ' done' : ''}${isHead(b) ? ` head h${HEAD_N[b.type]}` : ''}`} tabIndex={0}
         data-id={b.id} data-area={area} style={style}>
-        {!isHead(b) && mark}<div className="txt">{b.text}</div>{triCnt}{stamp}
+        {!isHead(b) && mark}<div className="txt" dangerouslySetInnerHTML={{ __html: inlineHtml(b.text, today) }} />{triCnt}{stamp}
         {depth === 0 && <span className="mv-to">→ 넘김</span>}{del}
       </div>
     );
@@ -387,7 +414,8 @@ function BlockRow({ ln, area, ph, viewDate, tri, dnd, dragCls, onKey, onInput, o
   const txt = (
     <div className="txt" ref={ref} contentEditable suppressContentEditableWarning
       data-ph={isHead(b) ? '제목' : ph} data-edit={b.id} data-area={area}
-      onKeyDown={(e) => onKey(e, ln)} onInput={(e) => onInput(e, ln)} onBlur={(e) => onBlur(b.id, e.currentTarget)} />
+      onKeyDown={(e) => onKey(e, ln)} onInput={(e) => onInput(e, ln)} onBlur={(e) => onBlur(b.id, e.currentTarget)}
+      onPaste={pastePlain} onClick={openLink} />
   );
   if (isHead(b)) {
     return <div className={`blk head h${HEAD_N[b.type]}${dragCls}`} data-id={b.id} data-area={area} style={style} {...dnd}>{grip}{txt}{del}</div>;

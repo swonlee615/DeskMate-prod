@@ -15,6 +15,8 @@ import {
 import { addDays, dateOf, fmtDur, hhmm, keyOf, leaveOf, weekTag } from '../ui/v3fmt';
 import { attDotCls, Calendar, CHEV, workMinutes } from './Worklog';
 import { NoteEditor } from './NoteEditor';
+import { plainText } from '../domain/todos/inline';
+import { inlineHtml, readInline } from '../ui/inlineDom';
 
 const WD_EN = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 const WD_KO = ['월', '화', '수', '목', '금', '토', '일'];
@@ -137,7 +139,7 @@ export function WeekPlanner({ ws, onOpenDay, dday }: { ws: Workspace; onOpenDay:
         const kids = descendants(live.current.blocks, d.id).length;
         const gh = document.createElement('div');
         gh.className = 'wp-ghost';
-        gh.textContent = it.b.text + (kids ? `  +${kids}줄` : '');
+        gh.textContent = plainText(it.b.text) + (kids ? `  +${kids}줄` : '');
         document.body.appendChild(gh);
         d.ghost = gh;
       }
@@ -191,7 +193,7 @@ export function WeekPlanner({ ws, onOpenDay, dday }: { ws: Workspace; onOpenDay:
   const flush = (id: string, el: HTMLElement) => {
     const t = saveTimer.current.get(id); if (t) { window.clearTimeout(t); saveTimer.current.delete(id); }
     const b = blocks.find((x) => x.id === id);
-    const text = el.textContent ?? '';
+    const text = readInline(el);
     if (b && b.text !== text) ws.patchBlocks([{ id, text }], false);
   };
   const ed = {
@@ -232,7 +234,7 @@ export function WeekPlanner({ ws, onOpenDay, dday }: { ws: Workspace; onOpenDay:
   };
 
   const itemEl = (it: WItem, side: boolean) => (
-    <WpItem key={it.b.id} it={it} side={side} keys={keys}
+    <WpItem key={it.b.id} it={it} side={side} keys={keys} today={today}
       onCheck={() => ws.toggleBlock(it.b, it.key || today)}
       onMove={(v) => move(it, { day: v })}
       onBadge={() => onOpenDay(it.key || today)}
@@ -349,8 +351,8 @@ export function WeekPlanner({ ws, onOpenDay, dday }: { ws: Workspace; onOpenDay:
   );
 }
 
-function WpItem({ it, side, keys, onCheck, onMove, onBadge, onGrab, ed }: {
-  it: WItem; side: boolean; keys: string[];
+function WpItem({ it, side, keys, today, onCheck, onMove, onBadge, onGrab, ed }: {
+  it: WItem; side: boolean; keys: string[]; today: string;
   onCheck: () => void; onMove: (day: string) => void; onBadge: () => void; onGrab: (e: React.PointerEvent) => void;
   ed: {
     input: (it: WItem, el: HTMLElement) => void; blur: (it: WItem, el: HTMLElement) => void;
@@ -363,9 +365,9 @@ function WpItem({ it, side, keys, onCheck, onMove, onBadge, onGrab, ed }: {
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
-    if (!mounted.current || (document.activeElement !== el && el.textContent !== b.text)) el.textContent = b.text;
+    if (!mounted.current || (document.activeElement !== el && readInline(el) !== b.text)) el.innerHTML = inlineHtml(b.text, today);
     mounted.current = true;
-  }, [b.text]);
+  }, [b.text, today]);
   return (
     <div className={`wp-it${b.done ? ' done' : ''}`} data-wpid={b.id}>
       <span className="wp-grip" data-wpdrag={b.id} data-tip="끌어서 다른 날로" onPointerDown={onGrab} />
