@@ -7,19 +7,19 @@
  *   · 지난 날 화면: 못 끝낸 줄은 v3 의 «→ 넘김» 모양 그대로 (글자는 못 고치고, 체크는 된다 =
  *     «그 날 끝낸 일» — v3 의 흔적 체크와 같은 뜻)
  *   · 끝낸 날 = 체크한 화면의 날짜
- * ★ 키: Enter 새 줄 · Backspace(맨 앞) 지우기/합치기/내어쓰기 · Tab/⇧Tab · ↑↓ · `# ` `## ` `### ` 제목 · `- ` 글머리 · `[] ` 할 일
+ * ★ 키: Enter 새 줄 · Backspace(맨 앞) 지우기/합치기/내어쓰기 · Tab/⇧Tab · ↑↓ · `# ` `## ` `### ` 제목 · `- ` 글머리 · `1. ` 번호(`3. ` 이면 3부터) · `[] ` 할 일
  *   한글 조합 중 Enter 는 무시한다
  * ★ 부분 체크(LOGIC §6-3) — 딸린 할 일이 있는 줄은 `ok/n` 이 항상 서고, 일부만 끝나면 가운데 줄(-)
  * ★ ⠿ 끌어서 옮기기 — 덩어리째, 같은 묶음의 형제 자리로 · ⌘Z — 이 기기의 마지막 동작 (글자 치기는 브라우저 몫)
  * ★ 폰 — 키보드 위 도구 줄(`KbBar`): 할 일 · 글머리 · 내어쓰기 · 들여쓰기 · 키보드 내리기. 동작은 위 키와 같은 함수
  * ★ 서식 · 칩 · 링크 — 저장은 v3 와 같은 글자 안 표시 (`domain/todos/inline`), 그리기 · 읽기는 `ui/inlineDom`. ⌘B · ⌘I · ⌘U · ⌘E · ⌘⇧S
  * ★ `@날짜` — 커서 앞 «@말» 로 메뉴(↑↓ · Enter/Tab · Esc), 칩을 누르면 달력(바꾸기 · 지우기 · 그 날로). `Mention.tsx`
- * 아직 안 옮긴 것: 여러 줄 고르기 · 이미지 · 번호 목록
+ * 아직 안 옮긴 것: 여러 줄 고르기 · 이미지
  */
 import { useLayoutEffect, useRef, useState } from 'react';
 import type { Workspace } from '../app/useWorkspace';
 import {
-  appendBlock, carriedInto, continuesToToday, descendants, flatten, indent, insertBelow, isHead, markdownType,
+  appendBlock, carriedInto, continuesToToday, descendants, flatten, indent, insertBelow, isHead, markdownType, ordNo,
   moveChunk, outdent, removeEmpty, triOf, type Block, type BlockArea, type Patch, type Row, type Tri,
 } from '../domain/todos/tree';
 import { dateOf, hhmm } from '../ui/v3fmt';
@@ -146,13 +146,14 @@ export function NoteEditor({ ws, date, area, title, ph, icon, onDay }: {
     if (!t || own.length) return;
     const nb = appendBlock(blocks, date, area, t, { id: ws.newId(), now: Date.now() });
     const md = markdownType(t, area);
-    if (md) { nb.type = md.type; nb.text = md.text; }
+    if (md) { nb.type = md.type; nb.text = md.text; if (md.start) nb.start = md.start; }
     el.textContent = '';
     ws.addBlock(nb);
     focusNext.current = { id: nb.id, at: 'end' };
   };
 
   const editable = lines.filter((l) => !l.moved && !l.ghostHead);
+  const rowsAll = lines.map((l) => l.row);
   const idxOf = (id: string) => editable.findIndex((l) => l.row.b.id === id);
 
   /** 들여쓰기 · 내어쓰기 — PC Tab/⇧Tab 과 폰 도구 줄이 같은 함수를 부른다 */
@@ -338,9 +339,9 @@ export function NoteEditor({ ws, date, area, title, ph, icon, onDay }: {
     const text = readInline(el);
     // 줄 앞 표시 → 줄 종류 (`# ` 제목 · `- ` 글머리 · `[] ` 할 일)
     const md = !line.carriedFrom ? markdownType(text, area) : null;
-    if (md && md.type !== b.type) {
+    if (md && (md.type !== b.type || md.type === 'num')) {
       el.innerHTML = inlineHtml(md.text, today);
-      ws.patchBlocks([{ id: b.id, type: md.type, text: md.text }]);
+      ws.patchBlocks([{ id: b.id, type: md.type, text: md.text, start: md.type === 'num' ? md.start ?? null : null }]);
       focusNext.current = { id: b.id, at: 0 };
       return;
     }
@@ -391,8 +392,8 @@ export function NoteEditor({ ws, date, area, title, ph, icon, onDay }: {
       onFocus={mobile ? (e) => setCur((e.target as HTMLElement).dataset.edit ?? null) : undefined}
       onBlur={mobile ? () => setTimeout(() => { if (!box.current?.contains(document.activeElement)) setCur(null); }, 0) : undefined}>
       <h4>{icon}<span>{title}</span></h4>
-      {lines.map((ln) => (
-        <BlockRow key={ln.row.b.id} ln={ln} area={area} ph={ph} viewDate={date} today={today}
+      {lines.map((ln, li) => (
+        <BlockRow key={ln.row.b.id} ln={ln} area={area} ph={ph} viewDate={date} today={today} no={ordNo(rowsAll, li)}
           tri={area === 'today' && ln.row.b.type === 'check' ? triOf(blocks, ln.row.b.id) : null}
           dnd={dragProps(ln)}
           dragCls={`${dragSet?.has(ln.row.b.id) ? ' dragging' : ''}${dropLine?.id === ln.row.b.id ? ` ${dropLine.cls}` : ''}`}
@@ -423,8 +424,8 @@ export function NoteEditor({ ws, date, area, title, ph, icon, onDay }: {
   );
 }
 
-function BlockRow({ ln, area, ph, viewDate, today, tri, dnd, dragCls, onKey, onInput, onBlur, onChip, onCheck, onDel }: {
-  ln: Line; area: BlockArea; ph: string; viewDate: string; today: string;
+function BlockRow({ ln, area, ph, viewDate, today, no, tri, dnd, dragCls, onKey, onInput, onBlur, onChip, onCheck, onDel }: {
+  ln: Line; area: BlockArea; ph: string; viewDate: string; today: string; no: number;
   tri: Tri | null; dnd: React.HTMLAttributes<HTMLDivElement>; dragCls: string;
   onKey: (e: React.KeyboardEvent<HTMLDivElement>, ln: Line) => void;
   onInput: (e: React.FormEvent<HTMLDivElement>, ln: Line) => void;
@@ -458,7 +459,8 @@ function BlockRow({ ln, area, ph, viewDate, today, tri, dnd, dragCls, onKey, onI
   const tip = tri ? (b.done ? '누르면 딸린 할 일까지 모두 해제' : tri.state === 'full' ? '딸린 할 일은 다 끝났어요 — 누르면 이 할 일도 완료' : '누르면 딸린 할 일까지 모두 완료') : undefined;
   const del = <button className="del" data-del={b.id} data-area={area} onClick={() => onDel(b)}>✕</button>;
   const stamp = b.done && b.doneAt ? <span className="stamp">{hhmm(b.doneAt)}</span> : null;
-  const mark = b.type === 'bullet' ? <span className="bul">•</span>
+  const mark = b.type === 'num' ? <span className="bul num">{no || 1}.</span>
+    : b.type === 'bullet' ? <span className="bul">•</span>
     : area === 'today' && b.type === 'check'
       ? <span className={`cb${b.done ? ' on' : part ? ' part' : ''}`} data-check={b.id} data-tip={tip} onClick={() => onCheck(b)}
           {...(ln.moved ? { 'data-mvchk': b.id, title: '이 날 끝낸 일로 체크' } : {})}>{part ? <i className="cb-dash" /> : '✓'}</span>

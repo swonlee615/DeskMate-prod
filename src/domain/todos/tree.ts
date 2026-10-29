@@ -17,7 +17,7 @@ import { isStruck } from './inline';
 
 /** today 할 일 · memo 하루 메모 · someday 미정(주) · wmemo 주 메모 — 자세한 건 week.ts */
 export type BlockArea = 'today' | 'memo' | 'someday' | 'wmemo';
-export type BlockType = 'check' | 'bullet' | 'h1' | 'h2' | 'h3';
+export type BlockType = 'check' | 'bullet' | 'num' | 'h1' | 'h2' | 'h3';
 
 export interface Block {
   id: string;
@@ -31,6 +31,8 @@ export interface Block {
   type: BlockType;
   text: string;
   done?: boolean;
+  /** 번호 목록의 시작 숫자 — 목록 «첫 줄» 만 본다. 1 이면 두지 않는다 (v3.1.253 #11) */
+  start?: number | null;
   /** 끝낸 날 = 체크한 화면의 날짜 */
   doneOn?: string | null;
   /** 체크한 시각 (v3 stamp) */
@@ -181,14 +183,34 @@ export function removeEmpty(blocks: Block[], cur: Block): Patch[] {
   return kids.map((k, j) => ({ id: k.id, parent: cur.parent, pos: hi == null ? lo + (j + 1) * 0.001 : lo + step * (j + 1) }));
 }
 
-/** 줄 앞에서 치는 표시 → 줄 종류 (v3: `# ` ~ `### ` 제목 · `- ` 글머리 · `[] ` 할 일) */
-export function markdownType(text: string, area: BlockArea): { type: BlockType; text: string } | null {
-  const m = /^(#{1,3}|-|\*|\[\]|\[ \])\s/.exec(text);
+/** 줄 앞에서 치는 표시 → 줄 종류 (v3: `# ` ~ `### ` 제목 · `- ` 글머리 · `1. ` 번호 · `[] ` 할 일) */
+export function markdownType(text: string, area: BlockArea): { type: BlockType; text: string; start?: number | null } | null {
+  const m = /^(#{1,3}|-|\*|\d+\.|\[\]|\[ \])\s/.exec(text);
   if (!m) return null;
   const rest = text.slice(m[0].length);
+  // `3. ` 이면 3부터 — 1 이면 기본이라 적지 않는다 (v3 setNumStart)
+  if (/^\d+\.$/.test(m[1])) { const s = parseInt(m[1], 10); return { type: 'num', text: rest, start: s > 1 && s < 10000 ? s : null }; }
   if (m[1].startsWith('#')) return { type: (`h${m[1].length}` as BlockType), text: rest };
   if (m[1] === '-' || m[1] === '*') return { type: 'bullet', text: rest };
   return area === 'today' ? { type: 'check', text: rest } : null;
+}
+
+/**
+ * 번호 목록의 번호 (v3 ordNo) — 같은 깊이로 이어진 번호 줄끼리 센다. 더 깊은 줄은 건너뛰고,
+ * 얕은 줄 · 다른 종류가 끼면 거기서 끊긴다 (노션과 같다). 시작 숫자는 목록 첫 줄의 start 하나만 본다
+ */
+export function ordNo(rows: Pick<Row, 'b' | 'depth'>[], i: number): number {
+  const r = rows[i];
+  if (!r || r.b.type !== 'num') return 0;
+  let n = 1, first = r.b;
+  for (let j = i - 1; j >= 0; j--) {
+    const p = rows[j];
+    if (p.depth > r.depth) continue;
+    if (p.depth < r.depth || p.b.type !== 'num') break;
+    n++; first = p.b;
+  }
+  const s = first.start ?? 1;
+  return (Number.isInteger(s) && s > 1 ? s : 1) + n - 1;
 }
 
 // ─────────────────────────────────────────────────────────── 보여주기 이월

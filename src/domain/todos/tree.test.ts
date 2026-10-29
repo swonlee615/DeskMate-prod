@@ -123,7 +123,7 @@ describe('오늘 화면에서 끝낸 지난 할 일', () => {
   });
 });
 
-import { inverseOf, moveChunk, triFix, triOf, triToggle } from './tree';
+import { inverseOf, moveChunk, ordNo, triFix, triOf, triToggle } from './tree';
 const ap = (list: Block[], ps: Patch[]) => ps.reduce((l, p) => l.map((b) => (b.id === p.id ? { ...b, ...p } : b)), list);
 
 describe('부분 체크 — LOGIC §6-3', () => {
@@ -186,5 +186,15 @@ describe('줄 전체 취소선 = 취소한 일 (v2.9.98 · LOGIC §6-3)', () => 
     expect(rangeRate([x, part], D1, D1)).toEqual({ n: 1, done: 0 });
     const p = B(D1, '상위'); const k1 = B(D1, '~~취소~~', { parent: p.id }); const k2 = B(D1, '하위', { parent: p.id, done: true });
     expect(triOf([p, k1, k2], p.id)).toMatchObject({ ok: 2, n: 2, state: 'full' });
+  });
+});
+
+describe('번호 목록 (v3.1.253 #11)', () => {
+  it('`3. ` 이면 3부터 · `1. ` 은 기본 · 깊은 줄은 건너뛰고 다른 종류에서 끊긴다', () => {
+    expect(markdownType('3. 셋째', 'memo')).toEqual({ type: 'num', text: '셋째', start: 3 });
+    expect(markdownType('1. 첫째', 'today')).toEqual({ type: 'num', text: '첫째', start: null });
+    const N = (text: string, depth = 0, start: number | null = null) => ({ b: { ...B(D1, text), type: 'num' as const, start }, depth });
+    const rows = [N('가', 0, 3), N('나'), { b: B(D1, '딸린', { type: 'bullet' }), depth: 1 }, N('다'), { b: B(D1, '끊김', { type: 'bullet' }), depth: 0 }, N('라', 0, 7)];
+    expect(rows.map((_, i) => ordNo(rows, i))).toEqual([3, 4, 0, 5, 0, 7]);
   });
 });
