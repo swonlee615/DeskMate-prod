@@ -32,16 +32,16 @@ export function TodayPanelBody({ day, now, goalHours, onOn, onOff, onRest }: Pro
     <>
       <div className="sec-t">근태</div>
       <div className="onoff">
+        {/* v3.1.265 — 단추 둘 (시안 A): 왼쪽 칸은 지금 할 수 있는 동작 하나 (On → Off → 재개), 오른쪽은 휴식 */}
         <div className="onoff-btns">
-          <button className={`btn onoff-on${working ? ' active' : ''}`} id="btnOn" disabled={working} onClick={onOn}>
+          <button className={`btn onoff-on${!working && day.onAt == null ? ' ready' : ''}${!working && day.offAt != null ? ' resume' : ''}`} id="btnOn" hidden={working} onClick={onOn}>
             {day.offAt != null ? '재개' : 'On'}
           </button>
-          <button className={`btn onoff-off${day.offAt != null ? ' active' : ''}`} id="btnOff" disabled={!working}
-            title={offTitle} onClick={onOff}>Off</button>
+          <button className="btn onoff-off" id="btnOff" hidden={!working} onClick={onOff}>Off</button>
+          <button className={`btn rest${open ? ' on' : ''}`} id="btnRest" disabled={!working} title={offTitle} onClick={onRest}>
+            {open ? <>☕️ <Since at={open.s} /> · 종료</> : '☕️ 휴식'}
+          </button>
         </div>
-        <button className={`btn rest${open ? ' on' : ''}`} id="btnRest" disabled={!working} title={offTitle} onClick={onRest}>
-          {open ? <>☕️ <Since at={open.s} /> · 종료</> : '☕️ 휴식 시작'}
-        </button>
         <div className="onoff-stat">
           <div><b id="wlWork">{fmtDur(work)}</b><span>근무</span></div>
           <div><b id="wlRest">{fmtDur(parts.breakMs / 60000)}</b><span>휴게</span></div>

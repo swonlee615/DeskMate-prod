@@ -150,8 +150,9 @@ export function DayPage({ ws, date, full, onClose, onFull, onGo, focusOff, onDD 
               onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen((v) => !v); } }}>
               {isToday
                 ? <div className="dh-seg">
-                    <button className={`mini-btn${working ? ' on' : ''}`} id="pOn" disabled={working} onClick={ws.onOn}>{d.offAt != null ? '재개' : 'On'}</button>
-                    <button className={`mini-btn${d.offAt != null ? ' off' : ''}`} id="pOff" disabled={!working} onClick={ws.onOff}>Off</button>
+                    {/* v3.1.265 — On · Off 는 한 칸. 출근 전 On(.go) · 근무 중 Off · 퇴근 뒤 재개(.resume) */}
+                    <button className={`mini-btn ${d.offAt != null ? 'resume' : 'go'}`} id="pOn" hidden={working} onClick={ws.onOn}>{d.offAt != null ? '재개' : 'On'}</button>
+                    <button className="mini-btn" id="pOff" hidden={!working} onClick={ws.onOff}>Off</button>
                     <button className={`mini-btn${openBreak(d) ? ' rest' : ''}`} id="pRest" disabled={!working} onClick={ws.onRest}>{openBreak(d) ? '휴식 종료' : '휴식'}</button>
                   </div>
                 : <LeaveSel date={date} v={d.leave} empty={isFuture ? '예정' : '지난 날짜'} onLeave={ws.onLeave} />}

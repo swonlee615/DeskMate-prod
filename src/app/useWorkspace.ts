@@ -261,8 +261,12 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
   // 버튼 하나가 무엇을 «취소» 했는지는 이벤트를 하나 더 얹어 재생해 보면 안다
   const after = (e: AttEvent) => deriveDay(today, [...(byDate[today] ?? []), e], Date.now());
 
-  const onOn = () => { push('clockIn'); };
+  // On · Off 가 같은 칸이라 두 번 누르면 출근하자마자 퇴근이 찍힌다 — 칸이 바뀐 뒤 0.6초는 다시 안 받는다 (v3.1.265)
+  const punchAt = useRef(0);
+  const tooSoon = () => { const n = Date.now(); if (n - punchAt.current < 600) return true; punchAt.current = n; return false; };
+  const onOn = () => { if (!tooSoon()) push('clockIn'); };
   const onOff = () => {
+    if (tooSoon()) return;
     timer.pause();                       // v3 — 퇴근하면 집중도 멈춘다
     const before = sessions(day).length;
     const d = after(push('clockOut'));
