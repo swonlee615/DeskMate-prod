@@ -8,7 +8,7 @@
 import { Since } from '../ui/Live';
 import { useLayoutEffect, useRef, useState } from 'react';
 import type { Day, Leave } from '../domain/attendance/types';
-import { dayGoalMin, dayParts, openBreak, sessions } from '../domain/attendance/rules';
+import { dayGoalMin, dayParts, openBreak, sessions, type GoalCfg } from '../domain/attendance/rules';
 import {
   addDays, dateOf, fmtClock, fmtDur, hhmm, keyOf, leaveOf, LEAVES, rowDate, weekLabel, weekStart, weekTag,
 } from '../ui/v3fmt';
@@ -19,7 +19,7 @@ interface Props {
   days: Record<string, Day>;
   today: string;
   now: number;
-  goalHours: number;
+  goal: GoalCfg;
   calMonth: Date;
   setCalMonth: (d: Date) => void;
   onLeave: (date: string, leave: Leave) => void;
@@ -46,9 +46,9 @@ export const workMinutes = (d: Day, now: number) => dayParts(d, now).workMs / 60
 const hasRecord = (d: Day | undefined) => !!d && (d.onAt != null || !!d.leave);
 
 /** 출근 점 (v3 attDotCls) — 목표 이상 hit · 0분 zero · 아직 안 끝났으면 live */
-export function attDotCls(d: Day, now: number, goalHours: number) {
+export function attDotCls(d: Day, now: number, goal: GoalCfg) {
   const w = workMinutes(d, now);
-  const g = dayGoalMin(goalHours, d);
+  const g = dayGoalMin(goal, d);
   return [w > 0 && w >= g ? 'hit' : '', w <= 0 ? 'zero' : '', d.offAt ? '' : 'live'].filter(Boolean).join(' ');
 }
 
@@ -58,7 +58,7 @@ function loadWk(): Record<string, boolean> {
   try { return JSON.parse(localStorage.getItem(WK_KEY) || '{}'); } catch { return {}; }
 }
 
-export function Worklog({ days, today, now, goalHours, calMonth, setCalMonth, onLeave, unavailable, onOpenDay, hidden, banner, todo, noteDates, week, dday }: Props) {
+export function Worklog({ days, today, now, goal, calMonth, setCalMonth, onLeave, unavailable, onOpenDay, hidden, banner, todo, noteDates, week, dday }: Props) {
   // 전체/주간 — v3 는 설정(cfg.wlView)에 남긴다. 기기별 편의라 브라우저 저장소에
   const [view, setView0] = useState<'all' | 'week'>(() => { try { return localStorage.getItem('dm.wlView') === 'week' ? 'week' : 'all'; } catch { return 'all'; } });
   const setView = (v: 'all' | 'week') => { setView0(v); try { localStorage.setItem('dm.wlView', v); } catch { /* 이번 화면만 */ } };
@@ -150,7 +150,7 @@ export function Worklog({ days, today, now, goalHours, calMonth, setCalMonth, on
                     </div>
                     {g.rows.map((k) => (
                       <Row key={k} k={k} d={days[k]} isToday={k === today} now={now} nowD={nowD}
-                        goalHours={goalHours} onLeave={onLeave} onOpen={() => onOpenDay(k)} />
+                        goal={goal} onLeave={onLeave} onOpen={() => onOpenDay(k)} />
                     ))}
                   </div>
                 </div>
@@ -169,8 +169,8 @@ export function Worklog({ days, today, now, goalHours, calMonth, setCalMonth, on
   );
 }
 
-function Row({ k, d, isToday, now, nowD, goalHours, onLeave, onOpen }: {
-  k: string; d: Day | undefined; isToday: boolean; now: number; nowD: Date; goalHours: number;
+function Row({ k, d, isToday, now, nowD, goal, onLeave, onOpen }: {
+  k: string; d: Day | undefined; isToday: boolean; now: number; nowD: Date; goal: GoalCfg;
   onLeave: (date: string, leave: Leave) => void; onOpen: () => void;
 }) {
   const ses = d ? sessions(d) : [];
@@ -202,7 +202,7 @@ function Row({ k, d, isToday, now, nowD, goalHours, onLeave, onOpen }: {
           ? <span className="att-w">{d.offAt != null
             ? fmtDur(work)
             : <em className="none" title={`아직 근무 중이라 합계를 내지 않아요 (지금까지 ${fmtDur(work)})`}>–</em>}
-            <i className={`att-dot ${attDotCls(d, now, goalHours)}`} aria-hidden="true" /></span>
+            <i className={`att-dot ${attDotCls(d, now, goal)}`} aria-hidden="true" /></span>
           : <em className="none" title="출근 기록이 없어요">–</em>}
       </div>
       <div className="wide note">

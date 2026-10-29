@@ -66,6 +66,8 @@ export interface Pomodoro {
   skip: () => void;
   reset: () => void;
   setFocusMin: (n: number) => void;
+  /** 설정 › 뽀모도로 — 멈춰 있고 아직 안 줄어든 세션이면 새 길이로 맞춘다 (v3 applyCfg) */
+  setCfg: (c: Partial<PomoCfg>) => void;
 }
 
 /**
@@ -131,6 +133,7 @@ export function usePomodoro(
     reset: () => save({ ...s, remain: total, endsAt: null }),
     // v3 setFocusMin — 돌고 있지 않으면 집중으로 새로 맞춘다
     setFocusMin: (n: number) => save(running ? { ...s, focusMin: n } : { ...s, focusMin: n, mode: 'focus', remain: n * 60, endsAt: null }),
+    setCfg: (c) => { const n = { ...s, ...c }; save(running || s.remain !== total ? n : { ...n, remain: lenOf(n, s.mode) }); },
   };
 }
 

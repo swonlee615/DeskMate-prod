@@ -6,7 +6,7 @@
  * ▣ 할 일 달성률은 기간 전체의 체크 줄을 한 번씩 (보여주기 이월이라 같은 줄이 날마다 생기지 않는다 · v3.1.216)
  */
 import type { Day, Leave } from './attendance/types';
-import { dayGoalMin, dayParts, dayStartMs, LEAVE_SHARE } from './attendance/rules';
+import { dayGoalMin, dayParts, dayStartMs, goalFrac, LEAVE_SHARE, type GoalCfg } from './attendance/rules';
 import { timeline, type Log } from './attendance/logs';
 import type { Block } from './todos/tree';
 import { catKey, catName, catsOf, type Cat } from './attendance/cats';
@@ -40,7 +40,7 @@ export interface DayRow {
 }
 
 /** 그 기간의 하루하루 (v3 series) — 기록 없는 날도 줄은 있다 (막대 · 히트맵의 빈 칸) */
-export function series(days: Record<string, Day>, from: string, to: string, now: number, goalHours: number): DayRow[] {
+export function series(days: Record<string, Day>, from: string, to: string, now: number, g: GoalCfg): DayRow[] {
   const out: DayRow[] = [];
   for (let d = dateOf(from); keyOf(d) <= to; d = addDays(d, 1)) {
     const key = keyOf(d);
@@ -54,7 +54,7 @@ export function series(days: Record<string, Day>, from: string, to: string, now:
       on: day?.onAt != null ? Math.round((day.onAt - base) / 60000) : null,
       off: day?.offAt != null ? Math.round((day.offAt - base) / 60000) : null,
       leave: day?.leave ?? '',
-      goal: dayGoalMin(goalHours, { leave: day?.leave ?? '' }),
+      goal: dayGoalMin(g, { leave: day?.leave ?? '' }),
       has: work > 0,
       segs: tl.filter((x) => x.kind === 'work').map(({ s, e }) => ({ s, e })),
       brks: tl.filter((x) => x.kind === 'break').map(({ s, e, text }) => ({ s, e, note: text.trim() })),
@@ -175,11 +175,11 @@ export function leaveSummary(rows: DayRow[], first: string | null, today: string
  * 하루 몫 per = (남은 시간 + 오늘 한 것) ÷ 남은 평일 몫의 합 (반차 = 0.5) — «그 날의 총 근무» (v3.1.146)
  * rest7 · per7 = 주말까지 일한다면 (v3.1.155 — 본문은 주 5일, 묻는 자리만)
  */
-export function weekGoal(days: Record<string, Day>, rows: DayRow[], p: Period, today: string, goalHours: number) {
+export function weekGoal(days: Record<string, Day>, rows: DayRow[], p: Period, today: string, g: GoalCfg) {
   const ks = Array.from({ length: 7 }, (_, i) => keyOf(addDays(dateOf(p.from), i)));
   const lv = (k: string) => days[k]?.leave ?? '';
-  const unit = (k: string) => 1 - (LEAVE_SHARE[lv(k)] ?? 0);
-  const goal = ks.slice(0, 5).reduce((a, k) => a + dayGoalMin(goalHours, { leave: lv(k) }), 0);
+  const unit = (k: string) => 1 - goalFrac(g, lv(k));
+  const goal = ks.slice(0, 5).reduce((a, k) => a + dayGoalMin(g, { leave: lv(k) }), 0);
   const restBiz = ks.slice(0, 5).filter((k) => k >= today && unit(k) > 0);
   const units = restBiz.reduce((a, k) => a + unit(k), 0);
   const total = rows.reduce((a, r) => a + (r.has ? r.work : 0), 0);
@@ -233,12 +233,12 @@ export function catSplit(rows: DayRow[], logs: Log[], cats: Cat[]): CatRow[] {
  * 주 목표 = 그 주 평일 목표의 합 (연차가 낀 주는 줄어든다 · v3.1.209). out = 다른 달의 날 수
  */
 export interface WeekRow { key: string; end: string; work: number; goal: number; days: number; hit: number; out: number }
-export function weekHistory(days: Record<string, Day>, p: Period, now: number, goalHours: number): WeekRow[] {
+export function weekHistory(days: Record<string, Day>, p: Period, now: number, g: GoalCfg): WeekRow[] {
   const out: WeekRow[] = [];
   const mon = dateOf(p.from).getMonth();
   for (let ws = weekStart(dateOf(p.from)); keyOf(ws) <= p.to; ws = addDays(ws, 7)) {
     const key = keyOf(ws), end = keyOf(addDays(ws, 6));
-    const rs = series(days, key, end, now, goalHours);
+    const rs = series(days, key, end, now, g);
     const gd = rs.filter((r) => r.has && r.goal > 0);
     out.push({
       key, end,

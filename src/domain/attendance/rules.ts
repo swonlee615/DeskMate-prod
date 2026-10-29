@@ -221,8 +221,11 @@ export function openBreak(day: Day): Span | null {
 
 export const LEAVE_SHARE: Record<string, number> = { '연차': 1, '병가': 1, '오전 반차': 0.5, '오후 반차': 0.5 };
 
+/** 하루 목표 설정 — 시간(1~14) · 근태만큼 줄이기 (v3 goalHours · leaveGoal · v3.1.209) */
+export interface GoalCfg { hours: number; leave: boolean }
+/** 그 날 근태가 하루의 몇 몫을 빼나 — 끄면 0 (v3 goalFrac) */
+export const goalFrac = (g: GoalCfg, leave: string) => (g.leave ? LEAVE_SHARE[leave] ?? 0 : 0);
 /** 그 날 목표(분) = 하루 목표 × (1 − 근태 몫). 목표를 읽는 곳은 전부 이 함수를 거친다 */
-export function dayGoalMin(goalHours: number, day: Pick<Day, 'leave'>, leaveGoal = true): number {
-  const share = leaveGoal ? LEAVE_SHARE[day.leave] ?? 0 : 0;
-  return Math.round(goalHours * 60 * (1 - share));
+export function dayGoalMin(g: GoalCfg, day: Pick<Day, 'leave'>): number {
+  return Math.round(g.hours * 60 * (1 - goalFrac(g, day.leave)));
 }

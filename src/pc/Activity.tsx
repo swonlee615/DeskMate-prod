@@ -8,7 +8,6 @@
  */
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { Workspace } from '../app/useWorkspace';
-import { GOAL_HOURS } from '../app/useWorkspace';
 import { catVar } from '../domain/attendance/logs';
 import { hbFreqLabel } from '../domain/habits';
 import {
@@ -65,8 +64,8 @@ export function PcActivity({ ws, hidden, onOpenDay }: { ws: Workspace; hidden: b
   useEffect(() => { setDashSpan([p.from, p.end]); }, [setDashSpan, p.from, p.end]);
   useEffect(() => () => setDashSpan(null), [setDashSpan]);
 
-  const goal = GOAL_HOURS * 60;
-  const rows = useMemo(() => series(ws.days, p.from, p.to, ws.now, GOAL_HOURS), [ws.days, p.from, p.to, ws.now]);
+  const goal = ws.goal.hours * 60;
+  const rows = useMemo(() => series(ws.days, p.from, p.to, ws.now, ws.goal), [ws.days, p.from, p.to, ws.now, ws.goal]);
   const sm = useMemo(() => summarize(rows, ws.blocks, p), [rows, ws.blocks, p.from, p.to, p.end]); // eslint-disable-line react-hooks/exhaustive-deps
   const hb = useMemo(() => hbTable(ws.habits, p, ws.today, ws.offDay), [ws.habits, p.from, p.end, ws.today]); // eslint-disable-line react-hooks/exhaustive-deps
   const me = ws.ranking.find((r) => r.me);
@@ -108,7 +107,7 @@ export function PcActivity({ ws, hidden, onOpenDay }: { ws: Workspace; hidden: b
         <div className="card"><h4>총 근무</h4><div className="big"><DurU m={sm.total} /></div>
           <div className="sub2">{sm.days}일 · 일 평균 {fmtDur(sm.avg)}</div></div>
         <div className="card"><h4>근무시간 달성</h4><div className="big">{sm.hit}<span>일</span></div>
-          <div className="sub2">{sm.goalDays}일 중 {sm.goalDays ? Math.round((sm.hit / sm.goalDays) * 100) : 0}% · {GOAL_HOURS}시간 기준
+          <div className="sub2">{sm.goalDays}일 중 {sm.goalDays ? Math.round((sm.hit / sm.goalDays) * 100) : 0}% · {ws.goal.hours}시간 기준
             {sm.goalDays < sm.days && <> <i className="gi" aria-label="셈 기준"
               data-tip={`연차·병가인 날 ${sm.days - sm.goalDays}일은 목표가 없어서 뺐어요.\n반차인 날은 목표 절반으로 셉니다.`}>i</i></>}</div></div>
         <div className="card"><h4>연속 기록</h4><div className="big">{sm.streak}<span>일</span></div></div>
@@ -117,8 +116,8 @@ export function PcActivity({ ws, hidden, onOpenDay }: { ws: Workspace; hidden: b
           <div className="sub2">총 휴게 {fmtDur(sm.rest)}{!rg && <em>기록이 짧아 아직 등급을 매기지 않아요</em>}</div></div>
       </div>
 
-      {kind === 'year' ? <YearHeat year={dateOf(p.from).getFullYear()} rows={rows} today={ws.today} od={od} odTip={odTip} /> : (
-        <div className="card" style={{ marginBottom: 12 }}><h4>근무시간 추이 <span className="goalline">— 목표 {GOAL_HOURS}h</span></h4>
+      {kind === 'year' ? <YearHeat gh={ws.goal.hours} year={dateOf(p.from).getFullYear()} rows={rows} today={ws.today} od={od} odTip={odTip} /> : (
+        <div className="card" style={{ marginBottom: 12 }}><h4>근무시간 추이 <span className="goalline">— 목표 {ws.goal.hours}h</span></h4>
           <div className="bars dow2" style={{ '--goal': goal / (Math.max(goal, ...rows.map((r) => r.work)) * 1.05) } as React.CSSProperties}>
             {rows.map((r) => {
               const d = dateOf(r.key), max = Math.max(goal, ...rows.map((x) => x.work)) * 1.05;
@@ -135,12 +134,12 @@ export function PcActivity({ ws, hidden, onOpenDay }: { ws: Workspace; hidden: b
         </div>
       )}
 
-      {kind === 'month' && <WeekHist weeks={weekHistory(ws.days, p, ws.now, GOAL_HOURS)} goal={goal * 5} today={ws.today} onWeek={toWeek} />}
+      {kind === 'month' && <WeekHist weeks={weekHistory(ws.days, p, ws.now, ws.goal)} goal={goal * 5} today={ws.today} onWeek={toWeek} />}
       {kind === 'week' && <Rhythm rows={rows} today={ws.today} now={ws.now} sm={sm} od={od} />}
       {kind === 'month' && <DowRhythm rows={rows} avg={sm.avg} />}
 
       <div className="dash-grid" style={{ gridTemplateColumns: '1fr 1fr', marginBottom: 12 }}>
-        {kind === 'week' ? <GoalLeft g={weekGoal(ws.days, rows, p, ws.today, GOAL_HOURS)} /> : (
+        {kind === 'week' ? <GoalLeft g={weekGoal(ws.days, rows, p, ws.today, ws.goal)} /> : (
           <div className="card"><h4>요일별 평균 근무</h4><div className="bars sm">
             {sm.dow.map((b) => (
               <div key={b.dow} className="bar-col" data-tip={`${DOW[b.dow]}요일\n${b.n}일 기록 · 평균 근무 ${fmtDur(b.avg)}`}>
@@ -413,7 +412,7 @@ function YhGrid({ year, cells }: { year: number; cells: React.ReactNode[] }) {
 const md = (k: string) => { const d = dateOf(k); return `${d.getMonth() + 1}월 ${d.getDate()}일 (${DOW[d.getDay()]})`; };
 
 /** 근무 히트맵 (연간 · v2.9.101) — 진하기 = 그 해 분위수 · 초록 = 그 날 목표 · 일 안 한 근태 날은 테두리 · 최장 하루 링 */
-function YearHeat({ year, rows, today, od, odTip }: { year: number; rows: DayRow[]; today: string; od: (k: string) => object; odTip: (k: string) => string }) {
+function YearHeat({ gh, year, rows, today, od, odTip }: { gh: number; year: number; rows: DayRow[]; today: string; od: (k: string) => object; odTip: (k: string) => string }) {
   const { weeks, th, max, total, days } = yearHeat(year, rows, today);
   if (!days) return null;
   const lvSeen = LEAVES.filter(([v]) => v && rows.some((r) => r.leave === v));
@@ -428,12 +427,12 @@ function YearHeat({ year, rows, today, od, odTip }: { year: number; rows: DayRow
   const sw = (c: string) => <i className={`yh-sw ${c}`} />;
   return (
     <div className="card" style={{ marginBottom: 12 }}><h4>근무 히트맵
-      <span className="goalline">— 진할수록 오래 일했다 · <b className="yh-hitk">초록</b>은 목표 {GOAL_HOURS}시간을 채운 날</span></h4>
+      <span className="goalline">— 진할수록 오래 일했다 · <b className="yh-hitk">초록</b>은 목표 {gh}시간을 채운 날</span></h4>
       <YhGrid year={year} cells={cells} />
       <div className="yh-foot">
         <span className="yh-lg scale"><i className="lb">0</i>{sw('z')}{sw('l1')}<i className="lb">{fmtDurH(th[0])}</i>{sw('l2')}<i className="lb">{fmtDurH(th[1])}</i>
           {sw('l3')}<i className="lb">{fmtDurH(th[2])}</i>{sw('l4')}<i className="lb">{fmtDurH(max)}</i></span>
-        <span className="yh-lg">{sw('hit')}목표 {GOAL_HOURS}시간 달성<em />
+        <span className="yh-lg">{sw('hit')}목표 {gh}시간 달성<em />
           {lvSeen.map(([v, l, c]) => <span key={v}><i className="yh-sw lv" style={{ '--lv': c } as React.CSSProperties} />{l}<em /></span>)}
           {sw('n0')}기록 없음<em /><i className="yh-sw l4 top" />가장 오래</span>
         <span className="yh-sum" data-tip="근태와 상관없이 근무시간이 있는 날 — 연차·반차·병가에 일한 날도 셉니다">근무한 날 <b>{days}일</b> · 총 근무 <b>{Math.round(total / 60)}시간</b> · 하루 평균 <b>{fmtDur(Math.round(total / days))}</b></span>

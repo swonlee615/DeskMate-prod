@@ -19,7 +19,7 @@ import { MToday, STATE_LABEL } from './MToday';
 import { MActivity } from './MActivity';
 import { MDay } from './MDay';
 import { CloseX, HabitChips } from './parts';
-import { SET_NAV, SLOT_HINT } from '../ui/settingsNav';
+import { LEAVE_GOAL_HINT, MODES, SET_NAV, SLOT_HINT, systemIsDark, THEMES, TIMER_COLORS } from '../ui/settingsNav';
 import { CAT_EX, nextCatColor, type Cat } from '../domain/attendance/cats';
 import { catVar, SLOT_COLORS } from '../domain/attendance/logs';
 import './mobile.css';
@@ -156,6 +156,51 @@ function Settings({ ws, onAccount, onOpen }: { ws: Workspace; onAccount: () => v
 
 /** 설정 › 한 칸 — PC SettingsModal 의 set-panel 과 같은 내용 */
 function SetPanel({ ws, k }: { ws: Workspace; k: string }) {
+  const st = ws.settings, c = ws.timer.cfg;
+  // 폰은 고르는 즉시 저장한다 (저장 단추가 없는 설정 화면) — 숫자는 칸을 떠날 때 범위 안으로
+  const num = (label: string, v: number, min: number, max: number, on: (n: number) => void) => (
+    <li className="m-set-f"><span>{label}</span>
+      <input type="number" inputMode="numeric" min={min} max={max} defaultValue={v} key={v} aria-label={label}
+        onBlur={(e) => { const n = Math.max(min, Math.min(max, Math.round(+e.target.value || v))); e.target.value = String(n); if (n !== v) on(n); }} /></li>
+  );
+  const tgl = (label: string, v: boolean, on: (b: boolean) => void) => (
+    <li className="m-set-f"><span>{label}</span>
+      <button className={`m-tgl${v ? ' on' : ''}`} role="switch" aria-checked={v} aria-label={label} onClick={() => on(!v)}><i /></button></li>
+  );
+  if (k === 'general') return <>
+    <h3 className="m-set-h">화면 모드</h3>
+    <div className="m-seg">{MODES.map(([m, , b]) => (
+      <button key={m} className={st.mode === m ? 'on' : ''} onClick={() => ws.saveSettings({ mode: m })}>{b}</button>))}</div>
+    {st.mode === 'system' && <p className="m-set-hint">기기 설정을 따라갑니다 — 지금은 {systemIsDark() ? '다크' : '라이트'}</p>}
+    <h3 className="m-set-h">색상 테마</h3>
+    <div className="m-card m-themes">{THEMES.map(([t, name, rail, side]) => (
+      <button key={t} className={st.theme === t ? 'on' : ''} onClick={() => ws.saveSettings({ theme: t })} aria-pressed={st.theme === t}>
+        <span><i style={{ background: rail }} /><i style={{ background: side }} /></span>{name}</button>))}</div>
+    <p className="m-set-hint">PC 의 레일 · 사이드바 색이에요. 라이트 모드에서는 바탕까지 같은 색 가족으로 따라갑니다.</p>
+  </>;
+  if (k === 'ws') return <>
+    <ul className="m-card m-list">
+      <li className="m-set-f"><span>워크스페이스 이름</span>
+        <input defaultValue={st.wsName} key={st.wsName} maxLength={40} aria-label="워크스페이스 이름"
+          onBlur={(e) => { const v = e.target.value.trim() || 'DeskMate'; if (v !== st.wsName) ws.saveSettings({ wsName: v }); }} /></li>
+      {num('하루 목표 (시간)', st.goalHours, 1, 14, (n) => ws.saveSettings({ goalHours: n }))}
+      {tgl('근태만큼 목표 줄이기', st.leaveGoal, (b) => { ws.saveSettings({ leaveGoal: b }); ws.say(b ? '근태만큼 목표를 줄여서 계산해요' : '근태와 상관없이 목표를 그대로 계산해요'); })}
+    </ul>
+    <p className="m-set-hint">{LEAVE_GOAL_HINT}</p>
+  </>;
+  if (k === 'pomo') return <>
+    <ul className="m-card m-list">
+      {num('집중 (분)', c.focusMin, 5, 90, (n) => ws.timer.setCfg({ focusMin: n }))}
+      {num('짧은 휴식 (분)', c.shortMin, 1, 30, (n) => ws.timer.setCfg({ shortMin: n }))}
+      {num('긴 휴식 (분)', c.longMin, 5, 60, (n) => ws.timer.setCfg({ longMin: n }))}
+      {tgl('자동 다음 세션', c.autoStart, (b) => ws.timer.setCfg({ autoStart: b }))}
+    </ul>
+    <h3 className="m-set-h">타이머 색</h3>
+    <div className="m-card m-tcs" role="radiogroup" aria-label="타이머 색">{TIMER_COLORS.map(([col, n]) => (
+      <button key={col} role="radio" aria-checked={st.timerColor === col} aria-label={n} className={st.timerColor === col ? 'on' : ''}
+        style={{ '--c': col } as React.CSSProperties} onClick={() => ws.saveSettings({ timerColor: col })} />))}</div>
+    <p className="m-set-hint">다이얼의 남은 시간에 쓰여요. 휴식 중에는 같은 색이 옅게 칠해집니다. 초록은 근태 색이라 뺐어요.</p>
+  </>;
   if (k === 'slot') return <>
     <h3 className="m-set-h">시간 기록 카테고리</h3>
     <p className="m-set-hint">{SLOT_HINT}</p>

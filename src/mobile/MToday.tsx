@@ -6,9 +6,10 @@
 import { Since } from '../ui/Live';
 import { useState } from 'react';
 import type { Workspace } from '../app/useWorkspace';
-import { GOAL_HOURS, WEEKS_SHOWN } from '../app/useWorkspace';
+import { WEEKS_SHOWN } from '../app/useWorkspace';
 import type { Day, Leave } from '../domain/attendance/types';
 import { dayGoalMin, dayParts, openBreak, sessions, workMinutes } from '../domain/attendance/rules';
+import type { GoalCfg } from '../domain/attendance/rules';
 import { catVar, nextColor, timeline } from '../domain/attendance/logs';
 import { addDays, dateOf, fmtClock, fmtDur, hhmm, keyOf, leaveOf, LEAVES, rowDate, weekLabel, weekStart, weekTag } from '../ui/v3fmt';
 import { MTimer } from './MTimer';
@@ -22,7 +23,7 @@ export function MToday({ ws, goDay }: { ws: Workspace; goDay: (date: string, edi
   const { day, now, state } = ws;
   const parts = dayParts(day, now);
   const work = parts.workMs / 60000;
-  const goal = dayGoalMin(GOAL_HOURS, day);
+  const goal = dayGoalMin(ws.goal, day);
   const pct = goal > 0 ? Math.min(100, (work / goal) * 100) : (work > 0 ? 100 : 0);
   const brk = openBreak(day);
   const ses = sessions(day);
@@ -158,7 +159,7 @@ function Weeks({ ws, onDay }: { ws: Workspace; onDay: (k: string) => void }) {
             </button>
             {open && (
               <ul className="m-card m-wkt-l">
-                {g.rows.map((k) => <WRow key={k} k={k} d={ws.days[k]} isToday={k === ws.today} now={ws.now} nowD={nowD} onLeave={ws.onLeave} onOpen={() => onDay(k)} />)}
+                {g.rows.map((k) => <WRow key={k} k={k} d={ws.days[k]} isToday={k === ws.today} now={ws.now} nowD={nowD} goal={ws.goal} onLeave={ws.onLeave} onOpen={() => onDay(k)} />)}
               </ul>
             )}
           </section>
@@ -168,8 +169,8 @@ function Weeks({ ws, onDay }: { ws: Workspace; onDay: (k: string) => void }) {
   );
 }
 
-function WRow({ k, d, isToday, now, nowD, onLeave, onOpen }: {
-  k: string; d: Day | undefined; isToday: boolean; now: number; nowD: Date; onLeave: (k: string, l: Leave) => void; onOpen: () => void;
+function WRow({ k, d, isToday, now, nowD, goal, onLeave, onOpen }: {
+  k: string; d: Day | undefined; isToday: boolean; now: number; nowD: Date; goal: GoalCfg; onLeave: (k: string, l: Leave) => void; onOpen: () => void;
 }) {
   const rd = rowDate(k, nowD);
   const ses = d ? sessions(d) : [];
@@ -184,7 +185,7 @@ function WRow({ k, d, isToday, now, nowD, onLeave, onOpen }: {
         <span>{ses.length ? `${hhmm(ses[0].on)} – ${off != null ? hhmm(off) : '근무 중'}` : '출근 기록 없음'}{note && <em className={d?.pending ? 'warn' : ''}> · {note}</em>}</span>
       </div>
       <div className="m-wr-w">{d?.onAt != null
-        ? <>{d.offAt != null ? fmtDur(workMinutes(d, now)) : <em>–</em>}<i className={`att-dot ${attDotCls(d, now, GOAL_HOURS)}`} aria-hidden="true" /></>
+        ? <>{d.offAt != null ? fmtDur(workMinutes(d, now)) : <em>–</em>}<i className={`att-dot ${attDotCls(d, now, goal)}`} aria-hidden="true" /></>
         : <em>–</em>}</div>
       <label className={`m-lv${d?.leave ? ' on' : ''}`} style={lv[2] ? { '--lv': lv[2] } as React.CSSProperties : undefined}>
         <i aria-hidden="true" />{lv[1]}
@@ -199,7 +200,7 @@ function WRow({ k, d, isToday, now, nowD, onLeave, onOpen }: {
 /** 이번 주 요약 — 활동 탭 맨 위 (요일 막대 · 총 근무 · 출근 · 일 평균 · 평균 출근) */
 export function WeekSummary({ ws, onDay }: { ws: Workspace; onDay: (k: string) => void }) {
   const ws0 = weekStart(dateOf(ws.today));
-  const goal = GOAL_HOURS * 60;
+  const goal = ws.goal.hours * 60;
   let total = 0, n = 0, onSum = 0;
   const cols = Array.from({ length: 7 }, (_, i) => {
     const k = keyOf(addDays(ws0, i));

@@ -32,7 +32,7 @@ export function MTimer({ ws }: { ws: Workspace }) {
       </div>
 
       <div className="m-tm-dial">
-        <Dial total={t.total} remain={live.remain} brk={brk}>
+        <Dial total={t.total} remain={live.remain} brk={brk} tc={ws.settings.timerColor}>
           <button className="m-tm-hub" type="button" onClick={t.toggle} aria-label={`${act} — 남은 시간 ${live.clock}`}>
             <b>{live.clock}</b>
             <small>{t.running ? '눌러서 멈춤' : '눌러서 시작'}</small>

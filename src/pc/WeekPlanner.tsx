@@ -8,7 +8,6 @@
  */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { Workspace } from '../app/useWorkspace';
-import { GOAL_HOURS } from '../app/useWorkspace';
 import { descendants, rangeRate, type Tri } from '../domain/todos/tree';
 import {
   addAfter, addItem, cellGroups, listGroups, moveItem, weekDays, weekItems, weekKeyOf, type Change, type WGroup, type WItem,
@@ -294,10 +293,10 @@ export function WeekPlanner({ ws, onOpenDay, dday }: { ws: Workspace; onOpenDay:
                     <span className="lv-chip2"><i className="lv-dot" /><b>{lv[1]}</b></span>
                   </span>
                 );
-                if (d.onAt != null) att = <span className="wp-lvw"><span className="wp-att"><i className={`dot ${attDotCls(d, now, GOAL_HOURS)}`} /><b>{fmtDur(workMinutes(d, now))}</b></span>{att}</span>;
+                if (d.onAt != null) att = <span className="wp-lvw"><span className="wp-att"><i className={`dot ${attDotCls(d, now, ws.goal)}`} /><b>{fmtDur(workMinutes(d, now))}</b></span>{att}</span>;
               } else if (d?.onAt != null) {
                 att = (
-                  <span className="wp-att"><i className={`dot ${attDotCls(d, now, GOAL_HOURS)}`} />
+                  <span className="wp-att"><i className={`dot ${attDotCls(d, now, ws.goal)}`} />
                     <span className="rg">{hhmm(d.onAt)} ~ {d.offAt != null ? hhmm(d.offAt) : '근무 중'}</span> <b>{fmtDur(workMinutes(d, now))}</b></span>
                 );
               }

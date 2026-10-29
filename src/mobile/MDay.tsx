@@ -11,7 +11,6 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Workspace } from '../app/useWorkspace';
-import { GOAL_HOURS } from '../app/useWorkspace';
 import type { Day, Leave } from '../domain/attendance/types';
 import { dayGoalMin, dayParts, dayStartMs } from '../domain/attendance/rules';
 import {
@@ -149,7 +148,7 @@ function Summary({ ws, d, date, open, onToggle, children }: {
 }) {
   const p = dayParts(d, ws.now);
   const work = p.workMs / 60000;
-  const goal = dayGoalMin(GOAL_HOURS, d);
+  const goal = dayGoalMin(ws.goal, d);
   const rows = sessionRows(d);
   const last = rows[rows.length - 1];
   const lv = leaveOf(d.leave);
@@ -266,7 +265,7 @@ function CalSheet({ ws, date, onPick, onClose }: { ws: Workspace; date: string; 
           if (!out) total += w;
           const lv = leaveOf(d?.leave);
           return (
-            <button key={k} className={`${out ? 'out' : ''}${k === ws.today ? ' today' : ''}${k === date ? ' on' : ''}${w >= GOAL_HOURS * 60 ? ' hit' : ''}`} onClick={() => onPick(k)}>
+            <button key={k} className={`${out ? 'out' : ''}${k === ws.today ? ' today' : ''}${k === date ? ' on' : ''}${w >= ws.goal.hours * 60 ? ' hit' : ''}`} onClick={() => onPick(k)}>
               <b>{c.getDate()}</b>
               <em>{w ? `${+(w / 60).toFixed(1)}h` : ''}</em>
               {lv[2] && <i style={{ background: lv[2] }} />}

@@ -8,7 +8,6 @@
  */
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { Workspace } from '../app/useWorkspace';
-import { GOAL_HOURS } from '../app/useWorkspace';
 import { catVar } from '../domain/attendance/logs';
 import { hbFreqLabel } from '../domain/habits';
 import { LEAVES } from '../ui/v3fmt';
@@ -32,12 +31,12 @@ export function MActivity({ ws, onDay }: { ws: Workspace; onDay: (k: string) => 
   useEffect(() => { setDashSpan([p.from, p.end]); }, [setDashSpan, p.from, p.end]);
   useEffect(() => () => setDashSpan(null), [setDashSpan]);
 
-  const goal = GOAL_HOURS * 60;
-  const rows = useMemo(() => series(ws.days, p.from, p.to, ws.now, GOAL_HOURS), [ws.days, p.from, p.to, ws.now]);
+  const goal = ws.goal.hours * 60;
+  const rows = useMemo(() => series(ws.days, p.from, p.to, ws.now, ws.goal), [ws.days, p.from, p.to, ws.now, ws.goal]);
   const sm = useMemo(() => summarize(rows, ws.blocks, p), [rows, ws.blocks, p.from, p.to, p.end]); // eslint-disable-line react-hooks/exhaustive-deps
   const rg = restGrade(sm.restPct, sm.total + sm.rest);
   const openIf = (k: string) => { if (rows.find((r) => r.key === k)?.has) onDay(k); };
-  const weeks = useMemo(() => (kind === 'month' ? weekHistory(ws.days, p, ws.now, GOAL_HOURS) : []), [kind, ws.days, p.from, p.to, ws.now]); // eslint-disable-line react-hooks/exhaustive-deps
+  const weeks = useMemo(() => (kind === 'month' ? weekHistory(ws.days, p, ws.now, ws.goal) : []), [kind, ws.days, p.from, p.to, ws.now, ws.goal]); // eslint-disable-line react-hooks/exhaustive-deps
   const labels = useMemo(() => labelSplit(rows, ws.logs), [rows, ws.logs]);
   const hb = useMemo(() => hbTable(ws.habits, p, ws.today, ws.offDay), [ws.habits, p.from, p.end, ws.today]); // eslint-disable-line react-hooks/exhaustive-deps
   const me = ws.ranking.find((r) => r.me);
@@ -69,7 +68,7 @@ export function MActivity({ ws, onDay }: { ws: Workspace; onDay: (k: string) => 
         <div className="m-an-tiles">
           <div className="m-card"><h4>총 근무</h4><b>{fmtDur(sm.total)}</b><span>{sm.days}일 · 일 평균 {fmtDur(sm.avg)}</span></div>
           <div className="m-card"><h4>근무시간 달성</h4><b>{sm.hit}<small>일</small></b>
-            <span>{sm.goalDays}일 중 {sm.goalDays ? Math.round((sm.hit / sm.goalDays) * 100) : 0}% · {GOAL_HOURS}시간 기준</span></div>
+            <span>{sm.goalDays}일 중 {sm.goalDays ? Math.round((sm.hit / sm.goalDays) * 100) : 0}% · {ws.goal.hours}시간 기준</span></div>
           <div className="m-card"><h4>연속 기록</h4><b>{sm.streak}<small>일</small></b><span>주말은 일한 날만 세요</span></div>
           <div className="m-card"><h4>휴게 비율</h4><b className={rg ? '' : 'none'}>{rg ? sm.restPct : '--'}<small>%</small>{rg && <em className={`g-${rg.cls}`}>{rg.label}</em>}</b>
             <span>{rg ? `총 휴게 ${fmtDur(sm.rest)} · ${rg.tip}` : '기록이 짧아 아직 등급을 매기지 않아요'}</span></div>
@@ -77,7 +76,7 @@ export function MActivity({ ws, onDay }: { ws: Workspace; onDay: (k: string) => 
 
         {kind === 'year' ? <Heat year={dateOf(p.from).getFullYear()} rows={rows} today={ws.today} onDay={openIf} /> : (
           <section className="m-card m-an-c">
-            <h4>근무시간 추이 <em>— 목표 {GOAL_HOURS}h</em></h4>
+            <h4>근무시간 추이 <em>— 목표 {ws.goal.hours}h</em></h4>
             <Bars rows={rows} goal={goal} today={ws.today} dense={kind === 'month'} onDay={openIf} end={p.end} />
           </section>
         )}
@@ -110,7 +109,7 @@ export function MActivity({ ws, onDay }: { ws: Workspace; onDay: (k: string) => 
           </section>
         )}
 
-        {kind === 'week' && <GoalCard g={weekGoal(ws.days, rows, p, ws.today, GOAL_HOURS)} />}
+        {kind === 'week' && <GoalCard g={weekGoal(ws.days, rows, p, ws.today, ws.goal)} />}
 
         <section className="m-card m-an-c">
           <h4>할 일 달성률</h4>

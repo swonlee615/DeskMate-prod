@@ -9,7 +9,7 @@ import { PRESETS, usePomoClock } from '../app/usePomodoro';
 import { DIAL, dialFace, dialPt, dialSpan, dialWedge } from './dial';
 
 /** @param onDraft 「직접」 입력 중인지 — v3 는 `#panelTimer.pre-draft` 로 시계 · 다이얼 색을 바꾼다 */
-export function TimerCard({ t, onSet, onDraft }: { t: Pomodoro; onSet: (msg: string) => void; onDraft: (on: boolean) => void }) {
+export function TimerCard({ t, tc, onSet, onDraft }: { t: Pomodoro; tc: string; onSet: (msg: string) => void; onDraft: (on: boolean) => void }) {
   const [draft, setDraft] = useState<string | null>(null);
   useEffect(() => onDraft(draft != null), [draft != null]); // eslint-disable-line react-hooks/exhaustive-deps
   const [hint, setHint] = useState('');
@@ -28,7 +28,7 @@ export function TimerCard({ t, onSet, onDraft }: { t: Pomodoro; onSet: (msg: str
 
   return (
     <div className="timer-card">
-      <Dial total={preview ? draftN * 60 : t.total} remain={preview ? draftN * 60 : live.remain} brk={!preview && t.mode !== 'focus'}>
+      <Dial total={preview ? draftN * 60 : t.total} remain={preview ? draftN * 60 : live.remain} brk={!preview && t.mode !== 'focus'} tc={tc}>
         <button className="dial-knob" id="btnStart" type="button" aria-label={knob} data-tip={knob} onClick={t.toggle}>
           {t.running ? ICON_PAUSE : ICON_PLAY}
         </button>
@@ -69,15 +69,15 @@ export function TimerCard({ t, onSet, onDraft }: { t: Pomodoro; onSet: (msg: str
 const ICON_PLAY = <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6.5 3.8v12.4c0 .7.8 1.1 1.4.7l9.2-6.2c.5-.4.5-1.1 0-1.5L7.9 3.1c-.6-.4-1.4 0-1.4.7Z" fill="currentColor" /></svg>;
 const ICON_PAUSE = <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="5" y="3.5" width="3.6" height="13" rx="1.2" fill="currentColor" /><rect x="11.4" y="3.5" width="3.6" height="13" rx="1.2" fill="currentColor" /></svg>;
 
-/** 다이얼 판 — 눈금 · 부채꼴(남은 시간) · 바늘. 색은 `--tc` (타이머 색 설정은 설정 화면을 옮길 때) */
-export function Dial({ total, remain, brk, children }: { total: number; remain: number; brk: boolean; children: React.ReactNode }) {
+/** 다이얼 판 — 눈금 · 부채꼴(남은 시간) · 바늘. 색은 `--tc` = 설정 › 뽀모도로 › 타이머 색 (v3.1.244) */
+export function Dial({ total, remain, brk, tc, children }: { total: number; remain: number; brk: boolean; tc: string; children: React.ReactNode }) {
   const span = dialSpan(total);
   const left = Math.max(0, Math.min(total, remain)) / 60;
   const face = dialFace(span);
   const { C, R, W } = DIAL;
   const [hx, hy] = dialPt(left, W + 2, span);
   return (
-    <div className={`dial${brk ? ' brk' : ''}`} id="dial">
+    <div className={`dial${brk ? ' brk' : ''}`} id="dial" style={{ '--tc': tc } as React.CSSProperties}>
       <svg id="dialSvg" viewBox="0 0 188 188" aria-hidden="true">
         <circle className="dl-face" cx={C} cy={C} r={R} />
         <path className="dl-wedge" id="dialWedge" d={dialWedge(left, span)} />

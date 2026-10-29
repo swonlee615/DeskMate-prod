@@ -6,24 +6,24 @@
  */
 import { Since } from '../ui/Live';
 import type { Day } from '../domain/attendance/types';
-import { dayGoalMin, dayParts, openBreak } from '../domain/attendance/rules';
+import { dayGoalMin, dayParts, openBreak, type GoalCfg } from '../domain/attendance/rules';
 import { fmtDur, hhmm } from '../ui/v3fmt';
 
 interface Props {
   day: Day;
   now: number;
-  goalHours: number;
+  goal: GoalCfg;
   onOn: () => void;
   onOff: () => void;
   onRest: () => void;
 }
 
-export function TodayPanelBody({ day, now, goalHours, onOn, onOff, onRest }: Props) {
+export function TodayPanelBody({ day, now, goal: g, onOn, onOff, onRest }: Props) {
   const working = day.onAt != null && day.offAt == null;
   const open = openBreak(day);
   const parts = dayParts(day, now);
   const work = parts.workMs / 60000;
-  const goal = dayGoalMin(goalHours, day);
+  const goal = dayGoalMin(g, day);
   const free = goal <= 0;
   const pct = free ? (work > 0 ? 100 : 0) : Math.min(100, (work / goal) * 100);
   const offTitle = working ? '' : 'On 을 먼저 눌러주세요';

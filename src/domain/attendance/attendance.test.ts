@@ -3,6 +3,8 @@ import type { AttEvent, AttEventType, DeviceKind } from './types';
 import { deriveDay, replayRaw } from './replay';
 import { effKind, normalizeBreaks, sessions, stateOf, workMinutes, dayGoalMin } from './rules';
 
+const G8 = { hours: 8, leave: true };
+
 const D = '2026-10-21';
 /** '09:30' → 그 날 KST epoch ms */
 const t = (hm: string, date = D) => {
@@ -246,10 +248,10 @@ describe('다기기 — 자동 감지', () => {
 
 describe('목표 (§4 v3.1.209)', () => {
   it('근태만큼 목표가 줄어든다', () => {
-    expect(dayGoalMin(8, { leave: '' })).toBe(480);
-    expect(dayGoalMin(8, { leave: '오전 반차' })).toBe(240);
-    expect(dayGoalMin(8, { leave: '연차' })).toBe(0);
-    expect(dayGoalMin(8, { leave: '연차' }, false)).toBe(480);
+    expect(dayGoalMin(G8, { leave: '' })).toBe(480);
+    expect(dayGoalMin(G8, { leave: '오전 반차' })).toBe(240);
+    expect(dayGoalMin(G8, { leave: '연차' })).toBe(0);
+    expect(dayGoalMin({ hours: 8, leave: false }, { leave: '연차' })).toBe(480);
   });
 });
 
@@ -264,7 +266,7 @@ describe('근태(연차·반차·병가) 고르기 — leaveSet', () => {
       ev('leaveSet', '08:30', 'mac', 'desktop', { leave: '오후 반차' }),
     ], END);
     expect(d.leave).toBe('오후 반차');
-    expect(dayGoalMin(8, d)).toBe(240);
+    expect(dayGoalMin(G8, d)).toBe(240);
   });
 
   it('「근무」로 되돌리면 빈 값이다', () => {

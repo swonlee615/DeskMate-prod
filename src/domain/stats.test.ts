@@ -81,7 +81,7 @@ describe('목표까지 · 카테고리별', () => {
     const days = { '2026-10-30': { leave: '연차' } } as never;
     const p = period('week', 0, '2026-10-28');
     const rows = [row('2026-10-26', 1, 600), row('2026-10-27', 2, 600), row('2026-10-28', 3, 120)];
-    const g = weekGoal(days, rows, p, '2026-10-28', 8);
+    const g = weekGoal(days, rows, p, '2026-10-28', { hours: 8, leave: true });
     expect(g).toMatchObject({ goal: 32 * 60, left: 2, halfN: 0, rest7: 4 });
     // 남은 시간 32h − 22h = 10h, 오늘 2h 를 더해 수 · 목 둘로 → 6h
     expect(g.per).toBe(360);

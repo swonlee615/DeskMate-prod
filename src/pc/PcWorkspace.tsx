@@ -9,7 +9,6 @@ import { PomoClock } from '../ui/Live';
 import { useEffect, useState } from 'react';
 import { SettingsModal } from './Settings';
 import type { Workspace } from '../app/useWorkspace';
-import { GOAL_HOURS } from '../app/useWorkspace';
 import { AccountDialog } from '../ui/AccountDialog';
 import { SyncBadge } from '../ui/SyncBadge';
 import { Worklog } from './Worklog';
@@ -97,7 +96,7 @@ export function PcWorkspace({ ws }: { ws: Workspace }) {
       <div className="top-strip" />
       <div className={cls} id="app" data-layout={mode}>
         <aside className="rail">
-          <div className="ws-badge" id="wsBadge">D</div>
+          <div className="ws-badge" id="wsBadge">{ws.settings.wsName.trim().slice(0, 1).toUpperCase() || 'D'}</div>
           <button className={`rail-btn${view === 'worklog' ? ' on' : ''}`} data-view="worklog" onClick={() => go('worklog')}>
             <span className="ri"><svg viewBox="0 0 20 20"><path d="M3.2 8.6 10 3.2l6.8 5.4V16a1.2 1.2 0 0 1-1.2 1.2h-3.3v-4.8H7.7v4.8H4.4A1.2 1.2 0 0 1 3.2 16V8.6Z" /></svg></span>
             <small>홈</small>
@@ -123,7 +122,7 @@ export function PcWorkspace({ ws }: { ws: Workspace }) {
 
         <nav className="sidebar">
           <div className="sb-head">
-            <div className="sb-title"><span id="wsName">DeskMate</span></div>
+            <div className="sb-title"><span id="wsName">{ws.settings.wsName}</span></div>
             <button className="icon-btn sb-toggle" id="sbToggleIn" title="사이드바 접기" onClick={() => setSbOff(true)}>{SB_ICON}</button>
           </div>
           <div className="sb-scroll" id="sbScroll">
@@ -164,7 +163,7 @@ export function PcWorkspace({ ws }: { ws: Workspace }) {
             </button>
           </header>
 
-          <Worklog days={days} today={today} now={now} goalHours={GOAL_HOURS}
+          <Worklog days={days} today={today} now={now} goal={ws.goal}
             calMonth={ws.calMonth} setCalMonth={ws.setCalMonth} onLeave={ws.onLeave} unavailable={ws.unavailable}
             onOpenDay={openDay} hidden={view !== 'worklog' || (!!dayKey && !asLayer)}
             week={<WeekPlanner ws={ws} onOpenDay={(k) => openDay(k)} dday={ddBox} />}
@@ -184,8 +183,8 @@ export function PcWorkspace({ ws }: { ws: Workspace }) {
           <div className="panel-head"><b id="panelTitle">집중 타이머</b><div className="hspace" />
             <button className="icon-btn" id="btnPanelClose" onClick={() => setPanelOpen(false)}>✕</button></div>
           <div className={`panel-body${preDraft ? ' pre-draft' : ''}`} id="panelTimer">
-            <TimerCard t={ws.timer} onSet={(m) => ws.say(m)} onDraft={setPreDraft} />
-            <TodayPanelBody day={day} now={now} goalHours={GOAL_HOURS} onOn={ws.onOn} onOff={ws.onOff} onRest={ws.onRest} />
+            <TimerCard t={ws.timer} tc={ws.settings.timerColor} onSet={(m) => ws.say(m)} onDraft={setPreDraft} />
+            <TodayPanelBody day={day} now={now} goal={ws.goal} onOn={ws.onOn} onOff={ws.onOff} onRest={ws.onRest} />
             <HabitRings ws={ws} />
             <Ranking ws={ws} />
           </div>

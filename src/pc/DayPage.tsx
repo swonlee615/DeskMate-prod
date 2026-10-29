@@ -9,7 +9,6 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Workspace } from '../app/useWorkspace';
-import { GOAL_HOURS } from '../app/useWorkspace';
 import type { Day, Leave } from '../domain/attendance/types';
 import { dayGoalMin, dayParts, dayStartMs, effKind, openBreak, spanEnd } from '../domain/attendance/rules';
 import {
@@ -287,7 +286,7 @@ function TimeIn({ value, attrs, onCommit, id }: {
 
 function WeekStrip({ ws, date, onGo }: { ws: Workspace; date: string; onGo: (k: string) => void }) {
   const mon = weekStart(dateOf(date));
-  const scale = GOAL_HOURS * 60;
+  const scale = ws.goal.hours * 60;
   return (
     <div className="week-strip" title="이번 주 — 날짜를 누르면 그 날로 갑니다">
       {Array.from({ length: 7 }, (_, i) => {
@@ -296,7 +295,7 @@ function WeekStrip({ ws, date, onGo }: { ws: Workspace; date: string; onGo: (k: 
         const d = ws.days[k];
         const has = !!d && (d.onAt != null || !!d.leave);
         const min = has && d.onAt != null ? dayParts(d, ws.now).workMs / 60000 : 0;
-        const goal = dayGoalMin(GOAL_HOURS, d ?? { leave: '' });
+        const goal = dayGoalMin(ws.goal, d ?? { leave: '' });
         const pct = Math.max(0, Math.min(100, Math.round((min / scale) * 100)));
         const cls = ['ws-d', k === date ? 'on' : '', k === ws.today ? 'today' : '', has ? '' : 'none',
           dt.getDay() === 0 || dt.getDay() === 6 ? 'wk' : ''].filter(Boolean).join(' ');
