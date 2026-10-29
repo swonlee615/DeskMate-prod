@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { DayRow } from './stats';
-import { catSplit, dowRhythm, labelSplit, leaveSummary, weekGoal, period, rankStat, restGrade, streak, yearHeat } from './stats';
+import { rankSeries, rankToFix, catSplit, dowRhythm, labelSplit, leaveSummary, weekGoal, period, rankStat, restGrade, streak, yearHeat } from './stats';
 import type { Log } from './attendance/logs';
 
 const row = (key: string, dow: number, work: number): DayRow => ({ key, dow, work, rest: 0, on: null, off: null, leave: '', goal: 480, has: work > 0, segs: [], brks: [], nonwork: 0 });
@@ -94,5 +94,21 @@ describe('목표까지 · 카테고리별', () => {
       { color: '#5b97cf', name: '개발', known: true, none: false, work: 120, rest: 0 },
       { color: '', name: '', known: false, none: true, work: 180, rest: 30 },
     ]);
+  });
+});
+
+describe('순위 고정 (SYNC §11)', () => {
+  it('끝난 날만 · 일한 날만 · 확인 기다리는 날은 빼고 고정한다', () => {
+    const on = new Date(2026, 9, 27, 9).getTime();
+    const day = (date: string, extra = {}) => ({ date, onAt: on + (Number(date.slice(-2)) - 27) * 864e5, offAt: on + (Number(date.slice(-2)) - 27) * 864e5 + 8 * 36e5, leave: '', breaks: [], ...extra });
+    const days = { '2026-10-27': day('2026-10-27'), '2026-10-28': day('2026-10-28', { pending: { guessOff: 0 } }), '2026-10-29': day('2026-10-29') } as never;
+    const fix = rankToFix(days, {}, '2026-10-29', on + 3 * 864e5, '나');
+    expect(Object.keys(fix)).toEqual(['2026-10-27']);
+    expect(fix['2026-10-27'].my).toBe(480);
+  });
+  it('고정값이 있으면 다시 세지 않는다 — 기록을 고쳐도 그대로', () => {
+    const r = { ...row('2026-10-27', 2, 600) };
+    const pts = rankSeries([r], '2026-10-29', null, '나', { '2026-10-27': { pos: 5, n: 13, my: 300 } });
+    expect(pts).toEqual([{ key: '2026-10-27', pos: 5, n: 13, my: 300, live: false }]);
   });
 });

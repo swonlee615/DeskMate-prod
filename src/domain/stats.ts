@@ -283,20 +283,38 @@ export function labelSplit(rows: DayRow[], logs: Log[]): LabelRow[] {
   return [...map.values()].filter((x) => x.min > 0.5).sort((a, b) => b.min - a.min);
 }
 
-// ─────────────────────────────────────────────────────────── 내 순위 이력 (v3.1.106 · 저장하지 않고 다시 센다)
+// ─────────────────────────────────────────────────────────── 내 순위 이력 (v3.1.106 · 웹은 끝난 날을 고정값으로 · SYNC §11)
 
-export interface RankPt { key: string; pos: number; n: number; my: number; live: boolean }
-/** 지난 날 내 등수 — 동료는 날짜 씨앗이라 언제 세도 같다. 안 나온 날은 null (v3 computeRank) */
+export interface RankFix { pos: number; n: number; my: number }
+export interface RankPt extends RankFix { key: string; live: boolean }
+/** 그 날 내 등수 — 동료는 날짜 씨앗이라 언제 세도 같다. 안 나온 날은 null (v3 computeRank) */
 export function rankOn(key: string, myMin: number, nick: string): { pos: number; n: number } | null {
   if (!myMin) return null;
   const lb = leaderboard(buildTeam(key), 1440, myMin, nick);
   return { pos: lb.find((r) => r.me)!.rank, n: lb.length };
 }
-/** 기간의 점들 — 오늘은 «진행 중» (todayRank = 지금 랭킹 · 패널과 같은 값 · D5) */
-export function rankSeries(rows: DayRow[], today: string, todayRank: { pos: number; n: number } | null, nick: string): RankPt[] {
+/**
+ * 고정할 날 — 끝난 날(오늘 전) · 일한 날 · 아직 고정 안 한 날. 퇴근 확인을 기다리는 날(pending)은 근무가 정해진 뒤에.
+ * 한 번 고정하면 그 날 기록을 나중에 고쳐도 · 동료 계산이 바뀌어도 그대로다 (2026-10-30 소유자 — «지나간 활동은 고정값»)
+ */
+export function rankToFix(days: Record<string, Day>, fixed: Record<string, RankFix>, today: string, now: number, nick: string): Record<string, RankFix> {
+  const out: Record<string, RankFix> = {};
+  for (const [k, d] of Object.entries(days)) {
+    if (k >= today || fixed[k] || d.pending) continue;
+    const my = Math.round(dayParts(d, now).workMs / 60000);
+    const v = rankOn(k, my, nick);
+    if (v) out[k] = { ...v, my };
+  }
+  return out;
+}
+/** 기간의 점들 — 지난 날은 고정값을 먼저 · 오늘은 «진행 중» (todayRank = 지금 랭킹 · 패널과 같은 값 · D5) */
+export function rankSeries(rows: DayRow[], today: string, todayRank: { pos: number; n: number } | null, nick: string, fixed: Record<string, RankFix> = {}): RankPt[] {
   return rows.flatMap((r): RankPt[] => {
-    const v = r.key === today ? (r.has ? todayRank : null) : r.key < today ? rankOn(r.key, Math.round(r.work), nick) : null;
-    return v ? [{ key: r.key, ...v, my: r.work, live: r.key === today }] : [];
+    if (!r.has) return [];
+    if (r.key === today) return todayRank ? [{ key: r.key, ...todayRank, my: r.work, live: true }] : [];
+    if (r.key > today) return [];
+    const v = fixed[r.key] ?? (() => { const x = rankOn(r.key, Math.round(r.work), nick); return x && { ...x, my: r.work }; })();
+    return v ? [{ key: r.key, ...v, live: false }] : [];
   });
 }
 /** 앞선 사람 수로 센다 (D3) — 상위% = 1 − Σ(n−pos)/Σ(n−1) · N명 환산 등수 = 1 + 상위%×(N−1). 오늘 · 혼자인 날은 뺀다 */

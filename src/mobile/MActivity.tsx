@@ -42,7 +42,7 @@ export function MActivity({ ws, onDay }: { ws: Workspace; onDay: (k: string) => 
   const hb = useMemo(() => hbTable(ws.habits, p, ws.today, ws.offDay), [ws.habits, p.from, p.end, ws.today]); // eslint-disable-line react-hooks/exhaustive-deps
   const me = ws.ranking.find((r) => r.me);
   const todayRank = me && me.min > 0 ? { pos: me.rank, n: ws.ranking.length } : null;
-  const ranks = useMemo(() => rankSeries(rows, ws.today, todayRank, ws.nick), [rows, ws.today, todayRank?.pos, ws.nick]); // eslint-disable-line react-hooks/exhaustive-deps
+  const ranks = useMemo(() => rankSeries(rows, ws.today, todayRank, ws.nick, ws.ranks), [rows, ws.today, todayRank?.pos, ws.nick, ws.ranks]); // eslint-disable-line react-hooks/exhaustive-deps
   /** 주간 히스토리의 줄 → 그 주의 «주간» (v3.1.194) */
   const toWeek = (k: string) => { setKind('week'); setOff(Math.round((weekStart(dateOf(ws.today)).getTime() - dateOf(k).getTime()) / (7 * 864e5))); };
 

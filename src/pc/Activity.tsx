@@ -4,7 +4,7 @@
  * ★ 마크업 · 클래스 · id 는 v3 renderAnalytics 와 같다 (스타일은 v3 styles.css 그대로). 숫자는 전부 domain/stats — 폰과 같은 함수
  * ★ 날짜 하나를 가리키는 그림(막대 · 리듬 줄 · 히트맵 칸)은 누르면 그 날 상세 — 기록 없는 날은 안 열린다 (v3.1.212)
  * ★ 아직 안 옮긴 것: «이번 주 해석» (Claude 리포트)
- * ★ 순위 이력은 v3 의 «최근 6개월까지» 안내 없이 기록이 있는 데까지 (SYNC §11 · 2026-10-30 소유자)
+ * ★ 순위 이력은 전체 기간 · 끝난 날은 고정값 (`ws.ranks` · SYNC §11 · 2026-10-30 소유자)
  */
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { Workspace } from '../app/useWorkspace';
@@ -71,7 +71,7 @@ export function PcActivity({ ws, hidden, onOpenDay }: { ws: Workspace; hidden: b
   const hb = useMemo(() => hbTable(ws.habits, p, ws.today, ws.offDay), [ws.habits, p.from, p.end, ws.today]); // eslint-disable-line react-hooks/exhaustive-deps
   const me = ws.ranking.find((r) => r.me);
   const todayRank = me && me.min > 0 ? { pos: me.rank, n: ws.ranking.length } : null;
-  const ranks = useMemo(() => rankSeries(rows, ws.today, todayRank, ws.nick), [rows, ws.today, todayRank?.pos, ws.nick]); // eslint-disable-line react-hooks/exhaustive-deps
+  const ranks = useMemo(() => rankSeries(rows, ws.today, todayRank, ws.nick, ws.ranks), [rows, ws.today, todayRank?.pos, ws.nick, ws.ranks]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 기록이 있는 날만 누를 수 있다 — 표시 자체를 안 붙인다 (v3 odAttr · odTip)
   const odOk = (k: string) => { const d = ws.days[k]; return !!d && (d.onAt != null || !!d.leave); };

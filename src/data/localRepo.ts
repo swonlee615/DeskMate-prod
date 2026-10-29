@@ -131,6 +131,17 @@ export function createLocalRepo(): Repo {
 
     watchItems(cb) { iw.add(cb); cb(items); return () => { iw.delete(cb); }; },
     addItem(it) { items = [...items.filter((x) => x.id !== it.id), it]; saveI(items); emitI(); },
+    mergeItem(it) {
+      const deep = (a: Record<string, unknown>, b: Record<string, unknown>): Record<string, unknown> => Object.fromEntries(
+        [...new Set([...Object.keys(a), ...Object.keys(b)])].map((k) => {
+          const x = a[k], y = b[k];
+          const obj = (v: unknown) => !!v && typeof v === 'object' && !Array.isArray(v);
+          return [k, y === undefined ? x : obj(x) && obj(y) ? deep(x as never, y as never) : y];
+        }));
+      const cur = items.find((x) => x.id === it.id);
+      items = [...items.filter((x) => x.id !== it.id), (cur ? deep(cur as never, it as never) : it) as Item];
+      saveI(items); emitI();
+    },
     patchItem(id, fields) {
       items = items.map((x) => (x.id === id ? applyPatch(x, fields) : x));
       saveI(items); emitI();

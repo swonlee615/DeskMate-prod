@@ -62,5 +62,7 @@ export interface Repo {
   addItem(it: Item): void;
   /** 바뀐 필드만. `'done.2026-10-27'` 처럼 점은 맵 안의 필드 하나, 값 null 은 그 필드를 지운다 */
   patchItem(id: string, fields: Record<string, unknown>): void;
+  /** 있으면 합치고 없으면 만든다 — 맵 안은 깊게 합친다 (덮어쓰지 않는다). 아직 받아 오지 못한 문서에도 안전하다 */
+  mergeItem(it: Item): void;
   dispose(): void;
 }

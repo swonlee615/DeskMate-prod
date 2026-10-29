@@ -128,6 +128,7 @@ export function createFirestoreRepo(db: Firestore, uid: string): Repo {
     },
 
     addItem(it) { track(setDoc(doc(icol, it.id), it)); },
+    mergeItem(it) { track(setDoc(doc(icol, it.id), it, { merge: true })); },
 
     patchItem(id, fields) {
       const f: Record<string, unknown> = {};

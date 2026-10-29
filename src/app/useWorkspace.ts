@@ -16,6 +16,7 @@ import { breakConflicts, logsOf, overlapIds, resolveConflicts, splitRest, type L
 import { addDays, dateOf, fmtDur, keyOf, weekStart } from '../ui/v3fmt';
 import { buildTeam, leaderboard, ROSTER, STATUS_ORDER, statusAt, type LbRow, type Member, type MateStatus } from '../domain/sim/team';
 import { useMinute } from './clock';
+import { rankToFix, type RankFix } from '../domain/stats';
 import { usePomodoro, type Pomodoro, type PomoDoc } from './usePomodoro';
 import { deleteChunk, inverseOf, triFix, triToggle, type Block, type Patch } from '../domain/todos/tree';
 import { ddCanPin, ddClean, ddLabel, type DDay } from '../domain/dday';
@@ -25,6 +26,7 @@ import { HB_MAX, hbClean, hbDoneAt, hbFreqLabel, type Habit, type HbInput, type 
 const POMO_ID = 'pomo';
 /** 시간 기록 카테고리 문서 — 사람 하나에 하나 (목록 통째로 한 필드) */
 const CATS_ID = 'cats';
+const RANKS_ID = 'ranks';
 
 export const GOAL_HOURS = 8; // 설정 화면을 옮기기 전까지 v3 기본값
 /** 근태 표가 보여 주는 주 수 (이번 주 포함) */
@@ -102,6 +104,8 @@ export interface Workspace {
   /** 아카이브 = «저장됨» 으로 옮김 (고정은 풀린다) · 끄면 목록으로 */
   archiveDDay: (id: string, on: boolean) => void;
   deleteDDay: (id: string) => void;
+  /** 지난 날 내 순위 — 그 날이 끝나면 한 번 세어 고정한다 (SYNC §11). 날짜 → 등수 */
+  ranks: Record<string, RankFix>;
   /** 첫 기록 날짜 — 활동 «미근무» 가 그 날부터 센다. 처음 열 때 한 번 읽는다 */
   firstDate: string | null;
   // ── 습관 (v3 hb* · PRD §2-1-3)
@@ -230,7 +234,9 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
 
   // D-Day · 습관 · 타이머 — 정의 하나 = 문서 하나 (items)
   const [items, setItems] = useState<Item[]>([]);
-  useEffect(() => repo.watchItems(setItems), [repo]);
+  // 첫 수신 전에는 «없다» 와 «아직 모른다» 가 구분되지 않는다 — 고정값처럼 한 번만 써야 하는 것은 이걸 기다린다
+  const [itemsIn, setItemsIn] = useState(false);
+  useEffect(() => repo.watchItems((xs) => { setItems(xs); setItemsIn(true); }), [repo]);
 
   // 집중 타이머 — 사람 하나에 하나 (items/pomo · SYNC §9). 집중을 끝까지 채우면 횟수를 «끝난 날» 에 남긴다 (v3 onComplete)
   const pomoDoc = useMemo(() => (items.find((x) => x.id === POMO_ID) as (PomoDoc & Item) | undefined) ?? null, [items]);
@@ -525,6 +531,13 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
     .sort((a, b) => STATUS_ORDER[a.st.key] - STATUS_ORDER[b.st.key] || a.m.nick.localeCompare(b.m.nick)), [team, nowMin]);
   const myMin = dayParts(day, now).workMs / 60000;
   const ranking = useMemo(() => leaderboard(team, nowMin, myMin, nick), [team, nowMin, Math.floor(myMin), nick]); // eslint-disable-line react-hooks/exhaustive-deps
+  // 지난 순위 고정 — 받아 둔 날 중 끝났고 아직 안 고정한 날만. 합치기 저장이라 다른 기기 · 받기 전 문서를 덮지 않는다
+  const ranks = useMemo(() => ((items.find((x) => x.id === RANKS_ID) as (Item & { days?: Record<string, RankFix> }) | undefined)?.days ?? {}), [items]);
+  useEffect(() => {
+    if (!itemsIn) return;
+    const fix = rankToFix(days, ranks, today, now, nick);
+    if (Object.keys(fix).length) repo.mergeItem({ id: RANKS_ID, kind: 'ranks', days: fix } as Item);
+  }, [repo, itemsIn, days, ranks, today, nick]); // eslint-disable-line react-hooks/exhaustive-deps
   const mateStatus = (id: string) => mates.find((x) => x.m.id === id)?.st ?? null;
 
   return {
@@ -533,7 +546,7 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
     onOn, onOff, onRest, onLeave, dayOf, editDay, pendingDays, resolvePending, canCarry: canCarryFor,
     blocks, addBlock, patchBlocks, editBlocks, undoBlocks, lastEditAt, toggleBlock, removeBlock, newId,
     ddays, saveDDay, pinDDay, archiveDDay, deleteDDay,
-    firstDate, habits, offDay, saveHabit, archiveHabit, deleteHabit, toggleHabit,
+    ranks, firstDate, habits, offDay, saveHabit, archiveHabit, deleteHabit, toggleHabit,
     logs, saveSpan, deleteSpan, fixConflicts, cats, setCats,
     mates, ranking, mateStatus,
     nick, initial: nick.slice(0, 1).toUpperCase(),
