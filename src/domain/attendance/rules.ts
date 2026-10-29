@@ -219,7 +219,7 @@ export function openBreak(day: Day): Span | null {
 
 // ─────────────────────────────────────────────────────────── 목표 (§4 v3.1.209)
 
-const LEAVE_SHARE: Record<string, number> = { '연차': 1, '병가': 1, '오전 반차': 0.5, '오후 반차': 0.5 };
+export const LEAVE_SHARE: Record<string, number> = { '연차': 1, '병가': 1, '오전 반차': 0.5, '오후 반차': 0.5 };
 
 /** 그 날 목표(분) = 하루 목표 × (1 − 근태 몫). 목표를 읽는 곳은 전부 이 함수를 거친다 */
 export function dayGoalMin(goalHours: number, day: Pick<Day, 'leave'>, leaveGoal = true): number {

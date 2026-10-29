@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { DayRow } from './stats';
-import { dowRhythm, labelSplit, period, rankStat, restGrade, streak, yearHeat } from './stats';
+import { catSplit, dowRhythm, labelSplit, leaveSummary, weekGoal, period, rankStat, restGrade, streak, yearHeat } from './stats';
 import type { Log } from './attendance/logs';
 
 const row = (key: string, dow: number, work: number): DayRow => ({ key, dow, work, rest: 0, on: null, off: null, leave: '', goal: 480, has: work > 0, segs: [], brks: [], nonwork: 0 });
@@ -63,5 +63,36 @@ describe('요일 리듬 · 라벨별 · 순위 요약', () => {
     ], 13);
     expect(st).toMatchObject({ days: 2, best: 1, pct: 50 });
     expect(st.avg).toBeCloseTo(7);
+  });
+});
+
+describe('근태 카드 (v3.1.242)', () => {
+  it('미근무 = 첫 기록 이후 어제까지 근무도 근태도 없는 날 · 오늘은 안 센다 · 반차는 0.5일', () => {
+    // 월(첫 기록 전) 화(일함) 수(빈 날) 목(오전 반차) 금(오늘 · 빈) 토(빈)
+    const rows = [row('2026-10-26', 1, 0), row('2026-10-27', 2, 300), row('2026-10-28', 3, 0),
+      { ...row('2026-10-29', 4, 200), leave: '오전 반차' as const }, row('2026-10-30', 5, 0), row('2026-10-25', 0, 0)];
+    const s = leaveSummary(rows, '2026-10-27', '2026-10-30');
+    expect(s).toMatchObject({ worked: 2, leaveDays: 0.5, miss: { wd: 1, we: 0 }, chips: { '': 1, '오전 반차': 1 } });
+  });
+});
+
+describe('목표까지 · 카테고리별', () => {
+  it('주 목표 = 평일 목표 합 (금 연차면 32시간) · 하루 몫은 오늘 한 것을 더해 남은 날로', () => {
+    const days = { '2026-10-30': { leave: '연차' } } as never;
+    const p = period('week', 0, '2026-10-28');
+    const rows = [row('2026-10-26', 1, 600), row('2026-10-27', 2, 600), row('2026-10-28', 3, 120)];
+    const g = weekGoal(days, rows, p, '2026-10-28', 8);
+    expect(g).toMatchObject({ goal: 32 * 60, left: 2, halfN: 0, rest7: 4 });
+    // 남은 시간 32h − 22h = 10h, 오늘 2h 를 더해 수 · 목 둘로 → 6h
+    expect(g.per).toBe(360);
+  });
+  it('미분류 = 근무시간 − 시간 기록 · 색 없는 휴게 · 맨 뒤', () => {
+    const r = { ...row('2026-10-05', 1, 300), brks: [{ s: 720, e: 750, note: '' }] };
+    const log = { id: '1', date: '2026-10-05', kind: 'slot', s: 540, e: 660, text: 'Job', color: '#5B97CF', createdAt: 0 } as Log;
+    const out = catSplit([r], [log], [{ color: '#5b97cf', name: '개발' }]);
+    expect(out).toEqual([
+      { color: '#5b97cf', name: '개발', known: true, none: false, work: 120, rest: 0 },
+      { color: '', name: '', known: false, none: true, work: 180, rest: 30 },
+    ]);
   });
 });

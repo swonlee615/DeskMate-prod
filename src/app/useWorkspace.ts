@@ -102,6 +102,8 @@ export interface Workspace {
   /** 아카이브 = «저장됨» 으로 옮김 (고정은 풀린다) · 끄면 목록으로 */
   archiveDDay: (id: string, on: boolean) => void;
   deleteDDay: (id: string) => void;
+  /** 첫 기록 날짜 — 활동 «미근무» 가 그 날부터 센다. 처음 열 때 한 번 읽는다 */
+  firstDate: string | null;
   // ── 습관 (v3 hb* · PRD §2-1-3)
   habits: Habit[];
   /** 그 날이 쉬는 날(연차 · 병가)인가 — 받아 둔 기간 밖은 근무일로 본다 */
@@ -157,6 +159,8 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
   const toastTimer = useRef<number | undefined>(undefined);
 
   useEffect(() => repo.watchSync(setSync), [repo]);
+  const [firstDate, setFirstDate] = useState<string | null>(null);
+  useEffect(() => { repo.firstDate().then(setFirstDate, () => setFirstDate(null)); }, [repo]);
 
   // 받아 두는 기간 = 표에 보이는 5주 + 캘린더에 보이는 달 (노션 방식 — 보이는 것만)
   const from = useMemo(() => {
@@ -529,7 +533,7 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
     onOn, onOff, onRest, onLeave, dayOf, editDay, pendingDays, resolvePending, canCarry: canCarryFor,
     blocks, addBlock, patchBlocks, editBlocks, undoBlocks, lastEditAt, toggleBlock, removeBlock, newId,
     ddays, saveDDay, pinDDay, archiveDDay, deleteDDay,
-    habits, offDay, saveHabit, archiveHabit, deleteHabit, toggleHabit,
+    firstDate, habits, offDay, saveHabit, archiveHabit, deleteHabit, toggleHabit,
     logs, saveSpan, deleteSpan, fixConflicts, cats, setCats,
     mates, ranking, mateStatus,
     nick, initial: nick.slice(0, 1).toUpperCase(),

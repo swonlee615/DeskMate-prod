@@ -6,9 +6,10 @@
  * ▣ 할 일 달성률은 기간 전체의 체크 줄을 한 번씩 (보여주기 이월이라 같은 줄이 날마다 생기지 않는다 · v3.1.216)
  */
 import type { Day, Leave } from './attendance/types';
-import { dayGoalMin, dayParts, dayStartMs } from './attendance/rules';
+import { dayGoalMin, dayParts, dayStartMs, LEAVE_SHARE } from './attendance/rules';
 import { timeline, type Log } from './attendance/logs';
 import type { Block } from './todos/tree';
+import { catKey, catName, catsOf, type Cat } from './attendance/cats';
 import { hbApplies, hbDoneAt, hbRatio, hbWeekCount, type Habit, type OffDay } from './habits';
 import { buildTeam, leaderboard, ROSTER } from './sim/team';
 import { addDays, dateOf, keyOf, weekStart } from '../ui/v3fmt';
@@ -91,11 +92,9 @@ export interface Summary {
   todo: number; done: number;
   /** 요일별 평균 근무 — 월~일, 일한 날만으로 */
   dow: { dow: number; avg: number; n: number }[];
-  leaves: Partial<Record<Exclude<Leave, ''>, number>>;
-  cats: { color: string; min: number; count: number }[];
 }
 
-export function summarize(rows: DayRow[], blocks: Block[], logs: Log[], p: Period): Summary {
+export function summarize(rows: DayRow[], blocks: Block[], p: Period): Summary {
   const w = rows.filter((r) => r.has);
   const total = w.reduce((a, r) => a + r.work, 0);
   const rest = w.reduce((a, r) => a + r.rest, 0);
@@ -103,16 +102,6 @@ export function summarize(rows: DayRow[], blocks: Block[], logs: Log[], p: Perio
   const avgOf = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
   const checks = blocks.filter((b) => !b.deletedAt && b.area === 'today' && b.parent == null && b.type === 'check'
     && b.text.trim() && b.date >= p.from && b.date <= p.end);
-  const leaves: Summary['leaves'] = {};
-  for (const r of rows) if (r.leave) leaves[r.leave] = (leaves[r.leave] ?? 0) + 1;
-  const cm = new Map<string, { color: string; min: number; count: number }>();
-  for (const l of logs) {
-    if (l.deletedAt || l.kind !== 'slot' || l.date < p.from || l.date > p.to) continue;
-    const k = (l.color ?? '').toLowerCase();
-    const c = cm.get(k) ?? { color: k, min: 0, count: 0 };
-    c.min += l.e - l.s; c.count++;
-    cm.set(k, c);
-  }
   return {
     days: w.length, total, avg: w.length ? total / w.length : 0, rest,
     restPct: total + rest ? Math.round((rest / (total + rest)) * 100) : 0,
@@ -122,22 +111,21 @@ export function summarize(rows: DayRow[], blocks: Block[], logs: Log[], p: Perio
     avgOff: avgOf(w.filter((r) => r.off != null).map((r) => r.off as number)),
     todo: checks.length, done: checks.filter((b) => b.done).length,
     dow: [1, 2, 3, 4, 5, 6, 0].map((dow) => { const xs = w.filter((r) => r.dow === dow); return { dow, n: xs.length, avg: avgOf(xs.map((r) => r.work)) ?? 0 }; }),
-    leaves,
-    cats: [...cm.values()].sort((a, b) => b.min - a.min),
   };
 }
 
 /**
- * 연간 근무 히트맵 (v3 yearHeatHtml) — 월요일로 시작하는 주 × 7. 진하기 4단계는 그 해 기록의 분위수(25/50/75%).
- * 첫 기록 전 · 오늘 뒤 · 다른 해는 칠하지 않는다 (null). 0 = 그 날 일 안 함. 최장 하루 한 칸에 링
+ * 연간 근무 히트맵 (v3 yearHeatHtml) — 월요일로 시작하는 주 × 7. 진하기 4단계는 그 해 기록의 분위수(25/50/75%) · hit = 그 날 목표를 채움.
+ * 첫 기록 전 · 오늘 뒤 · 다른 해는 칠하지 않는다 (null). 0 = 그 날 일 안 함. 일 안 한 근태 날은 lv 'leave' (잔디가 아니라 테두리 · v3.1.221).
+ * 최장 하루 한 칸에 링
  */
-export interface HeatCell { key: string; lv: number | null; work: number; leave: Leave; top: boolean; weekend: boolean }
-export function yearHeat(year: number, rows: DayRow[], today: string): { weeks: HeatCell[][]; th: number[] } {
+export interface HeatCell { key: string; lv: number | 'leave' | null; work: number; goal: number; leave: Leave; hit: boolean; top: boolean; weekend: boolean }
+export function yearHeat(year: number, rows: DayRow[], today: string): { weeks: HeatCell[][]; th: number[]; max: number; total: number; days: number } {
   const by = new Map(rows.map((r) => [r.key, r]));
   const vals = rows.filter((r) => r.has).map((r) => r.work).sort((a, b) => a - b);
   const q = (t: number) => { if (!vals.length) return 0; const x = (vals.length - 1) * t, lo = Math.floor(x), hi = Math.ceil(x); return vals[lo] + (vals[hi] - vals[lo]) * (x - lo); };
   const th = [q(0.25), q(0.5), q(0.75)];
-  const maxV = vals[vals.length - 1];
+  const maxV = vals[vals.length - 1] ?? 0;
   const topKey = rows.find((r) => r.has && r.work === maxV)?.key;
   const first = rows.find((r) => r.has)?.key ?? null;
   const mon = (d: Date) => (d.getDay() + 6) % 7;
@@ -148,10 +136,94 @@ export function yearHeat(year: number, rows: DayRow[], today: string): { weeks: 
     if (mon(d) === 0) weeks.push([]);
     const key = keyOf(d), r = by.get(key);
     const out = d.getFullYear() !== year || key > today || !first || key < first;
-    const lv = out ? null : !r?.has ? 0 : r.work <= th[0] ? 1 : r.work <= th[1] ? 2 : r.work <= th[2] ? 3 : 4;
-    weeks[weeks.length - 1].push({ key, lv, work: r?.work ?? 0, leave: r?.leave ?? '', top: key === topKey, weekend: d.getDay() === 0 || d.getDay() === 6 });
+    const v = r?.work ?? 0;
+    const lv = out ? null : r?.leave && !r.has ? 'leave' : !r?.has ? 0 : v < th[0] ? 1 : v < th[1] ? 2 : v < th[2] ? 3 : 4;
+    weeks[weeks.length - 1].push({
+      key, lv, work: v, goal: r?.goal ?? 0, leave: r?.leave ?? '', hit: !!r?.has && v >= r.goal,
+      top: key === topKey, weekend: d.getDay() === 0 || d.getDay() === 6,
+    });
   }
-  return { weeks, th };
+  return { weeks, th, max: maxV, total: vals.reduce((a, b) => a + b, 0), days: vals.length };
+}
+
+// ─────────────────────────────────────────────────────────── 근태 카드 (v3.1.222 · 3.1.242)
+
+/**
+ * 칩 «근무» = 일했고 근태가 안 찍힌 날 · 근태 칩은 종류별 날 수 (서로 안 겹친다)
+ * worked = 근태와 상관없이 일한 날 · leaveDays = 반차는 0.5일
+ * miss = 첫 기록(first) 이후 어제까지 근무도 근태도 없는 날 — 평일 · 주말 따로 (공휴일은 아직 평일로 센다)
+ */
+export function leaveSummary(rows: DayRow[], first: string | null, today: string) {
+  const chips: Record<string, number> = { '': rows.filter((r) => r.has && !r.leave).length };
+  for (const r of rows) if (r.leave) chips[r.leave] = (chips[r.leave] ?? 0) + 1;
+  const miss = { wd: 0, we: 0 };
+  for (const r of rows) {
+    if (!first || r.key < first || r.key >= today || r.has || r.leave) continue;
+    if (r.dow === 0 || r.dow === 6) miss.we++; else miss.wd++;
+  }
+  return {
+    chips, miss,
+    worked: rows.filter((r) => r.has).length,
+    leaveDays: rows.reduce((a, r) => a + (LEAVE_SHARE[r.leave] ?? 0), 0),
+  };
+}
+
+// ─────────────────────────────────────────────────────────── 주간 — 목표까지 (v3.1.71 · 146 · 155 · 209 · 220)
+
+/**
+ * 주 목표 = 그 주 평일 목표의 합 (연차 날 0 · 반차 절반). pct 는 100 에서 자르지 않는다 (v3.1.220).
+ * 하루 몫 per = (남은 시간 + 오늘 한 것) ÷ 남은 평일 몫의 합 (반차 = 0.5) — «그 날의 총 근무» (v3.1.146)
+ * rest7 · per7 = 주말까지 일한다면 (v3.1.155 — 본문은 주 5일, 묻는 자리만)
+ */
+export function weekGoal(days: Record<string, Day>, rows: DayRow[], p: Period, today: string, goalHours: number) {
+  const ks = Array.from({ length: 7 }, (_, i) => keyOf(addDays(dateOf(p.from), i)));
+  const lv = (k: string) => days[k]?.leave ?? '';
+  const unit = (k: string) => 1 - (LEAVE_SHARE[lv(k)] ?? 0);
+  const goal = ks.slice(0, 5).reduce((a, k) => a + dayGoalMin(goalHours, { leave: lv(k) }), 0);
+  const restBiz = ks.slice(0, 5).filter((k) => k >= today && unit(k) > 0);
+  const units = restBiz.reduce((a, k) => a + unit(k), 0);
+  const total = rows.reduce((a, r) => a + (r.has ? r.work : 0), 0);
+  const gap = goal - total;
+  const todayWork = unit(today) > 0 ? rows.find((r) => r.key === today)?.work ?? 0 : 0;
+  const rest7 = ks.filter((k) => k >= today && unit(k) > 0);
+  const units7 = rest7.reduce((a, k) => a + unit(k), 0);
+  return {
+    goal, gap, pct: goal ? Math.round((total / goal) * 100) : 0,
+    left: restBiz.length, halfN: restBiz.filter((k) => unit(k) < 1).length,
+    per: (gap + todayWork) / Math.max(0.5, units),
+    rest7: rest7.length, per7: units7 ? (gap + todayWork) / units7 : 0,
+  };
+}
+
+// ─────────────────────────────────────────────────────────── 카테고리별 (v3 catSplit · v3.1.249)
+
+/**
+ * 근무 = 시간 기록(색별) + 미분류(그 날 근무시간 − 시간 기록 합) · 휴게 = 근태 휴게(색 없음 → 미분류) + 근무 밖 휴게(색별).
+ * 일한 날만. 순서: 이름 붙은 색 → 이름 없는 색 → 팔레트에 없는 색 → 미분류, 같은 무리는 많은 순
+ */
+export interface CatRow { color: string; name: string; known: boolean; none: boolean; work: number; rest: number }
+export function catSplit(rows: DayRow[], logs: Log[], cats: Cat[]): CatRow[] {
+  const known = new Set(catsOf(cats).map((c) => c.color));
+  const map = new Map<string, CatRow>();
+  const get = (c: string | null) => {
+    const k = catKey(c);
+    if (!map.has(k)) map.set(k, { color: k, name: k ? catName(cats, k) : '', known: !!k && known.has(k), none: !k, work: 0, rest: 0 });
+    return map.get(k)!;
+  };
+  const worked = new Map(rows.filter((r) => r.has).map((r) => [r.key, r]));
+  const slotMin = new Map<string, number>();
+  for (const l of logs) {
+    if (l.deletedAt || !worked.has(l.date)) continue;
+    if (l.kind === 'slot') { get(l.color).work += l.e - l.s; slotMin.set(l.date, (slotMin.get(l.date) ?? 0) + l.e - l.s); }
+    else get(l.color).rest += l.e - l.s;
+  }
+  for (const r of worked.values()) {
+    const rest0 = r.work - (slotMin.get(r.key) ?? 0);
+    if (rest0 > 0.5) get('').work += rest0;
+    for (const b of r.brks) get('').rest += b.e - b.s;
+  }
+  const rank = (c: CatRow) => (c.none ? 3 : !c.known ? 2 : !c.name ? 1 : 0);
+  return [...map.values()].filter((c) => c.work + c.rest > 0.5).sort((a, b) => rank(a) - rank(b) || b.work + b.rest - (a.work + a.rest));
 }
 
 // ─────────────────────────────────────────────────────────── 월간 — 주간 히스토리 · 요일 리듬
@@ -274,8 +346,8 @@ export function hbTable(all: Habit[], p: Period, today: string, offDay: OffDay):
     const wks: string[] = [];
     for (let w = weekStart(dateOf(p.from)); keyOf(w) <= p.end; w = addDays(w, 7)) wks.push(keyOf(w));
     return {
-      note: '한 칸 = 한 주 · 숫자 = 한 날 / 해당일 (주 N회는 횟수 / N)', rateLabel: p.live ? '이번 달' : '그 달',
-      heads: wks.map((ws, i) => ({ t: `${i + 1}주`, s: `${md(ws)}–${md(plus(ws, 6))}`, now: ws <= today && today <= plus(ws, 6), fut: ws > today })),
+      note: '한 칸 = 한 주 · 칸 안 숫자 = 한 날 / 해당일 (주 N회는 횟수 / N)', rateLabel: p.live ? '이번 달' : '그 달',
+      heads: wks.map((ws, i) => ({ t: `${i + 1}주`, s: `${md(ws)} – ${md(plus(ws, 6))}`, now: ws <= today && today <= plus(ws, 6), fut: ws > today })),
       rows: list.map((h) => ({
         h,
         cells: wks.map((ws): HbCell => {
@@ -300,8 +372,8 @@ export function hbTable(all: Habit[], p: Period, today: string, offDay: OffDay):
   const y = dateOf(p.from).getFullYear();
   const ms = Array.from({ length: 12 }, (_, m) => ({ a: keyOf(new Date(y, m, 1)), b: keyOf(new Date(y, m + 1, 0)) }));
   return {
-    note: '한 칸 = 한 달 · 숫자 = 달성률(%)', rateLabel: p.live ? '올해' : '그 해',
-    heads: ms.map((x, m) => ({ t: String(m + 1), s: '', now: x.a <= today && today <= x.b, fut: x.a > today })),
+    note: '칸 안 숫자 = 그 달 달성률(%)', rateLabel: p.live ? '올해' : '그 해',
+    heads: ms.map((x, m) => ({ t: `${m + 1}월`, s: '', now: x.a <= today && today <= x.b, fut: x.a > today })),
     rows: list.map((h) => ({
       h,
       cells: ms.map((x): HbCell => {

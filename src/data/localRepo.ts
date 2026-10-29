@@ -90,6 +90,10 @@ export function createLocalRepo(): Repo {
       return () => { watchers.delete(w); };
     },
 
+    async firstDate() {
+      return all.filter((e) => !e.deletedAt).map((e) => e.date).sort()[0] ?? null;
+    },
+
     addEvent(e) {
       all = [...all.filter((x) => x.id !== e.id), e];
       save(all);

@@ -13,6 +13,8 @@ import { GOAL_HOURS } from '../app/useWorkspace';
 import { AccountDialog } from '../ui/AccountDialog';
 import { SyncBadge } from '../ui/SyncBadge';
 import { Worklog } from './Worklog';
+import { PcActivity } from './Activity';
+import { bindTips } from './tips';
 import { TodayPanelBody } from './TodayPanel';
 import { TimerCard } from './TimerCard';
 import { DayPage } from './DayPage';
@@ -68,6 +70,10 @@ export function PcWorkspace({ ws }: { ws: Workspace }) {
     window.addEventListener('keydown', on);
     return () => window.removeEventListener('keydown', on);
   }, [undoRef]);
+  useEffect(bindTips, []);
+  // 레일 — 홈(근태) · 활동. 화면을 바꾸면 열어 둔 일간 상세는 닫는다
+  const [view, setView] = useState<'worklog' | 'dash'>('worklog');
+  const go = (v: typeof view) => { setView(v); setDayKey(null); setDayFull(false); setDrawer(false); };
   const [drawer, setDrawer] = useState(false);
   const [acctOpen, setAcctOpen] = useState(false);
   const [setOpen, setSetOpen] = useState(false);
@@ -92,15 +98,15 @@ export function PcWorkspace({ ws }: { ws: Workspace }) {
       <div className={cls} id="app" data-layout={mode}>
         <aside className="rail">
           <div className="ws-badge" id="wsBadge">D</div>
-          <button className="rail-btn on" data-view="worklog">
+          <button className={`rail-btn${view === 'worklog' ? ' on' : ''}`} data-view="worklog" onClick={() => go('worklog')}>
             <span className="ri"><svg viewBox="0 0 20 20"><path d="M3.2 8.6 10 3.2l6.8 5.4V16a1.2 1.2 0 0 1-1.2 1.2h-3.3v-4.8H7.7v4.8H4.4A1.2 1.2 0 0 1 3.2 16V8.6Z" /></svg></span>
             <small>홈</small>
           </button>
-          {/* 아직 안 옮긴 메뉴 — v3 와 같은 자리에 «오픈 전» 으로 (2026-10-28 소유자). 홈(대화)은 옮기지 않는다 */}
-          <button className="rail-btn soon" data-view="dash" aria-disabled="true" title="활동 — 준비 중이에요" onClick={() => ws.say('활동은 준비 중이에요')}>
+          <button className={`rail-btn${view === 'dash' ? ' on' : ''}`} data-view="dash" onClick={() => go('dash')}>
             <span className="ri"><svg viewBox="0 0 20 20"><path d="M4 16.2V9.4M10 16.2V3.8M16 16.2v-4.6" /></svg></span>
             <small>활동</small>
           </button>
+          {/* 아직 안 옮긴 메뉴 — v3 와 같은 자리에 «오픈 전» 으로 (2026-10-28 소유자). 홈(대화)은 옮기지 않는다 */}
           <button className="rail-btn soon" data-view="later" aria-disabled="true" title="저장됨 — 준비 중이에요" onClick={() => ws.say('저장됨은 준비 중이에요')}>
             <span className="ri"><svg viewBox="0 0 20 20"><path d="M5.6 3.6h8.8v13.1L10 13.2l-4.4 3.5V3.6Z" /></svg></span>
             <small>저장됨</small>
@@ -142,14 +148,14 @@ export function PcWorkspace({ ws }: { ws: Workspace }) {
               style={{ display: sbOff && mode !== '1' ? '' : 'none' }} onClick={() => setSbOff(false)}>{SB_ICON}</button>
             {/* 앞/뒤 — v3 와 같은 자리. 화면이 근태 하나뿐인 동안은 갈 곳이 없어 꺼 둔다 */}
             <button className="icon-btn" id="btnBack" style={{ display: dayKey && !asLayer ? '' : 'none' }} onClick={closeDay}>
-              <svg className="chev" viewBox="0 0 20 20" aria-hidden="true"><path d="M12.5 5 7.5 10 12.5 15" /></svg><span>ONnOFF</span></button>
+              <svg className="chev" viewBox="0 0 20 20" aria-hidden="true"><path d="M12.5 5 7.5 10 12.5 15" /></svg><span>{view === 'dash' ? '활동' : 'ONnOFF'}</span></button>
             <div className="nav-ab" id="navAb">
               <button className="icon-btn" id="navBack" title="뒤로 (⌥←)" disabled>
                 <svg viewBox="0 0 20 20"><path d="M12 4.5 6.5 10 12 15.5" /></svg></button>
               <button className="icon-btn" id="navFwd" title="앞으로 (⌥→)" disabled>
                 <svg viewBox="0 0 20 20"><path d="M8 4.5 13.5 10 8 15.5" /></svg></button>
             </div>
-            <div className="ch-title"><span id="chTitle">ONnOFF</span></div>
+            <div className="ch-title"><span id="chTitle">{view === 'dash' ? '활동' : 'ONnOFF'}</span></div>
             <div className="hspace" />
             <SyncBadge s={sync} />
             <button className="mini-pill" id="miniTimer" title="집중 타이머 열기" onClick={() => setPanelOpen((v) => !v)}>
@@ -160,12 +166,13 @@ export function PcWorkspace({ ws }: { ws: Workspace }) {
 
           <Worklog days={days} today={today} now={now} goalHours={GOAL_HOURS}
             calMonth={ws.calMonth} setCalMonth={ws.setCalMonth} onLeave={ws.onLeave} unavailable={ws.unavailable}
-            onOpenDay={openDay} hidden={!!dayKey && !asLayer}
+            onOpenDay={openDay} hidden={view !== 'worklog' || (!!dayKey && !asLayer)}
             week={<WeekPlanner ws={ws} onOpenDay={(k) => openDay(k)} dday={ddBox} />}
             dday={ddBox}
             noteDates={new Set(ws.blocks.filter((b) => !b.deletedAt && b.text.trim() && (b.area === 'today' || b.area === 'memo')).map((b) => b.date))}
             todo={rangeRate(ws.blocks, keyOf(weekStart(dateOf(today))), keyOf(addDays(weekStart(dateOf(today)), 6)))}
             banner={pend.length > 0 && <PendBanner ws={ws} date={pend[0]} more={pend.length - 1} onEdit={() => openDay(pend[0], true)} />} />
+          {view === 'dash' && <PcActivity ws={ws} hidden={!!dayKey && !asLayer} onOpenDay={(k) => openDay(k)} />}
           <div className="peek-scrim" id="peekScrim" onClick={closeDay} />
           {dayKey && (
             <DayPage ws={ws} date={dayKey} full={!asLayer} focusOff={focusOff}

@@ -10,7 +10,7 @@
  * 경로: users/{uid}/events/{eventId}   — 이벤트 한 건 = 문서 하나 → 기기끼리 충돌이 없다
  *       users/{uid}/items/{id}        — D-Day · 습관 정의 하나 = 문서 하나
  */
-import { collection, deleteField, doc, setDoc, updateDoc, query, where, onSnapshot, writeBatch, type Firestore } from 'firebase/firestore';
+import { collection, deleteField, doc, setDoc, updateDoc, query, where, onSnapshot, writeBatch, orderBy, limit, getDocs, type Firestore } from 'firebase/firestore';
 import type { Repo, SyncStatus } from './repo';
 
 export function createFirestoreRepo(db: Firestore, uid: string): Repo {
@@ -66,6 +66,12 @@ export function createFirestoreRepo(db: Firestore, uid: string): Repo {
         });
       });
       return () => { off(); snapPend.delete(key); emitSync(); };
+    },
+
+    async firstDate() {
+      // ponytail: 앞 50건 안에 지우지 않은 것이 없으면 null — 첫날 기록을 50번 넘게 지운 경우만 틀린다
+      const snap = await getDocs(query(col, orderBy('date'), limit(50)));
+      return snap.docs.map((d) => d.data() as { date: string; deletedAt?: number | null }).find((e) => !e.deletedAt)?.date ?? null;
     },
 
     addEvent(e) { track(setDoc(doc(col, e.id), e)); },

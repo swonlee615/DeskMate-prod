@@ -1,7 +1,7 @@
 {
   "name": "deskmate-web",
   "private": true,
-  "version": "0.1.0",
+  "version": "3.1.266",
   "type": "module",
   "description": "DeskMate 웹 우선 버전 — PC 앱 · 브라우저 · iOS/Android PWA 가 같은 코드를 쓴다",
   "scripts": {
@@ -9,7 +9,8 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview --host",
     "test": "vitest run",
-    "typecheck": "tsc -b --noEmit"
+    "typecheck": "tsc -b --noEmit",
+    "v3": "node scripts/v3-status.mjs"
   },
   "dependencies": {
     "firebase": "^12.19.0",

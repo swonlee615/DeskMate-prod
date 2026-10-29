@@ -35,6 +35,8 @@ export interface Repo {
    * 노션 방식 그대로 «화면에 보이는 기간» 만 받아 기기에 남긴다
    */
   watchRange(from: string, to: string, cb: (d: DayEvents) => void): () => void;
+  /** 첫 기록 날짜 (지우지 않은 이벤트 중 가장 이른 날) — 활동 «미근무» 가 그 날부터 센다 (v3.1.242). 없으면 null */
+  firstDate(): Promise<string | null>;
   /** 이벤트 한 건 쌓기. 오프라인이어도 바로 돌아온다 (서버 반영은 나중에) */
   addEvent(e: AttEvent): void;
   /** 지우기 = 표시만 (deletedAt). 다른 기기에도 «지웠다» 가 전해져야 하므로 */

@@ -692,10 +692,15 @@ button.m-cat.on { color: var(--text-strong); font-weight: 700; box-shadow: inset
 .lvx { visibility: hidden; }
 .lv0 { background: var(--tint-2, rgba(255,255,255,.05)); }
 .lv0.we { opacity: .5; }
-.lv1 { background: color-mix(in srgb, var(--green) 25%, transparent); }
-.lv2 { background: color-mix(in srgb, var(--green) 45%, transparent); }
-.lv3 { background: color-mix(in srgb, var(--green) 70%, transparent); }
-.lv4 { background: var(--green); }
+.lv1 { background: color-mix(in srgb, var(--blue) 25%, transparent); }
+.lv2 { background: color-mix(in srgb, var(--blue) 45%, transparent); }
+.lv3 { background: color-mix(in srgb, var(--blue) 70%, transparent); }
+.lv4 { background: var(--blue); }
+/* 목표를 채운 날은 초록 (v3.1.194) — 진하기는 그대로 */
+.lv1.hit { background: color-mix(in srgb, var(--green) 25%, transparent); }
+.lv2.hit { background: color-mix(in srgb, var(--green) 45%, transparent); }
+.lv3.hit { background: color-mix(in srgb, var(--green) 70%, transparent); }
+.lv4.hit { background: var(--green); }
 .m-an-wk button.leave, .m-an-lg i.leave { box-shadow: inset 0 0 0 1.5px var(--yellow); }
 .m-an-wk button.top { box-shadow: 0 0 0 1.5px var(--text-strong); }
 .m-an-lg { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-dim); }
@@ -784,9 +789,11 @@ button.m-cat.on { color: var(--text-strong); font-weight: 700; box-shadow: inset
 .m-rk .dot.live { fill: var(--surface); stroke: var(--blue); stroke-width: 1.5; }
 .m-rk .hit { fill: transparent; cursor: pointer; }
 .lvz { background: color-mix(in srgb, var(--text-dim) 35%, transparent); }
-.m-rk-y .lv1 { background: color-mix(in srgb, var(--blue) 25%, transparent); }
-.m-rk-y .lv2 { background: color-mix(in srgb, var(--blue) 45%, transparent); }
-.m-rk-y .lv3 { background: color-mix(in srgb, var(--blue) 70%, transparent); }
-.m-rk-y .lv4 { background: var(--blue); }
-.m-rk-y .lv4.hit { background: var(--green); }
+
 .m-rk-sum { grid-template-columns: repeat(3, 1fr); }
+.m-lv { display: flex; flex-wrap: wrap; gap: 6px; }
+.m-lv-c { display: inline-flex; align-items: baseline; gap: 4px; padding: 4px 10px; border-radius: 12px; font-size: 12px; color: var(--text-muted); background: color-mix(in srgb, var(--lv) 14%, transparent); }
+.m-lv-c b { font-size: 14px; color: var(--lv); font-variant-numeric: tabular-nums; }
+.m-lv-wd { font-style: normal; font-weight: 700; color: var(--red); }
+.m-an-cats u.m-act-u { display: flex; gap: 1px; background: none; grid-column: 2 / -1; }
+.m-an-cats u.m-act-u s { height: 100%; }

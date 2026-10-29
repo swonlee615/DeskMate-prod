@@ -9,12 +9,12 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { Workspace } from '../app/useWorkspace';
 import { GOAL_HOURS } from '../app/useWorkspace';
-import { catName } from '../domain/attendance/cats';
 import { catVar } from '../domain/attendance/logs';
 import { hbFreqLabel } from '../domain/habits';
+import { LEAVES } from '../ui/v3fmt';
 import {
-  dowRhythm, hbTable, labelSplit, period, rankSeries, rankStat, restGrade, series, summarize, weekHistory, yearHeat,
-  type DayRow, type HbTable, type LabelRow, type MIv, type PeriodKind, type RankPt, type WeekRow,
+  catSplit, dowRhythm, hbTable, labelSplit, leaveSummary, weekGoal, period, rankSeries, rankStat, restGrade, series, summarize, weekHistory, yearHeat,
+  type CatRow, type DayRow, type HbTable, type LabelRow, type MIv, type PeriodKind, type RankPt, type WeekRow,
 } from '../domain/stats';
 import { ROSTER } from '../domain/sim/team';
 import { addDays, dateOf, fmtDur, keyOf, weekStart } from '../ui/v3fmt';
@@ -34,7 +34,7 @@ export function MActivity({ ws, onDay }: { ws: Workspace; onDay: (k: string) => 
 
   const goal = GOAL_HOURS * 60;
   const rows = useMemo(() => series(ws.days, p.from, p.to, ws.now, GOAL_HOURS), [ws.days, p.from, p.to, ws.now]);
-  const sm = useMemo(() => summarize(rows, ws.blocks, ws.logs, p), [rows, ws.blocks, ws.logs, p.from, p.to, p.end]); // eslint-disable-line react-hooks/exhaustive-deps
+  const sm = useMemo(() => summarize(rows, ws.blocks, p), [rows, ws.blocks, p.from, p.to, p.end]); // eslint-disable-line react-hooks/exhaustive-deps
   const rg = restGrade(sm.restPct, sm.total + sm.rest);
   const openIf = (k: string) => { if (rows.find((r) => r.key === k)?.has) onDay(k); };
   const weeks = useMemo(() => (kind === 'month' ? weekHistory(ws.days, p, ws.now, GOAL_HOURS) : []), [kind, ws.days, p.from, p.to, ws.now]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -110,35 +110,17 @@ export function MActivity({ ws, onDay }: { ws: Workspace; onDay: (k: string) => 
           </section>
         )}
 
+        {kind === 'week' && <GoalCard g={weekGoal(ws.days, rows, p, ws.today, GOAL_HOURS)} />}
+
         <section className="m-card m-an-c">
           <h4>할 일 달성률</h4>
           <div className="m-an-pct"><b>{sm.todo ? Math.round((sm.done / sm.todo) * 100) : 0}<small>%</small></b><span>{sm.done} / {sm.todo}개</span></div>
           <div className="m-an-track"><i style={{ width: `${sm.todo ? (sm.done / sm.todo) * 100 : 0}%` }} /></div>
         </section>
 
-        {Object.keys(sm.leaves).length > 0 && (
-          <section className="m-card m-an-c">
-            <h4>근태</h4>
-            <div className="m-an-kv">{Object.entries(sm.leaves).map(([k, n]) => <div key={k}><span>{k}</span><b>{n}일</b></div>)}</div>
-          </section>
-        )}
+        <LeaveCard s={leaveSummary(rows, ws.firstDate, ws.today)} />
 
-        {sm.cats.length > 0 && (
-          <section className="m-card m-an-c">
-            <h4>카테고리별 <em>— 시간 기록</em></h4>
-            <ul className="m-an-cats">
-              {sm.cats.map((c) => (
-                <li key={c.color}>
-                  <i style={{ background: c.color ? catVar(c.color) : 'var(--text-dim)' }} />
-                  <span>{catName(ws.cats, c.color) || '이름 없음'}</span>
-                  <em>{c.count}건</em><b>{fmtDur(c.min)}</b>
-                  <u><s style={{ width: `${(c.min / sm.cats[0].min) * 100}%`, background: c.color ? catVar(c.color) : undefined }} /></u>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
-
+        <CatCard list={catSplit(rows, ws.logs, ws.cats)} />
         {labels.length > 0 && <Labels list={labels} />}
       </>}
       {/* 습관은 출근과 따로 쌓인다 — 출근 기록이 없는 기간에도 보여 준다 (v3.1.236) */}
@@ -180,7 +162,7 @@ function Heat({ year, rows, today, onDay }: { year: number; rows: ReturnType<typ
   useLayoutEffect(() => { const el = box.current; if (el) el.scrollLeft = el.scrollWidth; }, [year]);
   return (
     <section className="m-card m-an-c">
-      <h4>근무 히트맵 <em>— 진하기 = 그 해 기록 대비 근무 시간</em></h4>
+      <h4>근무 히트맵 <em>— 진할수록 오래 · 초록은 목표를 채운 날</em></h4>
       <div className="m-an-heat" ref={box}>
         {weeks.map((w, i) => {
           const m = dateOf(w[0].key);
@@ -190,15 +172,15 @@ function Heat({ year, rows, today, onDay }: { year: number; rows: ReturnType<typ
             <div key={i} className="m-an-wk" data-m={m.getMonth()}>
               <em>{label}</em>
               {w.map((c) => (
-                <button key={c.key} className={`lv${c.lv ?? 'x'}${c.top ? ' top' : ''}${c.leave ? ' leave' : ''}${c.weekend ? ' we' : ''}`}
+                <button key={c.key} className={`lv${c.lv === 'leave' ? '0 leave' : c.lv ?? 'x'}${c.hit ? ' hit' : ''}${c.top ? ' top' : ''}${c.leave && c.lv !== 'leave' ? ' leave' : ''}${c.weekend ? ' we' : ''}`}
                   disabled={!c.lv} onClick={() => onDay(c.key)}
-                  aria-label={`${c.key} ${c.lv == null ? '' : c.lv ? fmtDur(c.work) : LV_LABEL[0]}${c.leave ? ` · ${c.leave}` : ''}`} />
+                  aria-label={`${c.key} ${c.lv == null ? '' : typeof c.lv === 'number' && c.lv ? fmtDur(c.work) : LV_LABEL[0]}${c.leave ? ` · ${c.leave}` : ''}`} />
               ))}
             </div>
           );
         })}
       </div>
-      <div className="m-an-lg"><span>적게</span>{[1, 2, 3, 4].map((l) => <i key={l} className={`lv${l}`} />)}<span>많이</span><i className="leave" /><span>휴가</span></div>
+      <div className="m-an-lg"><span>적게</span>{[1, 2, 3, 4].map((l) => <i key={l} className={`lv${l}`} />)}<span>많이</span><i className="lv4 hit" /><span>목표 달성</span><i className="leave" /><span>휴가</span></div>
     </section>
   );
 }
@@ -334,7 +316,7 @@ function HabitCard({ t, kind, live }: { t: HbTable; kind: PeriodKind; live: bool
       <h4>습관{t.note && <em> — {t.note}</em>}</h4>
       <div className="m-hb" style={{ '--cols': t.heads.length } as React.CSSProperties}>
         <div className="m-hb-r hd"><span />
-          <div className="m-hb-cs">{t.heads.map((x, i) => <span key={i} className={`${x.now ? 'now' : ''}${x.fut ? ' fut' : ''}`}><b>{x.t}</b>{x.s && kind === 'week' && <i>{x.s}</i>}</span>)}</div>
+          <div className="m-hb-cs">{t.heads.map((x, i) => <span key={i} className={`${x.now ? 'now' : ''}${x.fut ? ' fut' : ''}`}><b>{kind === 'year' ? x.t.replace('월', '') : x.t}</b>{x.s && kind === 'week' && <i>{x.s}</i>}</span>)}</div>
           <span className="m-hb-rt">{t.rateLabel}</span></div>
         {t.rows.map((r) => (
           <div key={r.h.id} className={`m-hb-r${r.h.archivedAt ? ' arch' : ''}`}>
@@ -423,4 +405,68 @@ function HeatScroll({ year, children }: { year: number; children: React.ReactNod
   const box = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => { const el = box.current; if (el) el.scrollLeft = el.scrollWidth; }, [year]);
   return <div className="m-an-heat" ref={box}>{children}</div>;
+}
+
+/** 근태 — 칩(근무 · 연차 · 반차 · 병가)은 근태 «종류», 아래 줄은 «일했나» (v3.1.222 · 3.1.242). 평일 미근무만 강조 */
+function LeaveCard({ s }: { s: ReturnType<typeof leaveSummary> }) {
+  const n = s.miss.wd + s.miss.we;
+  return (
+    <section className="m-card m-an-c">
+      <h4>근태</h4>
+      <div className="m-lv">
+        {LEAVES.filter(([v]) => s.chips[v]).map(([v, label, c]) => (
+          <span key={v} className="m-lv-c" style={{ '--lv': c || '#4a90e2' } as React.CSSProperties}><b>{s.chips[v]}</b>{label}</span>
+        ))}
+      </div>
+      <p className="m-an-sub">근무 <b>{s.worked}일</b>
+        {s.leaveDays > 0 && <> · 휴가 <b>{s.leaveDays % 1 ? s.leaveDays.toFixed(1) : s.leaveDays}일</b></>}
+        {n > 0 && <> · 미근무 <b>{n}일</b> (평일 <em className="m-lv-wd">{s.miss.wd}</em> · 주말 {s.miss.we})</>}</p>
+    </section>
+  );
+}
+
+/** 목표까지 (주간 · v3.1.71) — 주 목표 = 평일 목표 합 · 하루 몫은 오늘 한 것을 더해 남은 날로 (v3.1.146) */
+function GoalCard({ g }: { g: ReturnType<typeof weekGoal> }) {
+  const sub = g.gap <= 0 ? <>주 목표를 <b>{fmtDur(-g.gap)}</b> 넘겼어요</>
+    : g.left > 0 ? <>남은 {g.left}일{g.halfN ? `(반차 ${g.halfN})` : ''} · 하루 <b>{fmtDur(Math.round(g.halfN === g.left ? g.per / 2 : g.per))}</b>{g.left > 1 ? '씩' : ''}
+      {g.rest7 > g.left && <> · 주말까지면 {fmtDur(Math.round(g.per7))}{g.rest7 > 1 ? '씩' : ''}</>}</>
+      : <>주 목표에 <b>{fmtDur(g.gap)}</b> 못 미쳤어요</>;
+  return (
+    <section className="m-card m-an-c">
+      <h4>목표까지 <em>— 주 {fmtDur(g.goal)}</em></h4>
+      <div className="m-an-pct"><b>{g.pct}<small>%</small></b><span>{sub}</span></div>
+      <div className="m-an-track"><i style={{ width: `${Math.min(100, g.pct)}%` }} /></div>
+    </section>
+  );
+}
+
+/** 카테고리별 (v3.1.249) — 근무(시간 기록 · 미분류) + 휴게(빗금) · 탭 [전체 · 시간 기록 · 휴게] · 미분류는 회색 맨 뒤 */
+function CatCard({ list }: { list: CatRow[] }) {
+  const [tab, setTab] = useState<'all' | 'slot' | 'rest'>('all');
+  if (!list.length) return null;
+  const vis = list.map((c) => ({ ...c, w: tab === 'rest' ? 0 : c.work, r: tab === 'slot' ? 0 : c.rest })).filter((c) => c.w + c.r > 0.5);
+  const mx = Math.max(1, ...vis.map((c) => c.w + c.r));
+  return (
+    <section className="m-card m-an-c">
+      <div className="m-lb-h"><h4>카테고리별</h4>
+        <div className="m-seg sm" role="tablist">{([['all', '전체'], ['slot', '시간 기록'], ['rest', '휴게']] as const).map(([v, t]) => (
+          <button key={v} role="tab" aria-selected={tab === v} className={tab === v ? 'on' : ''} onClick={() => setTab(v)}>{t}</button>))}</div>
+      </div>
+      <ul className="m-an-cats">
+        {vis.map((c) => {
+          const col = c.none ? '#9b9b9b' : catVar(c.color);
+          return (
+            <li key={c.color || 'none'}>
+              <i style={{ background: col }} />
+              <span>{c.none ? '미분류' : c.name || (c.known ? '이름 없는 색' : '미지정')}</span>
+              <em>{tab === 'all' && c.w > 0.5 && c.r > 0.5 ? `휴게 ${fmtDur(c.r)}` : tab === 'all' && c.r > 0.5 ? '휴게' : ''}</em><b>{fmtDur(c.w + c.r)}</b>
+              <u className="m-act-u" style={{ width: `${((c.w + c.r) / mx) * 100}%` }}>
+                {c.w > 0 && <s style={{ flex: c.w, background: col }} />}{c.r > 0 && <s className="r" style={{ flex: c.r, background: col }} />}</u>
+            </li>
+          );
+        })}
+        {!vis.length && <li className="m-an-sub">이 기간에는 없어요</li>}
+      </ul>
+    </section>
+  );
 }
