@@ -13,7 +13,8 @@
  * ★ ⠿ 끌어서 옮기기 — 덩어리째, 같은 묶음의 형제 자리로 · ⌘Z — 이 기기의 마지막 동작 (글자 치기는 브라우저 몫)
  * ★ 폰 — 키보드 위 도구 줄(`KbBar`): 할 일 · 글머리 · 내어쓰기 · 들여쓰기 · 키보드 내리기. 동작은 위 키와 같은 함수
  * ★ 서식 · 칩 · 링크 — 저장은 v3 와 같은 글자 안 표시 (`domain/todos/inline`), 그리기 · 읽기는 `ui/inlineDom`. ⌘B · ⌘I · ⌘U · ⌘E · ⌘⇧S
- * 아직 안 옮긴 것: 여러 줄 고르기 · 이미지 · `@날짜` 고르기 · 번호 목록
+ * ★ `@날짜` — 커서 앞 «@말» 로 메뉴(↑↓ · Enter/Tab · Esc), 칩을 누르면 달력(바꾸기 · 지우기 · 그 날로). `Mention.tsx`
+ * 아직 안 옮긴 것: 여러 줄 고르기 · 이미지 · 번호 목록
  */
 import { useLayoutEffect, useRef, useState } from 'react';
 import type { Workspace } from '../app/useWorkspace';
@@ -22,7 +23,8 @@ import {
   moveChunk, outdent, removeEmpty, triOf, type Block, type BlockArea, type Patch, type Row, type Tri,
 } from '../domain/todos/tree';
 import { dateOf, hhmm } from '../ui/v3fmt';
-import { mkJoin, mkLen, mkParse, mkSplit, mkToggle, plainText, type Mk } from '../domain/todos/inline';
+import { dateCandidates, dateChipLabel, dateLabelOf, menToken, mkJoin, mkLen, mkParse, mkSplit, mkToggle, plainText, setChipDate, type DateCand, type Mk } from '../domain/todos/inline';
+import { DatePick, MenMenu, type MenAt } from './Mention';
 import { inlineHtml, inlineMark, inlineSel, readInline } from '../ui/inlineDom';
 import { KbBar } from '../mobile/KbBar';
 
@@ -69,8 +71,10 @@ function mkKey(e: React.KeyboardEvent): Mk | null {
   return k === 'b' ? 'b' : k === 'i' ? 'i' : k === 'u' ? 'u' : k === 'e' ? 'c' : null;
 }
 
-export function NoteEditor({ ws, date, area, title, ph, icon }: {
+export function NoteEditor({ ws, date, area, title, ph, icon, onDay }: {
   ws: Workspace; date: string; area: BlockArea; title: string; ph: string; icon: React.ReactNode;
+  /** 날짜 칩 달력의 «그 날 페이지로 이동» — 없으면 그 줄을 안 보인다 */
+  onDay?: (k: string) => void;
 }) {
   const { blocks, today } = ws;
   const box = useRef<HTMLDivElement>(null);
@@ -171,6 +175,61 @@ export function NoteEditor({ ws, date, area, title, ph, icon }: {
     focusNext.current = { id: b.id, at };
   };
 
+  // ── @날짜 — 커서 앞 «@말» 을 보고 메뉴를 연다 (v3 menContext · maybeOpenMenMenu)
+  const [men, setMen] = useState<{ id: string; items: DateCand[]; idx: number; at: MenAt } | null>(null);
+  const menCtx = () => {
+    const sel = window.getSelection();
+    if (!sel?.rangeCount) return null;
+    const r = sel.getRangeAt(0);
+    if (!r.collapsed || r.startContainer.nodeType !== 3) return null;
+    const m = /@([^\s@\]]{0,24})$/.exec((r.startContainer.nodeValue ?? '').slice(0, r.startOffset));
+    if (!m) return null;
+    const rc = r.getClientRects()[0] ?? r.startContainer.parentElement!.getBoundingClientRect();
+    return { node: r.startContainer as Text, offset: r.startOffset, q: m[1], len: m[0].length, at: { x: rc.left, top: rc.top, bottom: rc.bottom } };
+  };
+  const checkMen = (id: string) => { const c = menCtx(); setMen(c ? { id, items: dateCandidates(c.q, today), idx: 0, at: c.at } : null); };
+  /** 고른 날을 칩으로 — 칩에는 절대 날짜를 박는다 (그릴 때 「내일」 로 읽힌다 · v3.1.152). 줄은 옮기지 않는다 (v3.1.161) */
+  const pickMen = (i: number) => {
+    const it = men?.items[i], c = menCtx(), id = men?.id;
+    setMen(null);
+    const el = id ? box.current?.querySelector<HTMLElement>(`[data-edit="${CSS.escape(id)}"]`) : null;
+    if (!it || !c || !id || !el) return;
+    const at = c.offset - c.len;
+    c.node.nodeValue = (c.node.nodeValue ?? '').slice(0, at) + (c.node.nodeValue ?? '').slice(c.offset);
+    const tmp = document.createElement('span');
+    tmp.innerHTML = inlineHtml(menToken('date', it.ref, dateLabelOf(it.ref)), today);
+    const chip = tmp.firstElementChild!, space = document.createTextNode(' ');
+    const r = document.createRange();
+    r.setStart(c.node, at); r.collapse(true); r.insertNode(space); r.insertNode(chip);
+    const after = document.createRange();
+    after.setStart(space, 1); after.collapse(true);
+    const sl = window.getSelection(); sl?.removeAllRanges(); sl?.addRange(after);
+    flush(id, el);
+  };
+
+  // ── 날짜 칩을 누르면 달력 (v2.9.82) — 바꾸기 · 지우기 · 그 날로
+  const [dpick, setDpick] = useState<{ id: string; token: string; ref: string; at: MenAt } | null>(null);
+  const onChip = (e: React.MouseEvent, id: string) => {
+    const chip = (e.target as HTMLElement).closest<HTMLElement>('.men.date');
+    if (!chip) return;
+    e.preventDefault();
+    const r = chip.getBoundingClientRect();
+    setDpick({ id, token: chip.dataset.token ?? '', ref: chip.dataset.ref ?? '', at: { x: r.left, top: r.top, bottom: r.bottom } });
+  };
+  const pickDate = (key: string | null) => {
+    const p = dpick;
+    setDpick(null);
+    if (!p || key === p.ref) return;
+    const el = box.current?.querySelector<HTMLElement>(`[data-edit="${CSS.escape(p.id)}"]`);
+    const cur = el ? readInline(el) : blocks.find((x) => x.id === p.id)?.text ?? '';
+    const next = setChipDate(cur, p.token, key);
+    if (next == null) return;
+    const t0 = saveTimer.current.get(p.id); if (t0) { window.clearTimeout(t0); saveTimer.current.delete(p.id); }
+    ws.patchBlocks([{ id: p.id, text: next }]);
+    if (el) el.innerHTML = inlineHtml(next, today);
+    ws.say(key ? `날짜를 ${dateChipLabel(key, dateLabelOf(key), today)} 로 바꿨어요` : '날짜를 삭제했어요');
+  };
+
   // ── 폰 — 고치는 줄을 알아 두면 키보드 위 도구 줄이 그 줄에 일한다
   const mobile = document.body.dataset.platform === 'mobile';
   const [cur, setCur] = useState<string | null>(null);
@@ -184,6 +243,13 @@ export function NoteEditor({ ws, date, area, title, ph, icon }: {
     const text = readInline(el);
     const at = caretOf(el) ?? mkLen(text);
     const i = idxOf(b.id);
+
+    if (men?.id === b.id) {
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setMen(null); return; }
+      const n = men.items.length;
+      if (n && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) { e.preventDefault(); setMen({ ...men, idx: (men.idx + (e.key === 'ArrowDown' ? 1 : -1) + n) % n }); return; }
+      if (n && (e.key === 'Enter' || e.key === 'Tab')) { e.preventDefault(); pickMen(men.idx); return; }
+    }
 
     const mk = mkKey(e);
     if (mk) {
@@ -280,6 +346,7 @@ export function NoteEditor({ ws, date, area, title, ph, icon }: {
     }
     lastTyped.current = Date.now();
     scheduleSave(b.id, el);
+    if (!line.carriedFrom) checkMen(b.id);
   };
 
   // ── 끌어서 옮기기
@@ -329,9 +396,12 @@ export function NoteEditor({ ws, date, area, title, ph, icon }: {
           tri={area === 'today' && ln.row.b.type === 'check' ? triOf(blocks, ln.row.b.id) : null}
           dnd={dragProps(ln)}
           dragCls={`${dragSet?.has(ln.row.b.id) ? ' dragging' : ''}${dropLine?.id === ln.row.b.id ? ` ${dropLine.cls}` : ''}`}
-          onKey={onKey} onInput={onInput} onBlur={(id, el) => flush(id, el)}
+          onKey={onKey} onInput={onInput} onBlur={(id, el) => { flush(id, el); setMen(null); }} onChip={onChip}
           onCheck={(b) => ws.toggleBlock(b, date)} onDel={(b) => ws.removeBlock(b)} />
       ))}
+      {men && <MenMenu at={men.at} items={men.items} idx={men.idx} onPick={pickMen} />}
+      {dpick && <DatePick at={dpick.at} sel={dpick.ref} today={today} onPick={pickDate} onClose={() => setDpick(null)}
+        onGo={onDay ? () => { const k = dpick.ref; setDpick(null); onDay(k); } : undefined} />}
       {mobile && curLine && (
         <KbBar area={area} type={curLine.row.b.type} depth={curLine.row.depth} fixed={!!curLine.carriedFrom}
           onShift={(out) => { const el = curEl(); if (el) shiftLine(curLine, el, out); }}
@@ -353,12 +423,13 @@ export function NoteEditor({ ws, date, area, title, ph, icon }: {
   );
 }
 
-function BlockRow({ ln, area, ph, viewDate, today, tri, dnd, dragCls, onKey, onInput, onBlur, onCheck, onDel }: {
+function BlockRow({ ln, area, ph, viewDate, today, tri, dnd, dragCls, onKey, onInput, onBlur, onChip, onCheck, onDel }: {
   ln: Line; area: BlockArea; ph: string; viewDate: string; today: string;
   tri: Tri | null; dnd: React.HTMLAttributes<HTMLDivElement>; dragCls: string;
   onKey: (e: React.KeyboardEvent<HTMLDivElement>, ln: Line) => void;
   onInput: (e: React.FormEvent<HTMLDivElement>, ln: Line) => void;
   onBlur: (id: string, el: HTMLElement) => void;
+  onChip: (e: React.MouseEvent, id: string) => void;
   onCheck: (b: Block) => void;
   onDel: (b: Block) => void;
 }) {
@@ -415,7 +486,7 @@ function BlockRow({ ln, area, ph, viewDate, today, tri, dnd, dragCls, onKey, onI
     <div className="txt" ref={ref} contentEditable suppressContentEditableWarning
       data-ph={isHead(b) ? '제목' : ph} data-edit={b.id} data-area={area}
       onKeyDown={(e) => onKey(e, ln)} onInput={(e) => onInput(e, ln)} onBlur={(e) => onBlur(b.id, e.currentTarget)}
-      onPaste={pastePlain} onClick={openLink} />
+      onPaste={pastePlain} onClick={openLink} onMouseDown={(e) => onChip(e, b.id)} />
   );
   if (isHead(b)) {
     return <div className={`blk head h${HEAD_N[b.type]}${dragCls}`} data-id={b.id} data-area={area} style={style} {...dnd}>{grip}{txt}{del}</div>;

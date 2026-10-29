@@ -178,3 +178,61 @@ export function dateChipLabel(ref: string, label: string, today: string): string
   if (n >= 3 && n <= 6) return `${monday(dt) === monday(t) ? '이번' : '다음 주'} ${DOW[dt.getDay()]}요일`;
   return `${dt.getMonth() + 1}월 ${dt.getDate()}일 (${DOW[dt.getDay()]})`;
 }
+
+// ─────────────────────────────────────────────────────────── @날짜 (v2.9.69 · 81 · v3.1.152 · 227)
+
+const keyOfD = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+/** 칩에 박는 말 — 늘 «절대 날짜». 「오늘」 · 「모레」 로 읽어 주는 일은 그릴 때 (dateChipLabel · v3.1.152) */
+export const dateLabelOf = (key: string) => { const d = at12(key); return `${d.getMonth() + 1}월 ${d.getDate()}일 (${DOW[d.getDay()]})`; };
+const menEscape = (s: string) => s.replace(/([\]\\])/g, '\\$1');
+export const menToken = (kind: 'date' | 'notion', ref: string, label: string) => `@[${menEscape(label)}](${kind}:${ref})`;
+
+export interface DateCand { ref: string; label: string }
+/**
+ * `@` 뒤에 친 말 → 날짜 후보 (최대 4) — 사람이 실제로 치는 모양을 다 받는다
+ * 오늘 · 내일 · 모레 · 어제 · 그저께(앞글자만 쳐도) · 요일(가장 가까운 그 요일) · 2026-11-04 · 20261104 · 11월4일 · 11/4 · 1104 · 114 · 4(일)
+ * label 은 메뉴에 보이는 말 («오늘 · 10월 30일 (금)»). 칩에는 dateLabelOf(ref)
+ */
+export function dateCandidates(q: string, today: string): DateCand[] {
+  const out: DateCand[] = [], seen = new Set<string>();
+  const t = at12(today), y0 = t.getFullYear();
+  const add = (dt: Date | null, word = '') => {
+    if (!dt || Number.isNaN(dt.getTime())) return;
+    const ref = keyOfD(dt);
+    if (seen.has(ref)) return;
+    seen.add(ref);
+    out.push({ ref, label: word ? `${word} · ${dateLabelOf(ref)}` : dateLabelOf(ref) });
+  };
+  const mk = (y: number, mo: number, d: number) => { const dt = new Date(y, mo - 1, d, 12); return dt.getFullYear() === y && dt.getMonth() === mo - 1 && dt.getDate() === d ? dt : null; };
+  const plus = (n: number) => { const d = new Date(t); d.setDate(d.getDate() + n); return d; };
+  for (const [name, off] of [['오늘', 0], ['내일', 1], ['모레', 2], ['어제', -1], ['그저께', -2]] as const) if (!q || name.startsWith(q)) add(plus(off), name);
+  const wm = /^([월화수목금토일])(요일?)?$/.exec(q);
+  if (wm) {
+    const d2 = plus((DOW.indexOf(wm[1]) - t.getDay() + 7) % 7);
+    add(d2, `${monday(d2) === monday(t) ? '이번' : '다음 주'} ${wm[1]}요일`);
+  }
+  let m: RegExpExecArray | null;
+  if ((m = /^(\d{4})[-./](\d{1,2})[-./](\d{1,2})$/.exec(q))) add(mk(+m[1], +m[2], +m[3]));
+  else if ((m = /^(\d{8})$/.exec(q))) add(mk(+m[1].slice(0, 4), +m[1].slice(4, 6), +m[1].slice(6)));
+  else if ((m = /^(\d{1,2})\s*월\s*(\d{1,2})\s*일?$/.exec(q))) add(mk(y0, +m[1], +m[2]));
+  else if ((m = /^(\d{1,2})[-./](\d{1,2})$/.exec(q))) add(mk(y0, +m[1], +m[2]));
+  else if ((m = /^(\d{4})$/.exec(q))) add(mk(y0, +m[1].slice(0, 2), +m[1].slice(2)));
+  else if ((m = /^(\d{3})$/.exec(q))) add(mk(y0, +m[1].slice(0, 1), +m[1].slice(1)));
+  else if ((m = /^(\d{1,2})\s*일?$/.exec(q))) {
+    // 숫자 한둘 = 이번 달 며칠 — 이미 지났으면 다음 달도
+    const d1 = mk(y0, t.getMonth() + 1, +m[1]);
+    const past = !!d1 && keyOfD(d1) < today;
+    if (d1) add(d1, past ? '이번 달' : '');
+    const nx = new Date(y0, t.getMonth() + 1, 1);
+    if (past) add(mk(nx.getFullYear(), nx.getMonth() + 1, +m[1]), '다음 달');
+  }
+  return out.slice(0, 4);
+}
+
+/** 칩 하나를 다른 날로 바꾸거나(key) 지운다(null) — 지우면 겹친 공백을 하나로 (v3 setChipDate) */
+export function setChipDate(text: string, token: string, key: string | null): string | null {
+  if (!token || !text.includes(token)) return null;
+  const next = key ? menToken('date', key, dateLabelOf(key)) : '';
+  const out = text.replace(token, () => next);
+  return key ? out : out.replace(/[ \t]{2,}/g, ' ').replace(/\s+$/, '');
+}

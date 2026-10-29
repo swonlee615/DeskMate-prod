@@ -63,7 +63,7 @@ export function MobileWorkspace({ ws }: { ws: Workspace }) {
             <button role="tab" aria-selected={view === 'all'} className={view === 'all' ? 'on' : ''} onClick={() => setView('all')}>전체</button>
             <button role="tab" aria-selected={view === 'week'} className={view === 'week' ? 'on' : ''} onClick={() => setView('week')}>주간</button>
           </div>
-          {view === 'all' ? <MToday ws={ws} goDay={goDay} /> : <MobileWeek ws={ws} />}
+          {view === 'all' ? <MToday ws={ws} goDay={goDay} /> : <MobileWeek ws={ws} goDay={goDay} />}
         </>}
         {tab === 'dash' && <>
           <MActivity ws={ws} onDay={goDay} />

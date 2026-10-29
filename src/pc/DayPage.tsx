@@ -207,9 +207,9 @@ export function DayPage({ ws, date, full, onClose, onFull, onGo, focusOff, onDD 
           <div className="day-cols">
             <div className="day-left">
               <HabitStrip ws={ws} date={date} />
-              <NoteEditor ws={ws} date={date} area="today" title="Today" ph="할 일을 입력하세요"
+              <NoteEditor ws={ws} date={date} area="today" title="Today" ph="할 일을 입력하세요" onDay={onGo}
                 icon={<svg className="nh-ic" viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="m2.4 10.3 2.1 2.1 3.8-4.5" /><path d="M10.4 8h7.2" /><path d="M10.4 12.6h7.2" /></svg>} />
-              <NoteEditor ws={ws} date={date} area="memo" title="Memo" ph="메모를 입력하세요"
+              <NoteEditor ws={ws} date={date} area="memo" title="Memo" ph="메모를 입력하세요" onDay={onGo}
                 icon={<svg className="nh-ic" viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M2.6 5.6h14.8" /><path d="M2.6 10h14.8" /><path d="M2.6 14.4h9.4" /></svg>} />
             </div>
             <div className="day-right">

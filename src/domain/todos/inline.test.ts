@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dateChipLabel, isStruck, mkJoin, mkLen, mkParse, mkSplit, mkToggle, mkToggleAll, plainText } from './inline';
+import { dateCandidates, dateChipLabel, dateLabelOf, isStruck, menToken, mkJoin, mkLen, mkParse, mkSplit, mkToggle, mkToggleAll, plainText, setChipDate } from './inline';
 
 describe('줄 서식 (v3 mkParse · mkJoin)', () => {
   it('짝이 있고 공백에 붙지 않은 표시만 서식이다', () => {
@@ -53,5 +53,24 @@ describe('보이는 글자 · 날짜 칩 라벨', () => {
     expect(dateChipLabel('2026-11-05', '내일', '2026-10-30')).toBe('다음 주 목요일');
     expect(dateChipLabel('2026-10-29', '10월 29일 (목)', '2026-10-30')).toBe('어제');
     expect(dateChipLabel('2026-10-29', '발표날', '2026-10-30')).toBe('발표날');
+  });
+});
+
+describe('@날짜 (v2.9.69 · v3.1.152)', () => {
+  const T = '2026-10-30';   // 금
+  it('앞글자 · 요일 · 숫자 모양을 다 받는다', () => {
+    expect(dateCandidates('', T).map((x) => x.ref)).toEqual(['2026-10-30', '2026-10-31', '2026-11-01', '2026-10-29']);
+    expect(dateCandidates('내', T)[0]).toEqual({ ref: '2026-10-31', label: '내일 · 10월 31일 (토)' });
+    expect(dateCandidates('수', T)[0].label).toBe('다음 주 수요일 · 11월 4일 (수)');
+    expect(dateCandidates('1104', T)[0].ref).toBe('2026-11-04');
+    expect(dateCandidates('11월4일', T)[0].ref).toBe('2026-11-04');
+    expect(dateCandidates('2', T).map((x) => x.ref)).toEqual(['2026-10-02', '2026-11-02']);   // 지난 날이면 다음 달도
+    expect(dateCandidates('231', T)).toEqual([]);   // 2월 31일은 없다
+  });
+  it('칩에는 늘 절대 날짜 · 바꾸기 · 지우기', () => {
+    const t = `제출 ${menToken('date', '2026-10-31', dateLabelOf('2026-10-31'))} 까지`;
+    expect(t).toBe('제출 @[10월 31일 (토)](date:2026-10-31) 까지');
+    expect(setChipDate(t, '@[10월 31일 (토)](date:2026-10-31)', '2026-11-02')).toBe('제출 @[11월 2일 (월)](date:2026-11-02) 까지');
+    expect(setChipDate(t, '@[10월 31일 (토)](date:2026-10-31)', null)).toBe('제출 까지');
   });
 });

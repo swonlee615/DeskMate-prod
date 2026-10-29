@@ -20,7 +20,7 @@ import { MEMO_IC } from './MDay';
 
 const md = (k: string) => { const d = dateOf(k); return `${d.getMonth() + 1}/${d.getDate()}`; };
 
-export function MobileWeek({ ws }: { ws: Workspace }) {
+export function MobileWeek({ ws, goDay }: { ws: Workspace; goDay: (date: string) => void }) {
   const { blocks, days, now, today, wpWeek: wk } = ws;
   const [sheet, setSheet] = useState<WItem | null>(null);
   const keys = weekDays(wk);
@@ -87,7 +87,7 @@ export function MobileWeek({ ws }: { ws: Workspace }) {
 
       {/* 주 메모 — PC 주간 플래너의 Memo 와 같은 칸 (그 주 월요일 날짜 · area wmemo) */}
       <section className="m-dsec m-notes m-wk-memo">
-        <NoteEditor ws={ws} date={wk} area="wmemo" title="Memo" ph="이번 주 메모를 입력하세요" icon={MEMO_IC} />
+        <NoteEditor ws={ws} date={wk} area="wmemo" title="Memo" ph="이번 주 메모를 입력하세요" icon={MEMO_IC} onDay={goDay} />
       </section>
 
       {sheet && <MoveSheet it={sheet} keys={keys} items={items} today={today} onMove={(to) => move(sheet, to)}

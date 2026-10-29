@@ -102,12 +102,12 @@ export function MDay({ ws, date, setDate, editOpen }: { ws: Workspace; date: str
       {pane === 'todo' && (
         <section className="m-dsec m-notes">
           <HabitChips ws={ws} date={date} />
-          <NoteEditor ws={ws} date={date} area="today" title="Today" ph="할 일을 입력하세요" icon={TODO_IC} />
+          <NoteEditor ws={ws} date={date} area="today" title="Today" ph="할 일을 입력하세요" icon={TODO_IC} onDay={setDate} />
         </section>
       )}
       {pane === 'memo' && (
         <section className="m-dsec m-notes">
-          <NoteEditor ws={ws} date={date} area="memo" title="Memo" ph="메모를 입력하세요" icon={MEMO_IC} />
+          <NoteEditor ws={ws} date={date} area="memo" title="Memo" ph="메모를 입력하세요" icon={MEMO_IC} onDay={setDate} />
         </section>
       )}
 

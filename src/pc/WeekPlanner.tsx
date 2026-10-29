@@ -318,7 +318,7 @@ export function WeekPlanner({ ws, onOpenDay, dday }: { ws: Workspace; onOpenDay:
               <Calendar month={ws.calMonth} setMonth={ws.setCalMonth} today={today} days={days} onOpen={onOpenDay} />
             </div></div>
           </div>
-          <NoteEditor ws={ws} date={wk} area="wmemo" title="Memo" ph="메모를 입력하세요" icon={MEMO_IC} />
+          <NoteEditor ws={ws} date={wk} area="wmemo" title="Memo" ph="메모를 입력하세요" icon={MEMO_IC} onDay={onOpenDay} />
           <i className="wp-fade-b" aria-hidden="true" />
         </section>
         <div className="wp-col">
