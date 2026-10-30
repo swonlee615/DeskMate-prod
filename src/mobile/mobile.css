@@ -29,7 +29,7 @@
 .m-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 14px; }
 .m-note, .m-empty { font-size: 13px; color: var(--text-dim); text-align: center; padding: 8px 0; }
 
-/* ── 오늘 — 히어로는 PC 레일의 남색 위에 (라이트 · 다크 모두 같은 남색: PC 와 같은 앱으로 보이게) */
+/* ── 오늘 — 히어로는 다크에서 PC 레일의 남색 위에 · 라이트에서는 같은 색 가족의 옅은 바탕 (2026-10-30 소유자 — 라이트에서 이 카드만 다크처럼 보였다) */
 .m-hero {
   --on-ink: #fff; --on-dim: var(--rail-ic);
   background: var(--rail); color: var(--on-dim);
@@ -73,7 +73,7 @@
 .m-hero .m-meta { color: var(--on-dim); }
 .m-hero .m-meta b { color: var(--on-ink); }
 
-/* 옆자리 — 지금 일하는 동료 */
+/* 옆자리 — 지금 일하는 멤버 */
 .m-desks { display: flex; align-items: center; gap: 10px; margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,.08); font-size: 13px; }
 .m-desks-a { display: flex; flex: none; }
 .m-desks-a i {
@@ -82,6 +82,8 @@
 }
 .m-desks-a i + i { margin-left: -6px; }
 .m-desks-a i.more { background: color-mix(in srgb, #fff 16%, var(--rail)); font-size: 11px; }
+.m-desks-t { flex: 1; min-width: 0; line-height: 1.45; word-break: keep-all; }
+.m-desks-t > span { white-space: nowrap; }
 .m-desks-t b { color: var(--on-ink); }
 
 .m-actions { display: flex; gap: 8px; margin-top: 18px; }
@@ -98,6 +100,22 @@
 .m-hero .m-btn.rest { color: var(--yellow); }
 .m-hero .m-btn.off { color: #ff7a9c; }
 .m-hero .m-actions { margin-top: 16px; }
+
+/* 라이트 — 남색 덩어리 대신 테마 색을 아주 옅게 섞은 바탕 · 글은 본문 잉크. 색 뜻(초록 근무 · 노랑 휴게)은 그대로 */
+body[data-mode="light"] .m-hero {
+  --on-ink: var(--text-strong); --on-dim: var(--text-muted);
+  background: color-mix(in srgb, var(--rail) 6%, var(--surface-2));
+  border: 1px solid color-mix(in srgb, var(--rail) 14%, transparent);
+}
+body[data-mode="light"] .m-rib-l { background: color-mix(in srgb, var(--rail) 8%, transparent); }
+body[data-mode="light"] .m-rib-l i.off { background: repeating-linear-gradient(45deg, color-mix(in srgb, var(--rail) 22%, transparent) 0 2px, transparent 2px 5px); }
+body[data-mode="light"] .m-hero .m-btn { background: var(--main); border-color: color-mix(in srgb, var(--rail) 14%, transparent); }
+body[data-mode="light"] .m-hero .m-btn.go { background: var(--green); border-color: var(--green); color: #fff; }
+body[data-mode="light"] .m-hero .m-btn.rest { color: var(--yellow-a8, #9a6b00); }
+body[data-mode="light"] .m-hero .m-btn.off { color: var(--red); }
+body[data-mode="light"] .m-desks { border-top-color: color-mix(in srgb, var(--rail) 12%, transparent); }
+body[data-mode="light"] .m-desks-a i { box-shadow: 0 0 0 2px color-mix(in srgb, var(--rail) 6%, var(--surface-2)); }
+body[data-mode="light"] .m-desks-a i.more { background: color-mix(in srgb, var(--rail) 55%, #fff); }
 .m-btn:focus-visible, .m-x:focus-visible, .m-link:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 
 /* ── 이번 주 요약 */

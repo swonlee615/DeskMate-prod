@@ -126,7 +126,7 @@ export function PcWorkspace({ ws }: { ws: Workspace }) {
             <button className="icon-btn sb-toggle" id="sbToggleIn" title="사이드바 접기" onClick={() => setSbOff(true)}>{SB_ICON}</button>
           </div>
           <div className="sb-scroll" id="sbScroll">
-            <button className="sb-section" aria-expanded="true"><span className="sb-caret">▾</span><span className="nm">팀원</span></button>
+            <button className="sb-section" aria-expanded="true"><span className="sb-caret">▾</span><span className="nm">멤버</span></button>
             <MateRows ws={ws} />
             {backend.mode === 'local' && <p className="hint" style={{ padding: '2px 18px' }}>개발 모드 · 이 기기에만 저장</p>}
           </div>
@@ -170,7 +170,8 @@ export function PcWorkspace({ ws }: { ws: Workspace }) {
             dday={ddBox}
             noteDates={new Set(ws.blocks.filter((b) => !b.deletedAt && b.text.trim() && (b.area === 'today' || b.area === 'memo')).map((b) => b.date))}
             todo={rangeRate(ws.blocks, keyOf(weekStart(dateOf(today))), keyOf(addDays(weekStart(dateOf(today)), 6)))}
-            banner={pend.length > 0 && <PendBanner ws={ws} date={pend[0]} more={pend.length - 1} onEdit={() => openDay(pend[0], true)} />} />
+            // 상세를 레이어로 열면 목록 오른쪽이 가려져 이 띠가 반쯤 잘린다 — 상세가 같은 띠를 보여 주므로 뒤의 것은 걷는다
+            banner={pend.length > 0 && !asLayer && <PendBanner ws={ws} date={pend[0]} more={pend.length - 1} onEdit={() => openDay(pend[0], true)} />} />
           {view === 'dash' && <PcActivity ws={ws} hidden={!!dayKey && !asLayer} onOpenDay={(k) => openDay(k)} />}
           <div className="peek-scrim" id="peekScrim" onClick={closeDay} />
           {dayKey && (

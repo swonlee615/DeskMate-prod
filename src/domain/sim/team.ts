@@ -1,5 +1,5 @@
 /**
- * 가상 동료 — 로스터 · 하루 일정 · 지금 상태 · 랭킹 (v3 roster.js · schedule.js · sim.js 의 일정 부분 그대로)
+ * 가상 멤버 — 로스터 · 하루 일정 · 지금 상태 · 랭킹 (v3 roster.js · schedule.js · sim.js 의 일정 부분 그대로)
  *
  * ▣ 동료의 하루는 저장하지 않는다. (날짜 · 사람) 씨앗으로 매번 같은 하루를 만든다 — 기기가 여럿이어도 같다
  * ▣ 슬랙 상태 규칙: 출퇴근 30분 / 미팅 = 회의 길이 / 병가 · 재택 = 하루 / 휴가 = 1~5일
@@ -16,22 +16,14 @@ export interface Member {
   color: string;
 }
 
-/** v3.1.188 — 흰 글자 대비 · 채도 · 서로의 차이를 함께 맞춘 12색 (기본 동료 12명과 같은 수) */
-const AV_COLORS = ['#b15120', '#a16702', '#837601', '#18721b', '#008566', '#00818a', '#027cb1', '#5265c7', '#844ca9', '#be3771', '#b5363a', '#4a5568'];
+/** 멤버 4명 (2026-10-30 소유자 — v3 의 12명에서 줄이고 이름 · 프로필을 새로) · 색은 v3.1.188 팔레트에서 서로 먼 넷 */
+const AV_COLORS = ['#027cb1', '#be3771', '#18721b', '#b15120'];
 type Seed = Omit<Member, 'id' | 'color'>;
 const SEED: Seed[] = [
-  { nick: 'Ssol', name: '이예솔', role: '프로덕트 디자이너', rank: '대리', tone: 'casual', chrono: -25, diligence: 0.82, chattiness: 0.95, focusLen: 45, overtime: 0.22, usesDnd: false, meetingProp: 0.9, emoji: '🎨', remoteProp: 0.14, leaveProp: 1.0, sickProp: 1.0 },
-  { nick: 'Minho', name: '평민호', role: '프론트엔드', rank: '사원', tone: 'dry', chrono: 42, diligence: 0.74, chattiness: 0.35, focusLen: 78, overtime: 0.62, usesDnd: true, meetingProp: 0.5, emoji: '', remoteProp: 0.30, leaveProp: 0.7, sickProp: 1.3 },
-  { nick: 'Ellie', name: '고언정', role: 'PM', rank: '과장', tone: 'formal', chrono: -18, diligence: 0.78, chattiness: 0.85, focusLen: 35, overtime: 0.30, usesDnd: false, meetingProp: 2.2, emoji: '', remoteProp: 0.06, leaveProp: 1.1, sickProp: 0.8 },
-  { nick: 'Emma', name: '정세진', role: '마케터', rank: '대리', tone: 'bubbly', chrono: 8, diligence: 0.70, chattiness: 0.90, focusLen: 38, overtime: 0.18, usesDnd: false, meetingProp: 1.4, emoji: '🌷', remoteProp: 0.16, leaveProp: 1.4, sickProp: 1.1 },
-  { nick: 'Wayne', name: '전웅', role: '사업 운영', rank: '과장', tone: 'formal', chrono: -35, diligence: 0.66, chattiness: 0.55, focusLen: 40, overtime: 0.10, usesDnd: false, meetingProp: 1.8, emoji: '', remoteProp: 0.04, leaveProp: 1.2, sickProp: 0.9 },
-  { nick: 'Harry', name: '김용민', role: '백엔드', rank: '대리', tone: 'dry', chrono: 12, diligence: 0.93, chattiness: 0.30, focusLen: 85, overtime: 0.40, usesDnd: true, meetingProp: 0.4, emoji: '', remoteProp: 0.26, leaveProp: 0.5, sickProp: 0.7 },
-  { nick: 'Jihyun', name: '나지현', role: '서비스 기획', rank: '주임', tone: 'formal', chrono: -8, diligence: 0.80, chattiness: 0.95, focusLen: 40, overtime: 0.35, usesDnd: false, meetingProp: 1.5, emoji: '', remoteProp: 0.10, leaveProp: 1.0, sickProp: 1.0 },
-  { nick: 'Jake', name: '조경철', role: '퍼블리셔', rank: '사원', tone: 'casual', chrono: 20, diligence: 0.62, chattiness: 0.60, focusLen: 32, overtime: 0.25, usesDnd: false, meetingProp: 0.7, emoji: '', remoteProp: 0.20, leaveProp: 1.3, sickProp: 1.4 },
-  { nick: 'Glen', name: '맹승주', role: '개발 리드', rank: '팀장', tone: 'casual', chrono: 0, diligence: 0.79, chattiness: 0.70, focusLen: 50, overtime: 0.55, usesDnd: true, meetingProp: 2.4, emoji: '🐱', remoteProp: 0.08, leaveProp: 0.8, sickProp: 0.8 },
-  { nick: 'Yesee', name: '박상일', role: 'QA', rank: '과장', tone: 'formal', chrono: -45, diligence: 0.95, chattiness: 0.45, focusLen: 62, overtime: 0.20, usesDnd: true, meetingProp: 0.6, emoji: '', remoteProp: 0.05, leaveProp: 0.6, sickProp: 0.5 },
-  { nick: 'Nara', name: '김나라', role: '데이터 분석', rank: '대리', tone: 'dry', chrono: 30, diligence: 0.86, chattiness: 0.25, focusLen: 72, overtime: 0.38, usesDnd: true, meetingProp: 0.5, emoji: '', remoteProp: 0.34, leaveProp: 0.9, sickProp: 0.9 },
-  { nick: 'Toby', name: '오태빈', role: '인턴', rank: '인턴', tone: 'bubbly', chrono: -30, diligence: 0.72, chattiness: 0.88, focusLen: 30, overtime: 0.15, usesDnd: false, meetingProp: 0.8, emoji: '🐣', remoteProp: 0.03, leaveProp: 0.4, sickProp: 1.2 },
+  { nick: 'Dawn', name: '한서윤', role: '프로덕트 매니저', rank: '과장', tone: 'formal', chrono: -30, diligence: 0.84, chattiness: 0.80, focusLen: 40, overtime: 0.30, usesDnd: false, meetingProp: 2.0, emoji: '☕️', remoteProp: 0.08, leaveProp: 1.0, sickProp: 0.8 },
+  { nick: 'Theo', name: '윤도현', role: '백엔드 개발', rank: '대리', tone: 'dry', chrono: 35, diligence: 0.90, chattiness: 0.30, focusLen: 80, overtime: 0.50, usesDnd: true, meetingProp: 0.5, emoji: '', remoteProp: 0.28, leaveProp: 0.7, sickProp: 0.9 },
+  { nick: 'Mina', name: '강민아', role: 'UX 디자이너', rank: '대리', tone: 'casual', chrono: 5, diligence: 0.78, chattiness: 0.85, focusLen: 50, overtime: 0.22, usesDnd: false, meetingProp: 1.2, emoji: '🎧', remoteProp: 0.18, leaveProp: 1.2, sickProp: 1.0 },
+  { nick: 'June', name: '오준서', role: '그로스 마케터', rank: '사원', tone: 'bubbly', chrono: 15, diligence: 0.70, chattiness: 0.92, focusLen: 35, overtime: 0.15, usesDnd: false, meetingProp: 1.4, emoji: '🌿', remoteProp: 0.12, leaveProp: 1.3, sickProp: 1.2 },
 ];
 export const ROSTER: Member[] = SEED.map((m, i) => ({ ...m, id: `m${i}`, color: AV_COLORS[i % AV_COLORS.length] }));
 

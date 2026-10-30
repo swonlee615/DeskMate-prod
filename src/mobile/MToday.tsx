@@ -110,18 +110,21 @@ function Ribbon({ ws, onOpen }: { ws: Workspace; onOpen: () => void }) {
   );
 }
 
-/** 옆자리 — 지금 일하는 동료 (PC 사이드바와 같은 ws.mates). «혼자 일하지만 출근해 있는 기분» */
+/** 옆자리 — 지금 일하는 멤버 (PC 사이드바와 같은 ws.mates). «혼자 일하지만 출근해 있는 기분» */
 function Desks({ ws }: { ws: Workspace }) {
   const on = ws.mates.filter((x) => x.st.presence === 'active' || x.st.presence === 'dnd');
   const away = ws.mates.filter((x) => x.st.presence === 'break').length;
-  const show = on.slice(0, 5);
+  const show = on.slice(0, 4);   // 멤버가 넷이라 다 보인다 — 늘면 글 자리를 위해 넷에서 자른다
   return (
     <div className="m-desks">
       <span className="m-desks-a" aria-hidden="true">
         {show.map(({ m }) => <i key={m.id} style={{ background: m.color }}>{m.emoji || m.nick.slice(0, 1)}</i>)}
         {on.length > show.length && <i className="more">+{on.length - show.length}</i>}
       </span>
-      <span className="m-desks-t">{on.length ? <>지금 <b>{on.length}명</b>이 일하는 중{away ? ` · 자리 비움 ${away}` : ''}</> : '아직 아무도 출근하지 않았어요'}</span>
+      {/* 덩어리째만 줄을 바꾼다 — «자리 비 / 움 1» 처럼 낱말 가운데서 끊기지 않게 */}
+      <span className="m-desks-t">{on.length
+        ? <><span>지금 <b>{on.length}명</b>이 일하는 중</span>{away > 0 && <span> · 자리 비움 {away}</span>}</>
+        : <span>아직 아무도 출근하지 않았어요</span>}</span>
     </div>
   );
 }
