@@ -6257,6 +6257,17 @@ body[data-mode="light"] .seg-pill { background: var(--main); }
      여섯 개씩 쪽으로 넘기므로 높이가 한없이 늘지도 않는다. */
 .wp-col { display: flex; flex-direction: column; gap: 12px; min-width: 0; min-height: 0; }
 #worklog .wp-col > .wp-side { flex: 0 1 auto; }
+/* ★ v3.1.268 — 창 높이가 낮으면 할 일 상자가 **머리줄까지** 눌려 「근무 · 출근 · 일 평균」 줄이 반쯤 잘렸다
+     (소유자: 「이거 왜 잘리냐」). D-Day 상자는 안 줄어들고(`flex: none`) 할 일 상자만 줄어드는데,
+     줄어드는 바닥이 없어서 900×700 에서는 2px 까지 내려갔다 — 목록은 아예 안 보였다.
+   ① 머리(제목 · 진척도 · 요약)는 **안 줄어든다** — 어느 높이에서도 통째로 보인다.
+   ② 상자에는 바닥을 준다 — 머리 + 목록 두세 줄. 그 아래로는 안 줄어든다.
+   ③ 둘을 다 못 담는 높이에서는 **오른쪽 열이 굴러간다** — D-Day 가 아래로 밀려나도 굴려서 닿는다.
+     (「바깥은 안 굴러가고 좌 · 우가 각자 굴러간다」(v3.1.47) 를 그대로 지킨다 — 오른쪽 «영역» 의 스크롤이다) */
+#worklog .wp-col { overflow-y: auto; scrollbar-width: none; }
+#worklog .wp-col::-webkit-scrollbar { display: none; }
+#worklog .wp-col > .wp-side { min-height: 200px; }
+.wp-side > .wp-sh { flex: none; }
 .wp-col .wp-list { flex: none; min-height: 56px; }      /* 비어도 끌어 놓을 자리는 남긴다 (v3.1.2) */
 .wp-ddc { flex: none; border: 1px solid var(--border-soft); border-radius: var(--radius-card);
   background: var(--main); padding: 12px 10px 10px; container: ddcol / inline-size; }

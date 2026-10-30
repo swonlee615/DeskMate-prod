@@ -1,7 +1,7 @@
 {
   "name": "deskmate-web",
   "private": true,
-  "version": "3.1.266",
+  "version": "3.1.268",
   "type": "module",
   "description": "DeskMate 웹 우선 버전 — PC 앱 · 브라우저 · iOS/Android PWA 가 같은 코드를 쓴다",
   "scripts": {
