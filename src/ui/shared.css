@@ -31,13 +31,13 @@
 }
 .w-btn:hover { background: var(--surface-3); }
 .w-btn:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
-.w-btn.w-primary { background: #007a5a; border-color: #007a5a; color: #fff; }
-.w-btn.w-primary:hover { background: #148567; }
+.w-btn.w-primary { background: var(--green-a7); border-color: var(--green-a7); color: var(--on-accent); }   /* v3 .btn.primary */
+.w-btn.w-primary:hover { filter: brightness(1.08); }
 .w-btn:disabled { opacity: .5; cursor: default; }
 .w-btn.w-provider { height: 46px; width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; }
-.w-btn.w-apple { background: #000; color: #fff; border-color: #000; }
+.w-btn.w-apple { background: #000; color: #fff; border-color: #000; }   /* color-ok: Apple 로그인 단추는 검정 · 흰 글자가 규정 (Apple HIG) */
 .w-btn.w-wide { width: 100%; height: 44px; margin-top: 16px; }
-.w-btn.w-danger-fill { background: var(--red); border-color: var(--red); color: #fff; }
+.w-btn.w-danger-fill { background: var(--red-fill); border-color: var(--red-fill); color: var(--on-accent); }
 .auth-or { display: flex; align-items: center; gap: 12px; margin: 18px 0 6px; color: var(--text-dim); font-size: 13px; }
 .auth-or::before, .auth-or::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 .w-field { display: grid; gap: 6px; margin-top: 12px; font-size: 14px; }
@@ -54,7 +54,7 @@
 .link:disabled { color: var(--text-dim); cursor: default; }
 .link.danger { color: var(--red); }
 
-.modal-scrim { position: fixed; inset: 0; background: rgba(15,22,51,.45); display: grid; place-items: center; padding: 16px; z-index: 300; user-select: text; }
+.modal-scrim { position: fixed; inset: 0; background: var(--scrim-2); display: grid; place-items: center; padding: 16px; z-index: 300; user-select: text; }
 .w-modal { width: 100%; max-width: 420px; color: var(--text); }
 .modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 .modal-head h2 { margin: 0; font-size: 18px; color: var(--text-strong); }

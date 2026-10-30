@@ -25,7 +25,8 @@ export function MTimer({ ws }: { ws: Workspace }) {
   const pick = (n: number) => { t.setFocusMin(n); ws.say(`집중 시간을 ${n}분으로 맞췄어요`); };
 
   return (
-    <section className={`m-card m-tm${brk ? ' brk' : ''}${t.running ? ' run' : ''}`} id="m-timer" aria-label="집중 타이머">
+    <section className={`m-card m-tm${brk ? ' brk' : ''}${t.running ? ' run' : ''}`} id="m-timer" aria-label="집중 타이머"
+      style={{ '--tc': ws.settings.timerColor } as React.CSSProperties}>
       <div className="m-tm-h">
         <span className="m-tm-mode"><i aria-hidden="true" />{t.label}{t.running ? ' 중' : ' 대기'}</span>
         <span>오늘 <b>{ws.day.pomos ?? 0}회</b></span>

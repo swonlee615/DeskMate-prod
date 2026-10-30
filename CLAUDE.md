@@ -39,6 +39,15 @@
 - 버튼이 하는 일은 `useWorkspace` 에만 둔다. PC · 모바일 화면에서 따로 구현하지 않는다
 - 시험: 주소 뒤에 `?ui=mobile` · `?ui=pc` (기억됨) · `?ui=auto`
 
+## 색 (2026-10-30 소유자 — «용도에 맞는 색이 정해져 있고 함부로 바꾸지 않게»)
+
+- 화면 CSS 의 색은 **v3 토큰만** 쓴다 — 값은 `src/v3/styles.css` 한 곳에만 있다. 손으로 고른 `#hex` · `rgb()` 를 쓰지 않는다
+  - 면 `--main` · `--surface-2/3` (카드 = `.m-card` 하나) · 선 `--border` · `--border-soft` · 글 `--text-strong/text/muted/dim`
+  - 강조 `--green` `--blue` `--red` `--yellow` (글 · 점) · 채운 면 `--green-a7` · `--blue-fill` · `--red-fill` · 옅은 면 `--*-a1~a3`
+  - 강조 위 글 `--on-accent` · 옅은 바탕 `--tint-1~6` · 그림자 `--shade-1~5` · 덮는 막 `--scrim-1/2` · 타이머 = 설정의 `--tc`
+- 새 화면에 같은 용도가 있으면 **있는 클래스 · 토큰을 다시 쓴다** (라이트에서 다른 카드와 다른 색이 나오면 그건 버그)
+- `src/ui/colors.test.ts` 가 막는다. 꼭 고정색이어야 하면(브랜드 규정) 그 줄에 `color-ok:` 와 이유
+
 ## 로직을 바꿀 때
 
 - 근태 규칙을 바꾸면 v3 `LOGIC.md` 의 해당 절을 인용하고, 다르게 가면 `docs/SYNC.md` 에 이유를 적는다
