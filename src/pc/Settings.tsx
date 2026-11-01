@@ -223,27 +223,39 @@ function CatList({ ws }: { ws: Workspace }) {
 function DataPane({ ws, onDay }: { ws: Workspace; onDay: (k: string) => void }) {
   const { list, usedTxt, pct } = useImageList(ws);
   const [ask, setAsk] = useState<string | null>(null);
+  const [big, setBig] = useState(false);
+  const shown = big ? [...list].sort((a, b) => b.size - a.size) : list;
   return (
     <section className="set-panel on" data-set-panel="data">
       <h4>데이터</h4>
       <div className="sec-t" style={{ marginTop: 0 }}>이미지</div>
       <div className="img-use"><b>{usedTxt}</b><span>{list.length}장</span></div>
-      <div className="bar"><i className="done" style={{ width: `${pct}%` }} /></div>
+      <div className="bar img-bar"><i className="done" style={{ width: `${pct}%` }} /></div>
       <p className="hint">{IMG_HINT}</p>
-      {list.length ? (
-        <ul className="img-list">
-          {list.map((m) => (
-            <li key={m.id}>
-              <Thumb ws={ws} id={m.id} className="img-th" />
-              <span className="img-in"><b>{imgDay(m.date)}</b><span>{m.area === 'memo' || m.area === 'wmemo' ? 'Memo' : 'Today'} · {fmtMB(m.size)}</span></span>
-              <button className="btn ghost sm" onClick={() => onDay(m.date)}>그 날로</button>
-              {ask === m.id
-                ? <button className="btn danger sm" onClick={() => { ws.removeImage(m.id); setAsk(null); }}>정말 삭제</button>
-                : <button className="btn ghost sm" onClick={() => setAsk(m.id)}>삭제</button>}
-            </li>
-          ))}
-        </ul>
-      ) : <p className="hint">아직 넣은 그림이 없어요. 할 일 · 메모에 그림을 붙여넣거나 끌어다 놓으면 여기에 모여요.</p>}
+      {list.length ? <>
+        <div className="seg sub img-sort">
+          <button className={big ? '' : 'on'} onClick={() => setBig(false)}>최근 순</button>
+          <button className={big ? 'on' : ''} onClick={() => setBig(true)}>큰 순</button>
+        </div>
+        {/* 그림이 많아도 설정 창이 길어지지 않게 — 이 상자 안에서만 굴린다 */}
+        <div className="img-box">
+          <ul className="img-grid">
+            {shown.map((m) => (
+              <li key={m.id} className="img-tile" onMouseLeave={() => ask === m.id && setAsk(null)}>
+                <Thumb ws={ws} id={m.id} className="img-th" />
+                <div className={`img-act${ask === m.id ? ' ask' : ''}`}>
+                  {ask === m.id
+                    ? <><button onClick={() => setAsk(null)}>취소</button>
+                      <button className="sure" onClick={() => { ws.removeImage(m.id); setAsk(null); }}>정말 삭제</button></>
+                    : <><button onClick={() => onDay(m.date)}>그 날로</button>
+                      <button className="del" onClick={() => setAsk(m.id)}>삭제</button></>}
+                </div>
+                <span className="img-cap"><b>{imgDay(m.date)}</b><span>{m.area === 'memo' || m.area === 'wmemo' ? 'Memo' : 'Today'} · {fmtMB(m.size)}</span></span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </> : <p className="hint" style={{ marginTop: 8 }}>아직 넣은 그림이 없어요. 할 일 · 메모에 그림을 붙여넣거나 끌어다 놓으면 여기에 모여요.</p>}
       <V3Import ws={ws} />
     </section>
   );
