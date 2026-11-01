@@ -20,6 +20,7 @@
  */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { Workspace } from '../app/useWorkspace';
+import type { SavedKind } from '../domain/saved';
 import {
   appendBlock, carriedInto, continuesToToday, descendants, flatten, indent, insertBelow, isHead, markdownType, ordNo,
   moveChunk, outdent, removeEmpty, triOf, type Block, type BlockArea, type Patch, type Row, type Tri,
@@ -77,6 +78,13 @@ function caretAtEdge(el: HTMLElement, dir: -1 | 1) {
 }
 /** 붙여넣기 · 끌어 놓기에 든 그림 파일 */
 const imageFiles = (dt: DataTransfer | null) => Array.from(dt?.files ?? []).filter((f) => f.type.startsWith('image/'));
+const BM_SVG = <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5.6 3.6h8.8v13.1L10 13.2l-4.4 3.5V3.6Z" /></svg>;
+/** Memo 제목 줄의 북마크 — 일간 상세 · 주간 뷰 · 저장됨이 같은 단추 (v3 memoBmHtml) */
+export function MemoBm({ ws, kind, k }: { ws: Workspace; kind: SavedKind; k: string }) {
+  const on = ws.isSaved(kind, k), say = on ? '저장됨에서 빼기' : '저장됨에 담기';
+  return <button className={`memo-bm${on ? ' on' : ''}`} type="button" aria-pressed={on} aria-label={say} data-tip={say}
+    onClick={(e) => { e.stopPropagation(); ws.toggleSaved(kind, k); }}>{BM_SVG}</button>;
+}
 /** 줄 고르기를 시작하지 않는 자리 — 손잡이 · 체크 · 지우기 · 칩 · 링크 (v3 BM_SKIP) */
 const BM_SKIP = '.grip, .del, .cb, .men, .lnk, button, a, input, select, textarea';
 /** 링크는 그냥 눌러서 새 탭으로 (v3.1.30) — 글자를 고치려면 링크 옆을 누른다 */
@@ -543,7 +551,8 @@ export function NoteEditor({ ws, date, area, title, ph, icon, onDay }: {
       onDragOver={(e) => { if (Array.from(e.dataTransfer.types).includes('Files')) e.preventDefault(); }} onDrop={onDropFiles}
       onFocus={mobile ? (e) => setCur((e.target as HTMLElement).dataset.edit ?? null) : undefined}
       onBlur={mobile ? () => setTimeout(() => { if (!box.current?.contains(document.activeElement)) setCur(null); }, 0) : undefined}>
-      <h4>{icon}<span>{title}</span></h4>
+      {/* 제목이 없으면 빈 머리 — 저장됨 오른쪽 칸 (v3 noteHtml('memo', '')) */}
+      {title ? <h4>{icon}<span>{title}</span>{(area === 'memo' || area === 'wmemo') && <MemoBm ws={ws} kind={area === 'wmemo' ? 'week' : 'day'} k={date} />}</h4> : <h4 />}
       {lines.map((ln, li) => (
         <BlockRow key={ln.row.b.id} ln={ln} area={area} ph={ph} viewDate={date} today={today} no={ordNo(rowsAll, li)} sel={selSet.has(ln.row.b.id)} onPaste={onPaste}
           img={{ load: ws.imageBlob, size: (w) => ws.patchBlocks([{ id: ln.row.b.id, w }]), shift: (out) => { const el = box.current?.querySelector<HTMLElement>(`[data-id="${CSS.escape(ln.row.b.id)}"]`); if (el) shiftLine(ln, el, out); } }}

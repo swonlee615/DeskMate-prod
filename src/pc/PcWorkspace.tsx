@@ -28,6 +28,7 @@ import { MateRows, Ranking } from './Team';
 import type { DDay } from '../domain/dday';
 import type { Habit } from '../domain/habits';
 import { RowMenu, TrashView } from './Trash';
+import { SavedView } from './Saved';
 import './pc.css';
 
 /** v3 applyLayout 과 같은 기준 — 3단 ≥840 · 2단 ≥600 · 1단. 우측 패널은 1360(사이드바 접으면 1180)부터 열로 붙는다 */
@@ -45,6 +46,8 @@ function useLayout(sbOff: boolean) {
 const SB_ICON = (
   <svg viewBox="0 0 20 20"><rect x="2.8" y="4" width="14.4" height="12" rx="2.2" /><path d="M8 4v12" /></svg>
 );
+
+const TITLE = { worklog: 'ONnOFF', dash: '활동', later: '저장됨', trash: '휴지통' } as const;
 
 export function PcWorkspace({ ws }: { ws: Workspace }) {
   const { backend, user, now, today, sync, days, day, nick, initial, presence } = ws;
@@ -73,8 +76,12 @@ export function PcWorkspace({ ws }: { ws: Workspace }) {
   }, [undoRef]);
   useEffect(bindTips, []);
   // 레일 — 홈(근태) · 활동. 화면을 바꾸면 열어 둔 일간 상세는 닫는다
-  const [view, setView] = useState<'worklog' | 'dash' | 'trash'>('worklog');
-  const go = (v: typeof view) => { setView(v); setDayKey(null); setDayFull(false); setDrawer(false); };
+  const [view, setView] = useState<'worklog' | 'dash' | 'later' | 'trash'>('worklog');
+  const go = (v: typeof view) => { setView(v); setDayKey(null); setDayFull(false); setDrawer(false); setSvOpen(false); };
+  // 저장됨 — 고른 메모 · 좁을 때 상세를 연 상태 (머리줄 «뒤로» 가 닫는다)
+  const [svSel, setSvSel] = useState('');
+  const [svOpen, setSvOpen] = useState(false);
+  const [weekReq, setWeekReq] = useState(0);
   const [drawer, setDrawer] = useState(false);
   const [acctOpen, setAcctOpen] = useState(false);
   const [setOpen, setSetOpen] = useState(false);
@@ -111,8 +118,7 @@ export function PcWorkspace({ ws }: { ws: Workspace }) {
             <span className="ri"><svg viewBox="0 0 20 20"><path d="M4 16.2V9.4M10 16.2V3.8M16 16.2v-4.6" /></svg></span>
             <small>활동</small>
           </button>
-          {/* 아직 안 옮긴 메뉴 — v3 와 같은 자리에 «오픈 전» 으로 (2026-10-28 소유자). 홈(대화)은 옮기지 않는다 */}
-          <button className="rail-btn soon" data-view="later" aria-disabled="true" title="저장됨 — 준비 중이에요" onClick={() => ws.say('저장됨은 준비 중이에요')}>
+          <button className={`rail-btn${view === 'later' ? ' on' : ''}`} data-view="later" onClick={() => go('later')}>
             <span className="ri"><svg viewBox="0 0 20 20"><path d="M5.6 3.6h8.8v13.1L10 13.2l-4.4 3.5V3.6Z" /></svg></span>
             <small>저장됨</small>
           </button>
@@ -155,15 +161,16 @@ export function PcWorkspace({ ws }: { ws: Workspace }) {
             <button className="icon-btn" id="btnSbToggle" title="사이드바 펼치기" aria-pressed={sbOff}
               style={{ display: sbOff && mode !== '1' ? '' : 'none' }} onClick={() => setSbOff(false)}>{SB_ICON}</button>
             {/* 앞/뒤 — v3 와 같은 자리. 화면이 근태 하나뿐인 동안은 갈 곳이 없어 꺼 둔다 */}
-            <button className="icon-btn" id="btnBack" style={{ display: dayKey && !asLayer ? '' : 'none' }} onClick={closeDay}>
-              <svg className="chev" viewBox="0 0 20 20" aria-hidden="true"><path d="M12.5 5 7.5 10 12.5 15" /></svg><span>{view === 'dash' ? '활동' : 'ONnOFF'}</span></button>
+            <button className="icon-btn" id="btnBack" style={{ display: (dayKey && !asLayer) || (view === 'later' && svOpen) ? '' : 'none' }}
+              onClick={() => (dayKey ? closeDay() : setSvOpen(false))}>
+              <svg className="chev" viewBox="0 0 20 20" aria-hidden="true"><path d="M12.5 5 7.5 10 12.5 15" /></svg><span>{TITLE[view]}</span></button>
             <div className="nav-ab" id="navAb">
               <button className="icon-btn" id="navBack" title="뒤로 (⌥←)" disabled>
                 <svg viewBox="0 0 20 20"><path d="M12 4.5 6.5 10 12 15.5" /></svg></button>
               <button className="icon-btn" id="navFwd" title="앞으로 (⌥→)" disabled>
                 <svg viewBox="0 0 20 20"><path d="M8 4.5 13.5 10 8 15.5" /></svg></button>
             </div>
-            <div className="ch-title"><span id="chTitle">{view === 'dash' ? '활동' : view === 'trash' ? '휴지통' : 'ONnOFF'}</span></div>
+            <div className="ch-title"><span id="chTitle">{TITLE[view]}</span></div>
             <div className="hspace" />
             <SyncBadge s={sync} />
             <button className="mini-pill" id="miniTimer" title="집중 타이머 열기" onClick={() => setPanelOpen((v) => !v)}>
@@ -173,7 +180,7 @@ export function PcWorkspace({ ws }: { ws: Workspace }) {
           </header>
 
           <Worklog weeks={ws.tblWeeks} all={ws.tblAll} onMore={ws.moreWeeks} days={days} today={today} now={now} goal={ws.goal}
-            calMonth={ws.calMonth} setCalMonth={ws.setCalMonth} onLeave={ws.onLeave} unavailable={ws.unavailable}
+            calMonth={ws.calMonth} setCalMonth={ws.setCalMonth} onLeave={ws.onLeave} weekReq={weekReq} unavailable={ws.unavailable}
             onOpenDay={openDay} hidden={view !== 'worklog' || (!!dayKey && !asLayer)}
             week={<WeekPlanner ws={ws} onOpenDay={(k) => openDay(k)} dday={ddBox} />}
             dday={ddBox}
@@ -182,6 +189,9 @@ export function PcWorkspace({ ws }: { ws: Workspace }) {
             // 상세를 레이어로 열면 목록 오른쪽이 가려져 이 띠가 반쯤 잘린다 — 상세가 같은 띠를 보여 주므로 뒤의 것은 걷는다
             banner={pend.length > 0 && !asLayer && <PendBanner ws={ws} date={pend[0]} more={pend.length - 1} onEdit={() => openDay(pend[0], true)} />} />
           <TrashView ws={ws} hidden={view !== 'trash'} />
+          <SavedView ws={ws} hidden={view !== 'later' || (!!dayKey && !asLayer)} sel={svSel} setSel={setSvSel} open={svOpen} setOpen={setSvOpen}
+            onDay={(k) => openDay(k)} onWeek={(k) => { ws.setWpWeek(k); go('worklog'); setWeekReq((n) => n + 1); }}
+            onDD={(it) => openDD(it.date)(it)} onHb={(h) => openHb(h)} onTrash={() => go('trash')} />
           {view === 'dash' && <PcActivity ws={ws} hidden={!!dayKey && !asLayer} onOpenDay={(k) => openDay(k)} />}
           <div className="peek-scrim" id="peekScrim" onClick={closeDay} />
           {dayKey && (

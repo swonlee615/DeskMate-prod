@@ -4,6 +4,7 @@
  * ★ 화면(레이아웃)은 `src/pc` · `src/mobile` 이 따로 그린다. 여기에는 화면 코드를 두지 않는다.
  *   같은 버튼이 PC 와 폰에서 다르게 동작하면 안 되므로 동작은 이 한 곳에만 있다.
  */
+import { savedId, type SavedKind, type SavedMap, type SavedSort } from '../domain/saved';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Backend, DayEvents, Item, Repo, SyncStatus, User } from '../data';
 import { deviceId, deviceKind, newId } from '../data/device';
@@ -38,6 +39,7 @@ const CATS_ID = 'cats';
 const RANKS_ID = 'ranks';
 const IMGS_ID = 'images';
 const V3_ID = 'v3import';
+const SAVED_ID = 'saved';
 const MEMBERS_ID = 'members';
 const TRASH_DAYS = 30;
 /** 휴지통 칸이 사라지기까지 남은 날 */
@@ -59,6 +61,13 @@ const OFF_CANCEL = { day: '1분이 안 돼서 출근을 취소했어요', sessio
 export interface Toast { text: string; action?: { label: string; run: () => void }; bad?: boolean }
 
 export interface Workspace {
+  /** 저장됨 — 담은 메모 (사본이 아니라 원본 메모를 가리킨다) · 고정 · 정렬 (v3.1.206 · v3.1.262) */
+  saved: SavedMap;
+  savedSort: SavedSort;
+  isSaved: (kind: SavedKind, key: string) => boolean;
+  toggleSaved: (kind: SavedKind, key: string) => void;
+  pinSaved: (id: string) => void;
+  setSavedSort: (s: SavedSort) => void;
   /** 휴지통 — 하루 통째 삭제한 것 (최근부터) · 30일 지나면 앱을 열 때 비운다 */
   trash: TrashDay[];
   /** 이 날 기록 삭제 — 근태 · 할 일 · 메모 · 시간 기록을 휴지통으로 (v3 deleteDayRow) */
@@ -394,6 +403,7 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
     if (Object.keys(c.settings).length) repo.mergeItem({ id: SETTINGS_ID, kind: 'settings', ...c.settings } as Item);
     if (c.members) repo.addItem({ id: MEMBERS_ID, kind: 'members', list: c.members } as Item);
     if (Object.keys(c.pomo).length) repo.mergeItem({ id: POMO_ID, kind: 'pomo', ...POMO_DEFAULT, ...(pomoDoc ?? {}), ...c.pomo } as Item);
+    if (Object.keys(c.saved.memos).length) repo.mergeItem({ id: SAVED_ID, kind: 'saved', memos: c.saved.memos, sort: c.saved.sort } as Item);
     let n = 0;
     for (const im of c.images) {
       onStep(`그림 ${++n} / ${c.images.length}을 옮기는 중`);
@@ -709,6 +719,23 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
     .sort((a, b) => STATUS_ORDER[a.st.key] - STATUS_ORDER[b.st.key] || a.m.nick.localeCompare(b.m.nick)), [team, nowMin]);
   const myMin = dayParts(day, now).workMs / 60000;
   const ranking = useMemo(() => leaderboard(team, nowMin, myMin, nick, teamCfg.members), [team, nowMin, Math.floor(myMin), nick, teamCfg]); // eslint-disable-line react-hooks/exhaustive-deps
+  // ── 저장됨 — 담은 것 · 고정은 items/saved 의 memos 지도 하나 (바뀐 칸만 고친다)
+  const savedDoc = items.find((x) => x.id === SAVED_ID) as (Item & { memos?: SavedMap; sort?: SavedSort }) | undefined;
+  const saved = useMemo<SavedMap>(() => savedDoc?.memos ?? {}, [savedDoc]);
+  const savedSort: SavedSort = savedDoc?.sort === 'date' ? 'date' : 'saved';
+  const isSaved: Workspace['isSaved'] = (kind, key) => !!saved[savedId(kind, key)];
+  const toggleSaved: Workspace['toggleSaved'] = (kind, key) => {
+    const id = savedId(kind, key), cur = saved[id];
+    if (!cur) { repo.mergeItem({ id: SAVED_ID, kind: 'saved', memos: { [id]: { savedAt: Date.now() } } } as Item); say('저장됨에 담았어요'); return; }
+    repo.patchItem(SAVED_ID, { [`memos.${id}`]: null });
+    say('저장됨에서 뺐어요 · 메모는 그대로예요', { label: '되돌리기', run: () => { repo.mergeItem({ id: SAVED_ID, kind: 'saved', memos: { [id]: cur } } as Item); setToast(null); } });
+  };
+  const pinSaved: Workspace['pinSaved'] = (id) => {
+    const on = !saved[id]?.pinnedAt;
+    repo.patchItem(SAVED_ID, { [`memos.${id}.pinnedAt`]: on ? Date.now() : null });
+    say(on ? '맨 위에 고정했어요' : '고정을 풀었어요');
+  };
+  const setSavedSort: Workspace['setSavedSort'] = (x) => repo.mergeItem({ id: SAVED_ID, kind: 'saved', sort: x } as Item);
   // ── 휴지통 (하루 통째 삭제만 · SYNC §14)
   const trash = useMemo(() => (items.filter((x) => x.kind === 'trash' && !x.deletedAt) as unknown as TrashDay[]).sort((a, b) => b.at - a.at), [items]);
   const imgsOfBlocks = (ids: string[]) => { const on = new Set(ids); return Object.entries(imgRef.current).filter(([, m]) => on.has(m.block)).map(([id]) => id); };
@@ -778,7 +805,7 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
     onOn, onOff, onRest, onLeave, dayOf, editDay, pendingDays, resolvePending, canCarry: canCarryFor,
     blocks, addBlock, patchBlocks, editBlocks, undoBlocks, lastEditAt, toggleBlock, removeBlock, newId,
     ddays, saveDDay, pinDDay, archiveDDay, deleteDDay,
-    trash, deleteDay, restoreTrash, purgeTrash, emptyTrash, teamCfg, v3Preview, v3Import, v3Imported, images, addImages, imageBlob, removeImage, ranks, firstDate, habits, offDay, saveHabit, archiveHabit, deleteHabit, toggleHabit,
+    saved, savedSort, isSaved, toggleSaved, pinSaved, setSavedSort, trash, deleteDay, restoreTrash, purgeTrash, emptyTrash, teamCfg, v3Preview, v3Import, v3Imported, images, addImages, imageBlob, removeImage, ranks, firstDate, habits, offDay, saveHabit, archiveHabit, deleteHabit, toggleHabit,
     logs, saveSpan, deleteSpan, fixConflicts, cats, setCats,
     mates, ranking, mateStatus,
     nick, initial: nick.slice(0, 1).toUpperCase(),

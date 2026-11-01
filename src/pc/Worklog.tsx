@@ -6,7 +6,7 @@
  *   일간 상세는 DayPage.tsx · 주간 탭은 WeekPlanner.tsx. 아직 안 옮긴 것: D-Day/습관 칸 · 비고의 시간 기록 분류 · 줄 우클릭 삭제
  */
 import { Since } from '../ui/Live';
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { Day, Leave } from '../domain/attendance/types';
 import { dayGoalMin, dayParts, openBreak, sessions, type GoalCfg } from '../domain/attendance/rules';
 import {
@@ -30,6 +30,8 @@ interface Props {
   onOpenDay: (date: string, focusOff?: boolean) => void;
   /** 줄 우클릭 — 상세 열기 · 이 날 기록 삭제 (v3 openRowMenu) */
   onRowMenu: (date: string, x: number, y: number) => void;
+  /** 바뀌면 주간 뷰로 연다 — 저장됨의 주간 메모 제목을 눌렀을 때 */
+  weekReq?: number;
   /** 일간 상세를 «전체 페이지» 로 열었을 때는 목록을 숨긴다 */
   hidden?: boolean;
   /** 자정을 넘긴 미완결 기록 배너 (첫 날 것) */
@@ -62,10 +64,11 @@ function loadWk(): Record<string, boolean> {
   try { return JSON.parse(localStorage.getItem(WK_KEY) || '{}'); } catch { return {}; }
 }
 
-export function Worklog({ weeks, all, onMore, days, today, now, goal, calMonth, setCalMonth, onLeave, unavailable, onOpenDay, onRowMenu, hidden, banner, todo, noteDates, week, dday }: Props) {
+export function Worklog({ weeks, all, onMore, days, today, now, goal, calMonth, setCalMonth, onLeave, unavailable, onOpenDay, onRowMenu, weekReq, hidden, banner, todo, noteDates, week, dday }: Props) {
   // 전체/주간 — v3 는 설정(cfg.wlView)에 남긴다. 기기별 편의라 브라우저 저장소에
   const [view, setView0] = useState<'all' | 'week'>(() => { try { return localStorage.getItem('dm.wlView') === 'week' ? 'week' : 'all'; } catch { return 'all'; } });
   const setView = (v: 'all' | 'week') => { setView0(v); try { localStorage.setItem('dm.wlView', v); } catch { /* 이번 화면만 */ } };
+  useEffect(() => { if (weekReq) setView('week'); }, [weekReq]); // eslint-disable-line react-hooks/exhaustive-deps
   const [wkOpen, setWkOpen] = useState<Record<string, boolean>>(loadWk);
   const nowD = new Date(now);
   const todayD = dateOf(today);

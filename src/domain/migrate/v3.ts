@@ -10,6 +10,7 @@
  * ▣ 옮기지 않는 것(웹에 기능이 없다)은 원본 파일째 보관한다 — 대화 · 동료 · 앱 사용 기록 · 저장됨 · 화면 설정
  * ▣ id 는 v3 것을 그대로 / 정해진 꼴로 — 다시 돌려도 덮어쓸 뿐 두 벌이 생기지 않는다
  */
+import { savedFromV3, type SavedMap, type SavedSort } from '../saved';
 import type { AttEvent, Day, DaySnapshot, Leave, Span } from '../attendance/types';
 import type { Block, BlockArea, BlockType } from '../todos/tree';
 import type { Log } from '../attendance/logs';
@@ -36,6 +37,7 @@ export interface V3State {
   members?: Partial<Member>[];
   userNick?: string; userName?: string; userRank?: string; userColor?: string; userAvatar?: string | null;
   wsLogo?: string | null; wsColor?: string; teamStart?: number;
+  savedMemos?: unknown; savedSort?: string;
 }
 
 export interface V3Image { id: string; dataUrl: string; date: string; area: BlockArea; block: string }
@@ -46,6 +48,8 @@ export interface Converted {
   members: Member[] | null;
   settings: Record<string, unknown>; pomo: Record<string, unknown>;
   images: V3Image[];
+  /** 저장됨 — 담은 메모 · 정렬 (v3 savedMemos · savedSort) */
+  saved: { memos: SavedMap; sort: SavedSort };
   /** 사람이 읽을 요약 — 무엇을 몇 개 옮겼고 무엇을 어떻게 바꿨나 */
   report: { days: number; breaks: number; lines: number; traces: number; relocated: number; goneChains: number; slots: number; rests: number; pomos: number; pomosAdded: number; images: number; weekLines: number; habitChecks: number };
 }
@@ -181,7 +185,9 @@ export function convertV3(st: V3State, now: number): Converted {
   const pomo: Record<string, unknown> = {};
   for (const k of ['focusMin', 'shortMin', 'longMin', 'longEvery', 'autoStart'] as const) if (st[k] != null) pomo[k] = st[k];
 
-  return { events, blocks, logs, ddays, habits, cats: st.cats?.length ? st.cats : null, members, settings, pomo, images, report: rep };
+  const saved = { memos: savedFromV3(st.savedMemos, now), sort: (st.savedSort === 'date' ? 'date' : 'saved') as SavedSort };
+
+  return { events, blocks, logs, ddays, habits, cats: st.cats?.length ? st.cats : null, members, settings, pomo, images, saved, report: rep };
 }
 
 /** 확인용 — 웹이 재생한 하루와 v3 하루의 근무 · 휴게 분을 나란히 (스크립트 · 가져오기 화면이 같이 쓴다) */
