@@ -13,9 +13,11 @@ import {
   addDays, dateOf, fmtClock, fmtDur, hhmm, keyOf, leaveOf, LEAVES, rowDate, weekLabel, weekStart, weekTag,
 } from '../ui/v3fmt';
 
-import { WEEKS_SHOWN } from '../app/useWorkspace';
+import { useMoreOnView } from '../ui/useMore';
 
 interface Props {
+  /** 보이는 주 수 · 다 받았나 · 더 받기 (v3 처럼 첫 기록까지) */
+  weeks: number; all: boolean; onMore: () => void;
   days: Record<string, Day>;
   today: string;
   now: number;
@@ -58,7 +60,7 @@ function loadWk(): Record<string, boolean> {
   try { return JSON.parse(localStorage.getItem(WK_KEY) || '{}'); } catch { return {}; }
 }
 
-export function Worklog({ days, today, now, goal, calMonth, setCalMonth, onLeave, unavailable, onOpenDay, hidden, banner, todo, noteDates, week, dday }: Props) {
+export function Worklog({ weeks, all, onMore, days, today, now, goal, calMonth, setCalMonth, onLeave, unavailable, onOpenDay, hidden, banner, todo, noteDates, week, dday }: Props) {
   // 전체/주간 — v3 는 설정(cfg.wlView)에 남긴다. 기기별 편의라 브라우저 저장소에
   const [view, setView0] = useState<'all' | 'week'>(() => { try { return localStorage.getItem('dm.wlView') === 'week' ? 'week' : 'all'; } catch { return 'all'; } });
   const setView = (v: 'all' | 'week') => { setView0(v); try { localStorage.setItem('dm.wlView', v); } catch { /* 이번 화면만 */ } };
@@ -79,10 +81,12 @@ export function Worklog({ days, today, now, goal, calMonth, setCalMonth, onLeave
     }
   }
   const tag = weekTag(todayD);
+  // 표 끝이 보이면 지난 주를 더 받는다 — 첫 기록이 든 주까지 (v3 는 처음부터 다 세운다)
+  const moreRef = useMoreOnView(onMore, !all, weeks);
 
   // ── 주 묶음 (v3 WL.weeks) — 기록 있는 날만, 오늘은 기록이 없어도 늘 세운다
   const groups: { start: Date; rows: string[] }[] = [];
-  for (let w = 0; w < WEEKS_SHOWN; w++) {
+  for (let w = 0; w < weeks; w++) {
     const start = addDays(ws0, -7 * w);
     const rows: string[] = [];
     for (let i = 6; i >= 0; i--) {
@@ -156,6 +160,7 @@ export function Worklog({ days, today, now, goal, calMonth, setCalMonth, onLeave
                 </div>
               );
             })}
+            {view === 'all' && !all && <div ref={moreRef} className="wl-more" aria-hidden="true" />}
           </div>
 
           <div className="wl-cal">

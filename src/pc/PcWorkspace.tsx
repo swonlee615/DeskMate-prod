@@ -163,7 +163,7 @@ export function PcWorkspace({ ws }: { ws: Workspace }) {
             </button>
           </header>
 
-          <Worklog days={days} today={today} now={now} goal={ws.goal}
+          <Worklog weeks={ws.tblWeeks} all={ws.tblAll} onMore={ws.moreWeeks} days={days} today={today} now={now} goal={ws.goal}
             calMonth={ws.calMonth} setCalMonth={ws.setCalMonth} onLeave={ws.onLeave} unavailable={ws.unavailable}
             onOpenDay={openDay} hidden={view !== 'worklog' || (!!dayKey && !asLayer)}
             week={<WeekPlanner ws={ws} onOpenDay={(k) => openDay(k)} dday={ddBox} />}

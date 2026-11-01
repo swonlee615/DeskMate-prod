@@ -41,6 +41,8 @@ const V3_ID = 'v3import';
 const SETTINGS_ID = 'settings';
 /** 근태 표가 보여 주는 주 수 (이번 주 포함) */
 export const WEEKS_SHOWN = 5;
+/** 근태 표가 한 번에 더 받는 주 수 (아래로 내리면) */
+export const WEEKS_STEP = 5;
 
 const OFF_CANCEL = { day: '1분이 안 돼서 출근을 취소했어요', session: '1분이 안 돼서 이 차수를 취소했어요' };
 
@@ -68,6 +70,11 @@ export interface Workspace {
   unavailable: boolean;
   /** 활동이 보는 기간 — 그만큼 받아 둔다 (null = 놓기) */
   setDashSpan: (span: [string, string] | null) => void;
+  /** 근태 표가 보여 주는 주 수 — v3 처럼 첫 기록까지 다 보이되, 아래로 내릴 때 WEEKS_STEP 주씩 받는다 */
+  tblWeeks: number;
+  /** 첫 기록이 든 주까지 다 보였나 */
+  tblAll: boolean;
+  moreWeeks: () => void;
   calMonth: Date;
   /** 주간 플래너가 보는 주 (월요일 키) */
   wpWeek: string;
@@ -196,12 +203,18 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
   const [firstDate, setFirstDate] = useState<string | null>(null);
   useEffect(() => { repo.firstDate().then(setFirstDate, () => setFirstDate(null)); }, [repo]);
 
-  // 받아 두는 기간 = 표에 보이는 5주 + 캘린더에 보이는 달 (노션 방식 — 보이는 것만)
+  // 근태 표 — v3 는 첫 기록까지 모든 주를 세운다. 웹은 보이는 만큼만 받으려고 아래로 내릴 때 더 받는다
+  const [tblWeeks, setTblWeeks] = useState(WEEKS_SHOWN);
+  const firstWk = firstDate ? keyOf(weekStart(dateOf(firstDate))) : null;
+  const tblStart = keyOf(addDays(weekStart(dateOf(today)), -7 * (tblWeeks - 1)));
+  const tblAll = !firstWk || tblStart <= firstWk;
+  const moreWeeks = useCallback(() => setTblWeeks((n) => n + WEEKS_STEP), []);
+  // 받아 두는 기간 = 표에 보이는 주 + 캘린더에 보이는 달 (노션 방식 — 보이는 것만)
   const from = useMemo(() => {
-    const tblFrom = keyOf(addDays(weekStart(dateOf(today)), -7 * (WEEKS_SHOWN - 1)));
+    const tblFrom = tblStart;
     const calFrom = keyOf(calMonth);
     return [tblFrom, calFrom, wpWeek, ...(dashSpan ? [dashSpan[0]] : [])].sort()[0];
-  }, [today, calMonth, wpWeek, dashSpan]);
+  }, [tblStart, calMonth, wpWeek, dashSpan]);
   const to = useMemo(() => {
     const calTo = keyOf(new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 0));
     return [calTo, today, keyOf(addDays(dateOf(wpWeek), 6)), ...(dashSpan ? [dashSpan[1]] : [])].sort().at(-1) as string;
@@ -679,7 +692,7 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
   return {
     settings, saveSettings, goal,
     backend, user, now, today, sync, days, day, state,
-    unavailable: range.unavailable, setDashSpan, calMonth, setCalMonth, wpWeek, setWpWeek, toast, timer, say, warn,
+    unavailable: range.unavailable, setDashSpan, tblWeeks, tblAll, moreWeeks, calMonth, setCalMonth, wpWeek, setWpWeek, toast, timer, say, warn,
     onOn, onOff, onRest, onLeave, dayOf, editDay, pendingDays, resolvePending, canCarry: canCarryFor,
     blocks, addBlock, patchBlocks, editBlocks, undoBlocks, lastEditAt, toggleBlock, removeBlock, newId,
     ddays, saveDDay, pinDDay, archiveDDay, deleteDDay,

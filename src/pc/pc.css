@@ -31,3 +31,4 @@
 .v3-act { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
 .v3-err { color: var(--red); }
 .v3-step { color: var(--text-strong); }
+.wl-more { height: 1px; }

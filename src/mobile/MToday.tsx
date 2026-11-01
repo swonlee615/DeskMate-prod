@@ -6,7 +6,7 @@
 import { Since } from '../ui/Live';
 import { useState } from 'react';
 import type { Workspace } from '../app/useWorkspace';
-import { WEEKS_SHOWN } from '../app/useWorkspace';
+import { useMoreOnView } from '../ui/useMore';
 import type { Day, Leave } from '../domain/attendance/types';
 import { dayGoalMin, dayParts, openBreak, sessions, workMinutes } from '../domain/attendance/rules';
 import type { GoalCfg } from '../domain/attendance/rules';
@@ -138,7 +138,8 @@ function Weeks({ ws, onDay }: { ws: Workspace; onDay: (k: string) => void }) {
   const nowD = new Date(ws.now);
   const w0 = weekStart(dateOf(ws.today));
   const weeks: { start: Date; rows: string[] }[] = [];
-  for (let w = 0; w < WEEKS_SHOWN; w++) {
+  const moreRef = useMoreOnView(ws.moreWeeks, !ws.tblAll, ws.tblWeeks);   // 끝이 보이면 지난 주를 더 (첫 기록까지)
+  for (let w = 0; w < ws.tblWeeks; w++) {
     const start = addDays(w0, -7 * w);
     const rows: string[] = [];
     for (let i = 6; i >= 0; i--) {
@@ -168,6 +169,7 @@ function Weeks({ ws, onDay }: { ws: Workspace; onDay: (k: string) => void }) {
           </section>
         );
       })}
+      {!ws.tblAll && <div ref={moreRef} style={{ height: 1 }} aria-hidden="true" />}
     </>
   );
 }
