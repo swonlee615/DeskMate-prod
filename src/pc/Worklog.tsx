@@ -28,6 +28,8 @@ interface Props {
   unavailable: boolean;
   /** 줄 · 캘린더 날짜를 누르면 그 날 상세 (focusOff — 퇴근 칸에 커서) */
   onOpenDay: (date: string, focusOff?: boolean) => void;
+  /** 줄 우클릭 — 상세 열기 · 이 날 기록 삭제 (v3 openRowMenu) */
+  onRowMenu: (date: string, x: number, y: number) => void;
   /** 일간 상세를 «전체 페이지» 로 열었을 때는 목록을 숨긴다 */
   hidden?: boolean;
   /** 자정을 넘긴 미완결 기록 배너 (첫 날 것) */
@@ -60,7 +62,7 @@ function loadWk(): Record<string, boolean> {
   try { return JSON.parse(localStorage.getItem(WK_KEY) || '{}'); } catch { return {}; }
 }
 
-export function Worklog({ weeks, all, onMore, days, today, now, goal, calMonth, setCalMonth, onLeave, unavailable, onOpenDay, hidden, banner, todo, noteDates, week, dday }: Props) {
+export function Worklog({ weeks, all, onMore, days, today, now, goal, calMonth, setCalMonth, onLeave, unavailable, onOpenDay, onRowMenu, hidden, banner, todo, noteDates, week, dday }: Props) {
   // 전체/주간 — v3 는 설정(cfg.wlView)에 남긴다. 기기별 편의라 브라우저 저장소에
   const [view, setView0] = useState<'all' | 'week'>(() => { try { return localStorage.getItem('dm.wlView') === 'week' ? 'week' : 'all'; } catch { return 'all'; } });
   const setView = (v: 'all' | 'week') => { setView0(v); try { localStorage.setItem('dm.wlView', v); } catch { /* 이번 화면만 */ } };
@@ -154,7 +156,7 @@ export function Worklog({ weeks, all, onMore, days, today, now, goal, calMonth, 
                     </div>
                     {g.rows.map((k) => (
                       <Row key={k} k={k} d={days[k]} isToday={k === today} now={now} nowD={nowD}
-                        goal={goal} onLeave={onLeave} onOpen={() => onOpenDay(k)} />
+                        goal={goal} onLeave={onLeave} onOpen={() => onOpenDay(k)} onMenu={(x, y) => onRowMenu(k, x, y)} />
                     ))}
                   </div>
                 </div>
@@ -174,9 +176,9 @@ export function Worklog({ weeks, all, onMore, days, today, now, goal, calMonth, 
   );
 }
 
-function Row({ k, d, isToday, now, nowD, goal, onLeave, onOpen }: {
+function Row({ k, d, isToday, now, nowD, goal, onLeave, onOpen, onMenu }: {
   k: string; d: Day | undefined; isToday: boolean; now: number; nowD: Date; goal: GoalCfg;
-  onLeave: (date: string, leave: Leave) => void; onOpen: () => void;
+  onLeave: (date: string, leave: Leave) => void; onOpen: () => void; onMenu: (x: number, y: number) => void;
 }) {
   const ses = d ? sessions(d) : [];
   const brk = d && isToday ? openBreak(d) : null;
@@ -190,7 +192,9 @@ function Row({ k, d, isToday, now, nowD, goal, onLeave, onOpen }: {
 
   return (
     <div className={`tr${isToday ? ' today' : ''}${ses.length > 1 ? ' multi' : ''}`} data-day={k}
-      onClick={(e) => { if (!(e.target as HTMLElement).closest('.lv-sel')) onOpen(); }}>
+      onClick={(e) => { if (!(e.target as HTMLElement).closest('.lv-sel')) onOpen(); }}
+      // 삭제는 우클릭으로만 — 늘 떠 있으면 눈에 걸리고, 호버로 나오면 잘못 누르기 쉽다 (v3)
+      onContextMenu={(e) => { if ((e.target as HTMLElement).closest('.lv-sel')) return; e.preventDefault(); onMenu(e.clientX, e.clientY); }}>
       <div className="dt"><b>{rd.b}</b><span>{rd.span}</span></div>
       <div className="tm wide sess">{ses.length
         ? ses.map((x, i) => <i key={i}>{hhmm(x.on)}</i>)

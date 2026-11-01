@@ -103,6 +103,12 @@ export function createLocalRepo(): Repo {
       emit();
     },
 
+    restoreEvent(e) {
+      all = all.map((x) => (x.id === e.id ? { ...x, deletedAt: undefined } : x));
+      save(all);
+      emit();
+    },
+
     deleteEvent(e) {
       all = all.map((x) => (x.id === e.id ? { ...x, deletedAt: Date.now() } : x));
       save(all);

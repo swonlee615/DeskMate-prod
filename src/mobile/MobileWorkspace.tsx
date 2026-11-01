@@ -11,7 +11,7 @@
 import { avStyle, avText } from '../ui/avatar';
 import { PomoClock } from '../ui/Live';
 import { useLayoutEffect, useRef, useState } from 'react';
-import type { Workspace } from '../app/useWorkspace';
+import { daysLeft, type Workspace } from '../app/useWorkspace';
 import { AccountDialog } from '../ui/AccountDialog';
 import { SyncBadge } from '../ui/SyncBadge';
 import { fmtDur } from '../ui/v3fmt';
@@ -295,5 +295,21 @@ function DataImages({ ws, goDay }: { ws: Workspace; goDay: (date: string) => voi
         ))}
       </ul>
     )}
+    <h3 className="m-set-h">휴지통</h3>
+    {!ws.trash.length
+      ? <p className="m-set-hint">휴지통이 비어 있어요.</p>
+      : <>
+        <ul className="m-card m-list">
+          {ws.trash.map((t) => (
+            <li key={t.id} className="m-row">
+              <div className="m-row-l"><b>{t.label}</b><span>{daysLeft(t.at)}일 뒤 삭제</span></div>
+              <button className="m-img-del" onClick={() => ws.restoreTrash(t.id)}>복원</button>
+              <button className={`m-img-del${ask === t.id ? ' on' : ''}`} onClick={() => { if (ask === t.id) { ws.purgeTrash(t.id); setAsk(null); } else setAsk(t.id); }}>
+                {ask === t.id ? '정말 삭제' : '영구 삭제'}</button>
+            </li>
+          ))}
+        </ul>
+        <p className="m-set-hint">지운 하루 기록은 30일 동안 여기 남고, 그 뒤에 사라져요.</p>
+      </>}
   </>;
 }

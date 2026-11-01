@@ -27,6 +27,7 @@ import { HabitModal, HabitRings } from './Habits';
 import { MateRows, Ranking } from './Team';
 import type { DDay } from '../domain/dday';
 import type { Habit } from '../domain/habits';
+import { RowMenu, TrashView } from './Trash';
 import './pc.css';
 
 /** v3 applyLayout 과 같은 기준 — 3단 ≥840 · 2단 ≥600 · 1단. 우측 패널은 1360(사이드바 접으면 1180)부터 열로 붙는다 */
@@ -72,7 +73,7 @@ export function PcWorkspace({ ws }: { ws: Workspace }) {
   }, [undoRef]);
   useEffect(bindTips, []);
   // 레일 — 홈(근태) · 활동. 화면을 바꾸면 열어 둔 일간 상세는 닫는다
-  const [view, setView] = useState<'worklog' | 'dash'>('worklog');
+  const [view, setView] = useState<'worklog' | 'dash' | 'trash'>('worklog');
   const go = (v: typeof view) => { setView(v); setDayKey(null); setDayFull(false); setDrawer(false); };
   const [drawer, setDrawer] = useState(false);
   const [acctOpen, setAcctOpen] = useState(false);
@@ -82,6 +83,8 @@ export function PcWorkspace({ ws }: { ws: Workspace }) {
   const [dayFull, setDayFull] = useState(false);
   const [focusOff, setFocusOff] = useState(false);
   const openDay = (k: string, off = false) => { setDayKey(k); setFocusOff(off); };
+  const [rowMenu, setRowMenu] = useState<{ k: string; x: number; y: number } | null>(null);
+  const noteDates = new Set(ws.blocks.filter((b) => !b.deletedAt && b.text.trim() && (b.area === 'today' || b.area === 'memo')).map((b) => b.date));
   const closeDay = () => { setDayKey(null); setDayFull(false); setFocusOff(false); };
   const { mode, docked } = useLayout(sbOff);
   const openAccount = () => { setDrawer(false); if (backend.mode === 'cloud') setAcctOpen(true); };
@@ -139,6 +142,9 @@ export function PcWorkspace({ ws }: { ws: Workspace }) {
               <span className="nm"><span className="sb-me-nick">{nick}</span></span>
               <span className="tag">나</span>
             </button>
+            <button className={`sb-row${view === 'trash' ? ' sel' : ''}`} id="rowTrash" onClick={() => go('trash')}>
+              <span className="glyph">🗑</span><span className="nm">휴지통</span>
+              {ws.trash.length > 0 && <span className="badge" id="trashBadge">{ws.trash.length}</span>}</button>
           </div>
         </nav>
 
@@ -157,7 +163,7 @@ export function PcWorkspace({ ws }: { ws: Workspace }) {
               <button className="icon-btn" id="navFwd" title="앞으로 (⌥→)" disabled>
                 <svg viewBox="0 0 20 20"><path d="M8 4.5 13.5 10 8 15.5" /></svg></button>
             </div>
-            <div className="ch-title"><span id="chTitle">{view === 'dash' ? '활동' : 'ONnOFF'}</span></div>
+            <div className="ch-title"><span id="chTitle">{view === 'dash' ? '활동' : view === 'trash' ? '휴지통' : 'ONnOFF'}</span></div>
             <div className="hspace" />
             <SyncBadge s={sync} />
             <button className="mini-pill" id="miniTimer" title="집중 타이머 열기" onClick={() => setPanelOpen((v) => !v)}>
@@ -171,10 +177,11 @@ export function PcWorkspace({ ws }: { ws: Workspace }) {
             onOpenDay={openDay} hidden={view !== 'worklog' || (!!dayKey && !asLayer)}
             week={<WeekPlanner ws={ws} onOpenDay={(k) => openDay(k)} dday={ddBox} />}
             dday={ddBox}
-            noteDates={new Set(ws.blocks.filter((b) => !b.deletedAt && b.text.trim() && (b.area === 'today' || b.area === 'memo')).map((b) => b.date))}
+            noteDates={noteDates} onRowMenu={(k, x, y) => setRowMenu({ k, x, y })}
             todo={rangeRate(ws.blocks, keyOf(weekStart(dateOf(today))), keyOf(addDays(weekStart(dateOf(today)), 6)))}
             // 상세를 레이어로 열면 목록 오른쪽이 가려져 이 띠가 반쯤 잘린다 — 상세가 같은 띠를 보여 주므로 뒤의 것은 걷는다
             banner={pend.length > 0 && !asLayer && <PendBanner ws={ws} date={pend[0]} more={pend.length - 1} onEdit={() => openDay(pend[0], true)} />} />
+          <TrashView ws={ws} hidden={view !== 'trash'} />
           {view === 'dash' && <PcActivity ws={ws} hidden={!!dayKey && !asLayer} onOpenDay={(k) => openDay(k)} />}
           <div className="peek-scrim" id="peekScrim" onClick={closeDay} />
           {dayKey && (
@@ -203,6 +210,8 @@ export function PcWorkspace({ ws }: { ws: Workspace }) {
         {ws.toast?.action && <button className="tu" onClick={ws.toast.action.run}>{ws.toast.action.label}</button>}
       </div>
 
+      {rowMenu && <RowMenu x={rowMenu.x} y={rowMenu.y} can={!!days[rowMenu.k] || noteDates.has(rowMenu.k)}
+        onOpen={() => openDay(rowMenu.k)} onDelete={() => ws.deleteDay(rowMenu.k)} onClose={() => setRowMenu(null)} />}
       {setOpen && <SettingsModal ws={ws} onClose={() => setSetOpen(false)} onDay={(k) => { setSetOpen(false); setView('worklog'); openDay(k); }} />}
       {acctOpen && (
         <AccountDialog auth={backend.auth} user={user} pending={sync?.pending ?? 0} onClose={() => setAcctOpen(false)} />

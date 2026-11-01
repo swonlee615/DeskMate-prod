@@ -43,6 +43,8 @@ export interface Repo {
   addEvent(e: AttEvent): void;
   /** 지우기 = 표시만 (deletedAt). 다른 기기에도 «지웠다» 가 전해져야 하므로 */
   deleteEvent(e: AttEvent): void;
+  /** 지움 표시를 걷는다 — 휴지통에서 하루를 되살릴 때 */
+  restoreEvent(e: AttEvent): void;
   watchSync(cb: (s: SyncStatus) => void): () => void;
 
   // ── 할 일 · 메모 줄 (블록) — 줄 하나 = 문서 하나 (users/{uid}/blocks/{id})

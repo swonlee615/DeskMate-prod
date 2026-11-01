@@ -39,6 +39,12 @@ const RANKS_ID = 'ranks';
 const IMGS_ID = 'images';
 const V3_ID = 'v3import';
 const MEMBERS_ID = 'members';
+const TRASH_DAYS = 30;
+/** 휴지통 칸이 사라지기까지 남은 날 */
+export const daysLeft = (at: number, now = Date.now()) => Math.max(0, TRASH_DAYS - Math.floor((now - at) / 864e5));
+
+/** 휴지통 한 칸 — 하루 통째 삭제만 (SYNC §14). 지움 표시한 것들의 id 를 들고 있다가 되살릴 때 걷는다 */
+export interface TrashDay { id: string; kind: 'trash'; date: string; at: number; label: string; ev: string[]; bl: string[]; lg: string[]; deletedAt?: number | null }
 
 const SETTINGS_ID = 'settings';
 /** 근태 표가 보여 주는 주 수 (이번 주 포함) */
@@ -53,6 +59,14 @@ const OFF_CANCEL = { day: '1분이 안 돼서 출근을 취소했어요', sessio
 export interface Toast { text: string; action?: { label: string; run: () => void }; bad?: boolean }
 
 export interface Workspace {
+  /** 휴지통 — 하루 통째 삭제한 것 (최근부터) · 30일 지나면 앱을 열 때 비운다 */
+  trash: TrashDay[];
+  /** 이 날 기록 삭제 — 근태 · 할 일 · 메모 · 시간 기록을 휴지통으로 (v3 deleteDayRow) */
+  deleteDay: (date: string) => void;
+  restoreTrash: (id: string) => void;
+  /** 영구삭제 — 휴지통 칸과 그 날 그림 파일을 비운다 (기록은 «지움» 표시로 남는다) */
+  purgeTrash: (id: string) => void;
+  emptyTrash: () => void;
   /** 팀 — 멤버 · 근무시간대 (랭킹 · 순위 이력 · 사이드바가 같이 쓴다) */
   teamCfg: Team;
   /** 이 브라우저의 자리비움 감지 권한 · 묻기 (PC 브라우저 · Chrome/Edge) */
@@ -695,6 +709,49 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
     .sort((a, b) => STATUS_ORDER[a.st.key] - STATUS_ORDER[b.st.key] || a.m.nick.localeCompare(b.m.nick)), [team, nowMin]);
   const myMin = dayParts(day, now).workMs / 60000;
   const ranking = useMemo(() => leaderboard(team, nowMin, myMin, nick, teamCfg.members), [team, nowMin, Math.floor(myMin), nick, teamCfg]); // eslint-disable-line react-hooks/exhaustive-deps
+  // ── 휴지통 (하루 통째 삭제만 · SYNC §14)
+  const trash = useMemo(() => (items.filter((x) => x.kind === 'trash' && !x.deletedAt) as unknown as TrashDay[]).sort((a, b) => b.at - a.at), [items]);
+  const imgsOfBlocks = (ids: string[]) => { const on = new Set(ids); return Object.entries(imgRef.current).filter(([, m]) => on.has(m.block)).map(([id]) => id); };
+  const deleteDay: Workspace['deleteDay'] = (date) => {
+    const at = Date.now();
+    const ev = range.events.filter((e) => e.date === date && !e.deletedAt);
+    const bl = blocks.filter((b) => b.date === date && (b.area === 'today' || b.area === 'memo') && !b.deletedAt).map((b) => b.id);
+    const lg = logs.filter((l) => l.date === date && !l.deletedAt).map((l) => l.id);
+    if (!ev.length && !bl.length && !lg.length) { say('이 날은 지울 기록이 없어요'); return; }
+    for (const e of ev) repo.deleteEvent(e);
+    if (bl.length) repo.patchBlocks(bl.map((id) => ({ id, deletedAt: at })));
+    for (const id of lg) repo.patchLog(id, { deletedAt: at });
+    const d = dateOf(date), id = `trash-${date}-${at}`;
+    repo.addItem({ id, kind: 'trash', date, at, label: `${d.getMonth() + 1}월 ${d.getDate()}일 하루 기록`, ev: ev.map((e) => e.id), bl, lg } as unknown as Item);
+    say('휴지통으로 옮겼어요', { label: '되돌리기', run: () => { restoreTrash(id); setToast(null); } });
+  };
+  const restoreTrash: Workspace['restoreTrash'] = (id) => {
+    const t = trash.find((x) => x.id === id) ?? (items.find((x) => x.id === id) as unknown as TrashDay | undefined);
+    if (!t) return;
+    for (const eid of t.ev) repo.restoreEvent({ id: eid } as AttEvent);
+    if (t.bl.length) repo.patchBlocks(t.bl.map((bid) => ({ id: bid, deletedAt: null as unknown as number })));
+    for (const lid of t.lg) repo.patchLog(lid, { deletedAt: null });
+    repo.patchItem(id, { deletedAt: Date.now() });
+    say(`${t.label}을 되살렸어요`);
+  };
+  const purgeTrash: Workspace['purgeTrash'] = (id) => {
+    const t = trash.find((x) => x.id === id);
+    if (!t) return;
+    const imgs = imgsOfBlocks(t.bl);
+    for (const g of imgs) void repo.deleteImage(g);
+    if (imgs.length) repo.patchItem(IMGS_ID, Object.fromEntries(imgs.map((g) => [`map.${g}`, null])));
+    repo.patchItem(id, { deletedAt: Date.now() });
+  };
+  const emptyTrash = () => { for (const t of trash) purgeTrash(t.id); say('휴지통을 비웠어요'); };
+  // 30일 지난 칸은 앱을 열 때 비운다 (v3 cleanup)
+  const trashSwept = useRef(false);
+  useEffect(() => {
+    if (!itemsIn || trashSwept.current) return;
+    trashSwept.current = true;
+    const cut = Date.now() - TRASH_DAYS * 864e5;
+    for (const t of trash) if (t.at < cut) purgeTrash(t.id);
+  }, [itemsIn, trash]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // 지운 줄의 그림 비우기 — 앱을 열 때 한 번, 줄을 지운 지 하루가 지난 그림만 (SYNC §14)
   const purged = useRef(false);
   useEffect(() => {
@@ -721,7 +778,7 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
     onOn, onOff, onRest, onLeave, dayOf, editDay, pendingDays, resolvePending, canCarry: canCarryFor,
     blocks, addBlock, patchBlocks, editBlocks, undoBlocks, lastEditAt, toggleBlock, removeBlock, newId,
     ddays, saveDDay, pinDDay, archiveDDay, deleteDDay,
-    teamCfg, v3Preview, v3Import, v3Imported, images, addImages, imageBlob, removeImage, ranks, firstDate, habits, offDay, saveHabit, archiveHabit, deleteHabit, toggleHabit,
+    trash, deleteDay, restoreTrash, purgeTrash, emptyTrash, teamCfg, v3Preview, v3Import, v3Imported, images, addImages, imageBlob, removeImage, ranks, firstDate, habits, offDay, saveHabit, archiveHabit, deleteHabit, toggleHabit,
     logs, saveSpan, deleteSpan, fixConflicts, cats, setCats,
     mates, ranking, mateStatus,
     nick, initial: nick.slice(0, 1).toUpperCase(),

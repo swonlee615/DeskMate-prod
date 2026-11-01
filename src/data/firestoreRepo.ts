@@ -84,6 +84,8 @@ export function createFirestoreRepo(db: Firestore, uid: string): Repo {
 
     addEvent(e) { track(setDoc(doc(col, e.id), e)); },
 
+    restoreEvent(e) { track(updateDoc(doc(col, e.id), { deletedAt: deleteField() })); },
+
     deleteEvent(e) {
       // 필드 하나만 보낸다 → 다른 기기가 같은 문서를 고쳐도 덮이지 않는다
       track(updateDoc(doc(col, e.id), { deletedAt: Date.now() }));
