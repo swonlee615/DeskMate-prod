@@ -1693,6 +1693,13 @@ body[data-mode="light"] .mini-btn.rest { color: var(--yellow-a8); }
 .rk-sum b { font-size: 19px; font-weight: 800; color: var(--text-strong);
   letter-spacing: -.4px; font-variant-numeric: tabular-nums; }
 .rk-sum span { font-size: 11px; color: var(--text-muted); }
+/* v3.1.271 — 현재 순위 칸은 다른 칸과 **같은 모양**이다 (소유자: 파란 테두리 · 파란 글자를 걷음).
+   v3.1.269 에 «진행 중» 을 색으로 따로 말하려 했는데, 요약 줄에서 한 칸만 튀어 다른 종류처럼 읽혔다 */
+/* v3.1.269 — 칸이 넷이 되어 좁은 카드(≈300px)에서 「4.5 / 위」 · 「현재 순 / 위」 처럼 글자 중간이 깨졌다.
+   칸마다 바닥 폭(116px)을 두고 넘치면 **줄을 바꿔** 2×2 로 선다 — 값은 한 줄을 지킨다 */
+.rk-sum { flex-wrap: wrap; }
+.rk-sum > div { flex: 1 1 116px; }
+.rk-sum b { white-space: nowrap; }
 .rk-chart { width: 100%; }
 .rk-chart svg { width: 100%; height: auto; display: block; overflow: visible; }
 /* 격자·축 — 배경으로 물러나야 한다. 읽을 것은 점이지 선이 아니다 */
@@ -5732,6 +5739,11 @@ body[data-mode="light"] .day-fold .dh-seg .mini-btn.rest:hover { color: var(--ye
 .resume-ask .rz-s { color: var(--text-muted); font-size: 11.5px; margin-top: 5px; font-variant-numeric: tabular-nums; }
 .resume-ask .rz-s b { color: var(--text); }
 .resume-ask .rz-a { display: flex; gap: 6px; margin-top: 11px; }
+/* v3.2.0 출근 감지 물음 — 같은 카드에 단추가 셋이라 좁으면 줄을 바꾼다. ✕ 가 없으니 제목 오른쪽 여백도 걷는다 */
+.arrival-ask .rz-a { flex-wrap: wrap; }
+.arrival-ask .rz-t { padding-right: 0; }
+/* v3.2.1 — 놓친 업무 기록 칸이 위에 서면 아래 물음과 선으로 가른다 (메뉴바 팝업과 같은 순서) */
+.arrival-ask .aa-miss + .aa-ask { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
 
 /* ── 접힌 머리줄 (v2.9.84) ────────────────────────────────
    상세 페이지를 내리면 큰 제목이 사라져 «지금 어느 날짜를 보는지» 를 놓쳤다.

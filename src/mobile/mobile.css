@@ -800,7 +800,7 @@ button.m-cat.on { color: var(--text-strong); font-weight: 700; box-shadow: inset
 .m-rk .hit { fill: transparent; cursor: pointer; }
 .lvz { background: color-mix(in srgb, var(--text-dim) 35%, transparent); }
 
-.m-rk-sum { grid-template-columns: repeat(3, 1fr); }
+.m-rk-sum { grid-template-columns: repeat(2, 1fr); }   /* 현재 순위 · 평균 · 최고 · 기준 — 폰에선 2×2 (v3.1.269 와 같은 이유) */
 .m-lv { display: flex; flex-wrap: wrap; gap: 6px; }
 .m-lv-c { display: inline-flex; align-items: baseline; gap: 4px; padding: 4px 10px; border-radius: 12px; font-size: 12px; color: var(--text-muted); background: color-mix(in srgb, var(--lv) 14%, transparent); }
 .m-lv-c b { font-size: 14px; color: var(--lv); font-variant-numeric: tabular-nums; }

@@ -124,7 +124,7 @@ export function MActivity({ ws, onDay }: { ws: Workspace; onDay: (k: string) => 
       </>}
       {/* 습관은 출근과 따로 쌓인다 — 출근 기록이 없는 기간에도 보여 준다 (v3.1.236) */}
       {hb && <HabitCard t={hb} kind={kind} live={p.live} />}
-      {sm.days > 0 && <RankCard kind={kind} pts={ranks} rows={rows} from={p.from} end={p.end} today={ws.today} onDay={openIf} />}
+      {sm.days > 0 && <RankCard kind={kind} pts={ranks} rows={rows} from={p.from} end={p.end} today={ws.today} onDay={openIf} now={p.live ? { v: todayRank } : null} />}
     </div>
   );
 }
@@ -333,13 +333,14 @@ function HabitCard({ t, kind, live }: { t: HbTable; kind: PeriodKind; live: bool
 }
 
 /** 내 순위 이력 — 주간 · 월간은 등수 선(위가 1위 · 점 크기 = 겨룬 사람 수 · 오늘은 속 빈 점), 연간은 히트맵 (v3.1.257) */
-function RankCard({ kind, pts, rows, from, end, today, onDay }: { kind: PeriodKind; pts: RankPt[]; rows: DayRow[]; from: string; end: string; today: string; onDay: (k: string) => void }) {
+function RankCard({ kind, pts, rows, from, end, today, onDay, now }: { kind: PeriodKind; pts: RankPt[]; rows: DayRow[]; from: string; end: string; today: string; onDay: (k: string) => void; now: { v: { pos: number; n: number } | null } | null }) {
   const year = dateOf(from).getFullYear();
   const N = ROSTER.length + 1;
   const st = rankStat(pts, N);
   if (!st.days && !pts.length) return null;
   const sum = st.days > 0 && (
     <div className="m-an-kv m-rk-sum">
+      {now && <div><span>현재 순위 · {now.v && now.v.n >= 2 ? `${now.v.n}명 중` : now.v ? '혼자 근무' : '아직 없음'}</span><b>{now.v && now.v.n >= 2 ? `${now.v.pos}위` : '–'}</b></div>}
       <div><span>평균 · {N}명 환산</span><b>{st.avg.toFixed(1)}위</b></div>
       <div><span>최고 순위</span><b>{st.best}위</b></div>
       <div><span>{st.days}일 기준</span><b>상위 {st.pct}%</b></div>

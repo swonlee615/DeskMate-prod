@@ -92,7 +92,7 @@ export function PcActivity({ ws, hidden, onOpenDay }: { ws: Workspace; hidden: b
   );
   const tail = <>
     {hb && <HabitCard t={hb} kind={kind} live={p.live} />}
-    <RankCard kind={kind} pts={ranks} from={p.from} end={p.end} today={ws.today} first={ws.firstDate} od={od} odTip={odTip} />
+    <RankCard kind={kind} pts={ranks} from={p.from} end={p.end} today={ws.today} first={ws.firstDate} od={od} odTip={odTip} now={p.live ? { v: todayRank } : null} />
   </>;
 
   let body: React.ReactNode;
@@ -466,8 +466,10 @@ function HabitCard({ t, kind, live }: { t: HbTable; kind: PeriodKind; live: bool
 }
 
 /** 내 순위 이력 (v3.1.106 · 252 · 257) — 위가 1위 · 점 크기 = 그 날 겨룬 사람 수 · 오늘은 속 빈 점 + 점선 · 연간은 히트맵 */
-function RankCard({ kind, pts, from, end, today, first, od, odTip }: {
+function RankCard({ kind, pts, from, end, today, first, od, odTip, now }: {
   kind: PeriodKind; pts: RankPt[]; from: string; end: string; today: string; first: string | null; od: (k: string) => object; odTip: (k: string) => string;
+  /** 오늘이 든 기간이면 지금 등수 (null = 지난 기간 — 칸을 안 세운다) */
+  now: { v: { pos: number; n: number } | null } | null;
 }) {
   const N = ROSTER.length + 1;
   const st = rankStat(pts, N);
@@ -477,6 +479,10 @@ function RankCard({ kind, pts, from, end, today, first, od, odTip }: {
   }
   const sum = st.days > 0 && (
     <div className="rk-sum">
+      {/* v3.1.269 · 271 — 현재 순위가 맨 앞 · 다른 칸과 같은 모양 · 아직 없으면 «–» (오른쪽 패널 랭킹과 같은 값) */}
+      {now && (now.v && now.v.n >= 2
+        ? <div className="rk-now"><b>{now.v.pos}위</b><span>현재 순위 · {now.v.n}명 중</span></div>
+        : <div className="rk-now"><b>–</b><span>현재 순위 · {now.v ? '혼자 근무' : '아직 없음'}</span></div>)}
       <div><b>{st.avg.toFixed(1)}위</b><span>평균 · {N}명 환산</span></div>
       <div><b>{st.best}위</b><span>최고 순위</span></div>
       <div><b>상위 {st.pct}%</b><span>{st.days}일 기준</span></div>
