@@ -622,6 +622,18 @@ function BlockRow({ ln, area, ph, viewDate, today, no, sel, onPaste, img, tri, d
   if (ln.ghostHead != null) {
     return <div className="blk head h3" data-area={area} style={style}><div className="txt">{ln.ghostHead}</div></div>;
   }
+  // 구분선 (v3 div-blk) — 누르면 골라지고 Backspace · Delete 로 지운다
+  if (b.type === 'divider') {
+    return (
+      <div className={`blk div-blk${dragCls}${sel ? ' bsel' : ''}`} tabIndex={0} data-id={b.id} data-area={area} style={style} {...dnd}
+        onKeyDown={(e) => { if (e.key === 'Backspace' || e.key === 'Delete') { e.preventDefault(); onDel(b); } }}>
+        <span className="grip" data-grip={b.id} data-area={area}
+          onMouseDown={(e) => (e.currentTarget.parentElement as HTMLElement).setAttribute('draggable', 'true')}
+          onMouseUp={(e) => (e.currentTarget.parentElement as HTMLElement).removeAttribute('draggable')}>⠿</span>
+        <hr /><button className="del" data-del={b.id} data-area={area} onClick={() => onDel(b)}>✕</button>
+      </div>
+    );
+  }
   // 그림 줄 (v3 img-blk) — 누르면 골라지고(tabIndex) Tab · ⇧Tab 으로 들여쓰고 Backspace · Delete 로 지운다
   if (b.type === 'image' && b.img) {
     return (

@@ -14,6 +14,7 @@ import { applyLook, LEAVE_GOAL_HINT, MODES, SET_NAV, systemIsDark, THEMES, TIMER
 import type { PomoCfg } from '../app/usePomodoro';
 import { IMG_HINT, imgDay, Thumb, useImageList } from '../ui/ImageList';
 import { fmtMB } from '../domain/images';
+import type { V3Pick } from '../app/useWorkspace';
 
 type Draft = Settings & PomoCfg;
 const clamp = (v: number, a: number, b: number, d: number) => (Number.isFinite(v) ? Math.max(a, Math.min(b, Math.round(v))) : d);
@@ -227,6 +228,57 @@ function DataPane({ ws, onDay }: { ws: Workspace; onDay: (k: string) => void }) 
           ))}
         </ul>
       ) : <p className="hint">아직 넣은 그림이 없어요. 할 일 · 메모에 그림을 붙여넣거나 끌어다 놓으면 여기에 모여요.</p>}
+      <V3Import ws={ws} />
     </section>
+  );
+}
+
+/** 로컬 앱(v3) 데이터 가져오기 — 파일을 읽어 무엇이 옮겨지는지 먼저 보여 주고, 누르면 그때 쓴다 */
+function V3Import({ ws }: { ws: Workspace }) {
+  const [pick, setPick] = useState<V3Pick | null>(null);
+  const [step, setStep] = useState<string | null>(null);
+  const [err, setErr] = useState('');
+  const n = (x: number) => x.toLocaleString('ko-KR');
+  const read = async (f: File | undefined) => {
+    if (!f) return;
+    setErr(''); setStep(null);
+    try { setPick(await ws.v3Preview(f)); } catch { setPick(null); setErr('이 파일을 읽지 못했어요. 로컬 앱의 deskmate.sqlite 파일인지 확인해 주세요.'); }
+  };
+  const go = async () => {
+    if (!pick) return;
+    try { await ws.v3Import(pick, setStep); setPick(null); ws.say('로컬 앱 데이터를 가져왔어요'); }
+    catch { setStep(null); setErr('가져오다 멈췄어요. 같은 파일로 다시 가져오면 이어서 덮어써요.'); }
+  };
+  const r = pick?.conv.report, done = ws.v3Imported;
+  return (
+    <>
+      <div className="sec-t">로컬 앱 데이터 가져오기</div>
+      <p className="hint">맥에서 쓰던 DeskMate의 기록을 이 계정으로 옮겨요. 파일은 Finder에서 ⌘⇧G를 누르고
+        <b> ~/Library/Application Support/DeskMate</b> 를 열면 있는 <b>deskmate.sqlite</b> 예요.</p>
+      {done && !pick && <p className="hint">{new Date(done.at).toLocaleDateString('ko-KR')}에 가져왔어요. 다시 가져오면 그 파일의 값으로 덮어써요.</p>}
+      {ws.backend.mode === 'local' && <p className="hint">지금은 개발 모드라 이 기기에만 들어가요.</p>}
+      {!pick && !step && (
+        <label className="btn ghost sm v3-pick">파일 고르기
+          <input type="file" accept=".sqlite,.db,application/octet-stream" hidden onChange={(e) => { void read(e.target.files?.[0]); e.target.value = ''; }} /></label>
+      )}
+      {err && <p className="hint v3-err">{err}</p>}
+      {pick && r && !step && (
+        <div className="v3-sum">
+          <ul>
+            <li>근태 <b>{n(r.days)}일</b> (휴게 {n(r.breaks)}건)</li>
+            <li>할 일 · 메모 <b>{n(r.lines)}줄</b> — 다음 날로 넘어간 흔적은 처음 적은 날의 줄 하나로 합쳐요</li>
+            <li>시간 기록 <b>{n(r.slots)}건</b>, 근무 밖 휴게 {n(r.rests)}건, 뽀모도로 {n(r.pomos + r.pomosAdded)}회</li>
+            <li>그림 <b>{n(r.images)}장</b>, D-Day {n(pick.conv.ddays.length)}개, 습관 {n(pick.conv.habits.length)}개</li>
+            <li>원본 파일도 통째로 보관해요. 대화, 앱 사용 기록, 저장됨처럼 웹에 아직 없는 기능의 데이터도 남아요.</li>
+          </ul>
+          <p className="hint">웹에 같은 날 기록이 있으면 로컬 앱의 기록으로 바뀌어요.</p>
+          <div className="v3-act">
+            <button className="btn ghost sm" onClick={() => setPick(null)}>취소</button>
+            <button className="btn primary sm" onClick={() => void go()}>가져오기</button>
+          </div>
+        </div>
+      )}
+      {step && <p className="hint v3-step">{step === '끝' ? '다 가져왔어요.' : `${step}…`}</p>}
+    </>
   );
 }

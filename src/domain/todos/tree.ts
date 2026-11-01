@@ -17,7 +17,7 @@ import { isStruck } from './inline';
 
 /** today 할 일 · memo 하루 메모 · someday 미정(주) · wmemo 주 메모 — 자세한 건 week.ts */
 export type BlockArea = 'today' | 'memo' | 'someday' | 'wmemo';
-export type BlockType = 'check' | 'bullet' | 'num' | 'h1' | 'h2' | 'h3' | 'image';
+export type BlockType = 'check' | 'bullet' | 'num' | 'h1' | 'h2' | 'h3' | 'image' | 'divider';
 
 export interface Block {
   id: string;

@@ -66,6 +66,8 @@ export interface Repo {
   putImage(id: string, bytes: Uint8Array, mime: string): Promise<void>;
   /** 그림 받기 — 기기에 있으면 기기에서 (그림은 안 바뀐다). 없으면 null */
   getImage(id: string): Promise<Blob | null>;
+  /** 원본 보관 — 옮기기 전 파일을 조각째 그대로 (`archive/{id}`). 웹에 아직 없는 기능의 데이터를 잃지 않게 */
+  putArchive(id: string, bytes: Uint8Array, info: Record<string, unknown>): void;
   /** 그림 파일을 실제로 지운다 — 지우기 규칙의 유일한 예외 (SYNC §14) */
   deleteImage(id: string): Promise<void>;
   /** 있으면 합치고 없으면 만든다 — 맵 안은 깊게 합친다 (덮어쓰지 않는다). 아직 받아 오지 못한 문서에도 안전하다 */

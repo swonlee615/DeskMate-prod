@@ -18,10 +18,15 @@ import { buildTeam, leaderboard, ROSTER, STATUS_ORDER, statusAt, type LbRow, typ
 import { useMinute } from './clock';
 import { applyLook, SETTINGS_DEFAULT, type Settings } from '../ui/settingsNav';
 import { rankToFix, type RankFix } from '../domain/stats';
-import { usePomodoro, type Pomodoro, type PomoDoc } from './usePomodoro';
+import { POMO_DEFAULT, usePomodoro, type Pomodoro, type PomoDoc } from './usePomodoro';
 import { afterSibling, appendBlock, deleteChunk, inverseOf, triFix, triToggle, type Block, type BlockArea, type Patch } from '../domain/todos/tree';
 import { fmtMB, IMG_QUOTA, imgFits, imgToPurge, type ImgMeta } from '../domain/images';
 import { shrinkImage } from '../ui/image';
+import { convertV3, type Converted } from '../domain/migrate/v3';
+import { loadV3 } from '../data/v3Load';
+
+/** v3 파일을 읽은 결과 — 원본 바이트 + 변환 */
+export interface V3Pick { bytes: Uint8Array; conv: Converted }
 import { ddCanPin, ddClean, ddLabel, type DDay } from '../domain/dday';
 import { HB_MAX, hbClean, hbDoneAt, hbFreqLabel, type Habit, type HbInput, type OffDay } from '../domain/habits';
 
@@ -31,6 +36,7 @@ const POMO_ID = 'pomo';
 const CATS_ID = 'cats';
 const RANKS_ID = 'ranks';
 const IMGS_ID = 'images';
+const V3_ID = 'v3import';
 
 const SETTINGS_ID = 'settings';
 /** 근태 표가 보여 주는 주 수 (이번 주 포함) */
@@ -116,6 +122,12 @@ export interface Workspace {
   deleteDDay: (id: string) => void;
   /** 그림 목록 (items/images) — 크기 · 날짜 · 줄. 그림 파일은 따로 (SYNC §14) */
   images: Record<string, ImgMeta>;
+  /** v3(로컬 앱) 파일 읽어 보기 — 아무것도 쓰지 않고 무엇이 몇 개 옮겨지는지만 (설정 › 데이터) */
+  v3Preview: (file: File) => Promise<V3Pick>;
+  /** v3 데이터 옮기기 — 원본 보관 → 근태 → 줄 → 기록 → 항목 → 그림. 다시 돌려도 덮어쓸 뿐 두 벌이 안 생긴다 */
+  v3Import: (p: V3Pick, onStep: (msg: string) => void) => Promise<void>;
+  /** 이미 옮긴 적이 있으면 그때 시각 · 요약 */
+  v3Imported: { at: number; report: Converted['report'] } | null;
   /** 그림 넣기 — 줄인 뒤 한도를 보고 올려서, after 줄 바로 뒤에(없으면 맨 끝에) 그림 줄로. 넣은 줄 id 들 */
   addImages: (files: Blob[], date: string, area: BlockArea, after: Block | null, pasted: boolean) => Promise<string[]>;
   /** 그림 파일 받기 (기기에 있으면 기기에서) */
@@ -318,6 +330,40 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
     void repo.deleteImage(id);
     repo.patchItem(IMGS_ID, { [`map.${id}`]: null });
     say('그림을 지웠어요');
+  };
+
+  // ── v3 옮기기 (2026-11-02 소유자 — 로컬 데이터를 하나도 빼먹지 않고)
+  const v3Doc = items.find((x) => x.id === V3_ID) as (Item & { at: number; report: Converted['report'] }) | undefined;
+  const v3Imported = v3Doc ? { at: v3Doc.at, report: v3Doc.report } : null;
+  const v3Preview: Workspace['v3Preview'] = async (file) => {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    return { bytes, conv: convertV3(await loadV3(bytes), Date.now()) };
+  };
+  const v3Import: Workspace['v3Import'] = async ({ bytes, conv: c }, onStep) => {
+    const PART = 700 * 1024, parts = Math.ceil(bytes.length / PART);
+    onStep('원본 파일을 보관하는 중');
+    for (let i = 0; i < parts; i++) repo.putArchive(`v3-sqlite-${i}`, bytes.slice(i * PART, (i + 1) * PART), { kind: 'v3-sqlite', part: i, of: parts, size: bytes.length });
+    onStep(`근태 ${c.report.days}일을 옮기는 중`);
+    for (const e of c.events) repo.addEvent(e);
+    onStep(`할 일 · 메모 ${c.report.lines}줄을 옮기는 중`);
+    for (const b of c.blocks) repo.addBlock(b);
+    for (const l of c.logs) repo.addLog(l);
+    onStep('D-Day · 습관 · 설정을 옮기는 중');
+    for (const d of c.ddays) repo.addItem(d as unknown as Item);
+    for (const h of c.habits) repo.addItem(h as unknown as Item);
+    if (c.cats) repo.addItem({ id: CATS_ID, kind: 'cats', list: cleanCats(c.cats) } as Item);
+    if (Object.keys(c.settings).length) repo.mergeItem({ id: SETTINGS_ID, kind: 'settings', ...c.settings } as Item);
+    if (Object.keys(c.pomo).length) repo.mergeItem({ id: POMO_ID, kind: 'pomo', ...POMO_DEFAULT, ...(pomoDoc ?? {}), ...c.pomo } as Item);
+    let n = 0;
+    for (const im of c.images) {
+      onStep(`그림 ${++n} / ${c.images.length}을 옮기는 중`);
+      const sh = await shrinkImage(await (await fetch(im.dataUrl)).blob());
+      if (!sh) continue;
+      await repo.putImage(im.id, sh.bytes, sh.mime);
+      repo.mergeItem({ id: IMGS_ID, kind: 'images', map: { [im.id]: { size: sh.bytes.length, date: im.date, area: im.area, block: im.block, at: Date.now(), w: sh.w, h: sh.h } } } as Item);
+    }
+    repo.addItem({ id: V3_ID, kind: 'v3import', at: Date.now(), report: c.report } as Item);
+    onStep('끝');
   };
 
   const setDoc = items.find((x) => x.id === SETTINGS_ID) as (Item & Partial<Settings>) | undefined;
@@ -637,7 +683,7 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
     onOn, onOff, onRest, onLeave, dayOf, editDay, pendingDays, resolvePending, canCarry: canCarryFor,
     blocks, addBlock, patchBlocks, editBlocks, undoBlocks, lastEditAt, toggleBlock, removeBlock, newId,
     ddays, saveDDay, pinDDay, archiveDDay, deleteDDay,
-    images, addImages, imageBlob, removeImage, ranks, firstDate, habits, offDay, saveHabit, archiveHabit, deleteHabit, toggleHabit,
+    v3Preview, v3Import, v3Imported, images, addImages, imageBlob, removeImage, ranks, firstDate, habits, offDay, saveHabit, archiveHabit, deleteHabit, toggleHabit,
     logs, saveSpan, deleteSpan, fixConflicts, cats, setCats,
     mates, ranking, mateStatus,
     nick, initial: nick.slice(0, 1).toUpperCase(),

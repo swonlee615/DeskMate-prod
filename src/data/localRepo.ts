@@ -136,6 +136,7 @@ export function createLocalRepo(): Repo {
     async putImage(id, bytes, mime) { imgs.set(id, new Blob([bytes as BlobPart], { type: mime })); },
     async getImage(id) { return imgs.get(id) ?? null; },
     async deleteImage(id) { imgs.delete(id); },
+    putArchive() { /* 개발 모드 — 보관할 서버가 없다 */ },
     mergeItem(it) {
       const deep = (a: Record<string, unknown>, b: Record<string, unknown>): Record<string, unknown> => Object.fromEntries(
         [...new Set([...Object.keys(a), ...Object.keys(b)])].map((k) => {

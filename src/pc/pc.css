@@ -22,3 +22,10 @@
 .img-th img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .img-in { flex: 1; min-width: 0; display: flex; flex-direction: column; font-size: 12px; color: var(--text-dim); }
 .img-in b { font-size: 13px; color: var(--text-strong); font-weight: 600; }
+.v3-pick { display: inline-flex; align-items: center; cursor: pointer; }
+.v3-sum { margin-top: 6px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); }
+.v3-sum ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--text); }
+.v3-sum b { color: var(--text-strong); }
+.v3-act { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+.v3-err { color: var(--red); }
+.v3-step { color: var(--text-strong); }

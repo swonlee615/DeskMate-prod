@@ -37,6 +37,7 @@ export function createFirestoreRepo(db: Firestore, uid: string): Repo {
   const icol = collection(db, 'users', uid, 'items');
   const lcol = collection(db, 'users', uid, 'logs');
   const gcol = collection(db, 'users', uid, 'images');
+  const acol = collection(db, 'users', uid, 'archive');
 
   /** 서버 확인을 기다리지 않는다 — 오프라인이면 promise 는 온라인이 될 때까지 안 끝난다 */
   const track = (p: Promise<unknown>) => {
@@ -139,6 +140,7 @@ export function createFirestoreRepo(db: Firestore, uid: string): Repo {
       const d = snap.data() as { data: Bytes; mime: string };
       return new Blob([d.data.toUint8Array() as BlobPart], { type: d.mime });
     },
+    putArchive(id, bytes, info) { track(setDoc(doc(acol, id), { ...info, data: Bytes.fromUint8Array(bytes), at: Date.now() })); },
     deleteImage(id) { const p = deleteDoc(doc(gcol, id)); track(p); return Promise.resolve(); },
     mergeItem(it) { track(setDoc(doc(icol, it.id), it, { merge: true })); },
 
