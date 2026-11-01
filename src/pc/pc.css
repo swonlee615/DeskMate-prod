@@ -24,7 +24,9 @@
 .img-in b { font-size: 13px; color: var(--text-strong); font-weight: 600; }
 .v3-pick { display: inline-flex; align-items: center; cursor: pointer; }
 .v3-sum { margin-top: 6px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); }
-.v3-sum ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--text); }
+.v3-sum ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 1.5; color: var(--text); }
+/* v3 .hint 는 입력칸 밑에 붙으려고 위 여백이 -8px — 목록 밑에선 마지막 줄을 덮는다 */
+.v3-sum .hint { margin: 10px 0 0; }
 .v3-sum b { color: var(--text-strong); }
 .v3-act { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
 .v3-err { color: var(--red); }
