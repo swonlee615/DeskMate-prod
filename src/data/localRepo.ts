@@ -55,6 +55,7 @@ export function createLocalRepo(): Repo {
   let blocks = loadB();
   let items = loadI();
   let logs = loadL();
+  const imgs = new Map<string, Blob>();
   const lw = new Set<{ from: string; to: string; cb: (l: Log[]) => void }>();
   const emitL = () => { for (const w of lw) w.cb(logs.filter((l) => l.date >= w.from && l.date <= w.to)); };
   const iw = new Set<(items: Item[]) => void>();
@@ -131,6 +132,10 @@ export function createLocalRepo(): Repo {
 
     watchItems(cb) { iw.add(cb); cb(items); return () => { iw.delete(cb); }; },
     addItem(it) { items = [...items.filter((x) => x.id !== it.id), it]; saveI(items); emitI(); },
+    // 개발 모드 — 그림은 이 탭 메모리에 (새로고침하면 사라진다 · ponytail: 개발 모드에서만 · 클라우드는 Firestore)
+    async putImage(id, bytes, mime) { imgs.set(id, new Blob([bytes as BlobPart], { type: mime })); },
+    async getImage(id) { return imgs.get(id) ?? null; },
+    async deleteImage(id) { imgs.delete(id); },
     mergeItem(it) {
       const deep = (a: Record<string, unknown>, b: Record<string, unknown>): Record<string, unknown> => Object.fromEntries(
         [...new Set([...Object.keys(a), ...Object.keys(b)])].map((k) => {

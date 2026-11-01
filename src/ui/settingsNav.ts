@@ -11,7 +11,7 @@ export const SET_NAV: SetNav[] = [
   { k: 'pomo', ni: '🍅', nm: '뽀모도로', on: true },
   { k: 'slot', ni: '⏱️', nm: '시간 기록', on: true },
   { k: 'away', ni: '💻', nm: '자리비움 · 업무 앱' },
-  { k: 'data', ni: '🗄', nm: '데이터' },
+  { k: 'data', ni: '🗄', nm: '데이터', on: true },
   { k: 'plugin', ni: '🧩', nm: '플러그인' },
   { k: 'sec', ni: '🛡', nm: '시스템 알림', sep: true },
 ];

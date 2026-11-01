@@ -19,6 +19,8 @@ import { MToday, STATE_LABEL } from './MToday';
 import { MActivity } from './MActivity';
 import { MDay } from './MDay';
 import { CloseX, HabitChips } from './parts';
+import { IMG_HINT, imgDay, Thumb, useImageList } from '../ui/ImageList';
+import { fmtMB } from '../domain/images';
 import { LEAVE_GOAL_HINT, MODES, SET_NAV, SLOT_HINT, systemIsDark, THEMES, TIMER_COLORS } from '../ui/settingsNav';
 import { CAT_EX, nextCatColor, type Cat } from '../domain/attendance/cats';
 import { catVar, SLOT_COLORS } from '../domain/attendance/logs';
@@ -71,7 +73,7 @@ export function MobileWorkspace({ ws }: { ws: Workspace }) {
         </>}
         {tab === 'team' && <TeamTab ws={ws} />}
         {tab === 'later' && <Soon what="저장됨" items="보관한 D-Day · 습관 · 저장한 메모" />}
-        {tab === 'set' && (setSub ? <SetPanel ws={ws} k={setSub} /> : <Settings ws={ws} onAccount={() => setAcctOpen(true)} onOpen={setSetSub} />)}
+        {tab === 'set' && (setSub ? <SetPanel ws={ws} k={setSub} goDay={goDay} /> : <Settings ws={ws} onAccount={() => setAcctOpen(true)} onOpen={setSetSub} />)}
       </main>
 
       {day && (
@@ -155,7 +157,7 @@ function Settings({ ws, onAccount, onOpen }: { ws: Workspace; onAccount: () => v
 }
 
 /** 설정 › 한 칸 — PC SettingsModal 의 set-panel 과 같은 내용 */
-function SetPanel({ ws, k }: { ws: Workspace; k: string }) {
+function SetPanel({ ws, k, goDay }: { ws: Workspace; k: string; goDay: (date: string) => void }) {
   const st = ws.settings, c = ws.timer.cfg;
   // 폰은 고르는 즉시 저장한다 (저장 단추가 없는 설정 화면) — 숫자는 칸을 떠날 때 범위 안으로
   const num = (label: string, v: number, min: number, max: number, on: (n: number) => void) => (
@@ -201,6 +203,7 @@ function SetPanel({ ws, k }: { ws: Workspace; k: string }) {
         style={{ '--c': col } as React.CSSProperties} onClick={() => ws.saveSettings({ timerColor: col })} />))}</div>
     <p className="m-set-hint">다이얼의 남은 시간에 쓰여요. 휴식 중에는 같은 색이 옅게 칠해집니다. 초록은 근태 색이라 뺐어요.</p>
   </>;
+  if (k === 'data') return <DataImages ws={ws} goDay={goDay} />;
   if (k === 'slot') return <>
     <h3 className="m-set-h">시간 기록 카테고리</h3>
     <p className="m-set-hint">{SLOT_HINT}</p>
@@ -259,4 +262,30 @@ function TeamTab({ ws }: { ws: Workspace }) {
       })}
     </ul>
   );
+}
+
+/** 설정 › 데이터 › 이미지 — PC 와 같은 숫자 · 같은 목록. 지우기는 한 번 더 묻는다 */
+function DataImages({ ws, goDay }: { ws: Workspace; goDay: (date: string) => void }) {
+  const { list, usedTxt, pct } = useImageList(ws);
+  const [ask, setAsk] = useState<string | null>(null);
+  return <>
+    <h3 className="m-set-h">이미지</h3>
+    <div className="m-card m-img-use">
+      <div><b>{usedTxt}</b><span>{list.length}장</span></div>
+      <div className="m-an-track"><i style={{ width: `${pct}%` }} /></div>
+    </div>
+    <p className="m-set-hint">{IMG_HINT}</p>
+    {list.length > 0 && (
+      <ul className="m-card m-list m-imgl">
+        {list.map((m) => (
+          <li key={m.id} className="m-row" onClick={() => goDay(m.date)}>
+            <Thumb ws={ws} id={m.id} className="m-img-th" />
+            <div className="m-row-l"><b>{imgDay(m.date)}</b><span>{m.area === 'memo' || m.area === 'wmemo' ? 'Memo' : 'Today'} · {fmtMB(m.size)}</span></div>
+            <button className={`m-img-del${ask === m.id ? ' on' : ''}`} onClick={(e) => { e.stopPropagation(); if (ask === m.id) { ws.removeImage(m.id); setAsk(null); } else setAsk(m.id); }}>
+              {ask === m.id ? '정말 삭제' : '삭제'}</button>
+          </li>
+        ))}
+      </ul>
+    )}
+  </>;
 }

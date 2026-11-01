@@ -17,7 +17,7 @@ import { isStruck } from './inline';
 
 /** today 할 일 · memo 하루 메모 · someday 미정(주) · wmemo 주 메모 — 자세한 건 week.ts */
 export type BlockArea = 'today' | 'memo' | 'someday' | 'wmemo';
-export type BlockType = 'check' | 'bullet' | 'num' | 'h1' | 'h2' | 'h3';
+export type BlockType = 'check' | 'bullet' | 'num' | 'h1' | 'h2' | 'h3' | 'image';
 
 export interface Block {
   id: string;
@@ -31,6 +31,11 @@ export interface Block {
   type: BlockType;
   text: string;
   done?: boolean;
+  /** 그림 줄 — 그림 문서 id (`images/{id}`). 그림 자체는 줄에 담지 않는다 (SYNC §14) */
+  img?: string;
+  /** 그림 폭 — 손잡이로 조절한 가로 비율(%) · 없으면 원본 크기 nw(px)까지 (v3 w · nw · DESIGN H) */
+  w?: number | null;
+  nw?: number | null;
   /** 번호 목록의 시작 숫자 — 목록 «첫 줄» 만 본다. 1 이면 두지 않는다 (v3.1.253 #11) */
   start?: number | null;
   /** 끝낸 날 = 체크한 화면의 날짜 */
@@ -147,6 +152,13 @@ export function indent(blocks: Block[], cur: Block, depth: number): Patch | null
   const pk = siblingsOf(blocks, { date: cur.date, area: cur.area, parent: prev.id });
   const last = pk[pk.length - 1];
   return { id: cur.id, parent: prev.id, pos: posBetween(last ? last.pos : null, null) };
+}
+
+/** 그 줄 «바로 뒤 형제» 자리 (딸린 줄 뒤) — 그림처럼 줄 안에 들어갈 수 없는 줄을 넣을 때 */
+export function afterSibling(blocks: Block[], cur: Block): Pick<Block, 'parent' | 'pos'> {
+  const sib = siblingsOf(blocks, cur);
+  const next = sib[sib.findIndex((x) => x.id === cur.id) + 1];
+  return { parent: cur.parent, pos: posBetween(cur.pos, next ? next.pos : null) };
 }
 
 /** ⇧Tab — 부모 바로 아래 형제로. 맨 바깥이면 null */

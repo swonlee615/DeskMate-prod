@@ -10,7 +10,7 @@
  * 경로: users/{uid}/events/{eventId}   — 이벤트 한 건 = 문서 하나 → 기기끼리 충돌이 없다
  *       users/{uid}/items/{id}        — D-Day · 습관 정의 하나 = 문서 하나
  */
-import { collection, deleteField, doc, setDoc, updateDoc, query, where, onSnapshot, writeBatch, orderBy, limit, getDocs, type Firestore } from 'firebase/firestore';
+import { Bytes, collection, deleteDoc, deleteField, doc, getDoc, getDocFromCache, setDoc, updateDoc, query, where, onSnapshot, writeBatch, orderBy, limit, getDocs, type Firestore } from 'firebase/firestore';
 import type { Repo, SyncStatus } from './repo';
 
 export function createFirestoreRepo(db: Firestore, uid: string): Repo {
@@ -36,6 +36,7 @@ export function createFirestoreRepo(db: Firestore, uid: string): Repo {
   const bcol = collection(db, 'users', uid, 'blocks');
   const icol = collection(db, 'users', uid, 'items');
   const lcol = collection(db, 'users', uid, 'logs');
+  const gcol = collection(db, 'users', uid, 'images');
 
   /** 서버 확인을 기다리지 않는다 — 오프라인이면 promise 는 온라인이 될 때까지 안 끝난다 */
   const track = (p: Promise<unknown>) => {
@@ -128,6 +129,17 @@ export function createFirestoreRepo(db: Firestore, uid: string): Repo {
     },
 
     addItem(it) { track(setDoc(doc(icol, it.id), it)); },
+    // 오프라인이면 서버 확인을 기다리지 않는다 (기기 캐시에 먼저 들어가 바로 보인다) — 그래서 약속을 기다리지 않게 돌려준다
+    putImage(id, bytes, mime) { const p = setDoc(doc(gcol, id), { id, mime, data: Bytes.fromUint8Array(bytes), at: Date.now() }); track(p); return Promise.resolve(); },
+    async getImage(id) {
+      // 그림은 한 번 올리면 안 바뀐다 — 기기에 있으면 서버에 묻지 않는다 (읽기 · 전송 0)
+      const ref = doc(gcol, id);
+      const snap = await getDocFromCache(ref).catch(() => getDoc(ref));
+      if (!snap.exists()) return null;
+      const d = snap.data() as { data: Bytes; mime: string };
+      return new Blob([d.data.toUint8Array() as BlobPart], { type: d.mime });
+    },
+    deleteImage(id) { const p = deleteDoc(doc(gcol, id)); track(p); return Promise.resolve(); },
     mergeItem(it) { track(setDoc(doc(icol, it.id), it, { merge: true })); },
 
     patchItem(id, fields) {

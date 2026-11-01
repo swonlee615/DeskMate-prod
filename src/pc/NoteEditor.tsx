@@ -75,6 +75,8 @@ function caretAtEdge(el: HTMLElement, dir: -1 | 1) {
   if (!rects.length) return true;
   return dir < 0 ? rects[0].top - er.top < 6 : er.bottom - rects[0].bottom < 6;
 }
+/** 붙여넣기 · 끌어 놓기에 든 그림 파일 */
+const imageFiles = (dt: DataTransfer | null) => Array.from(dt?.files ?? []).filter((f) => f.type.startsWith('image/'));
 /** 줄 고르기를 시작하지 않는 자리 — 손잡이 · 체크 · 지우기 · 칩 · 링크 (v3 BM_SKIP) */
 const BM_SKIP = '.grip, .del, .cb, .men, .lnk, button, a, input, select, textarea';
 /** 링크는 그냥 눌러서 새 탭으로 (v3.1.30) — 글자를 고치려면 링크 옆을 누른다 */
@@ -337,6 +339,8 @@ export function NoteEditor({ ws, date, area, title, ph, icon, onDay }: {
   /** 붙여넣기 — 한 줄은 글자만 (v3.1.253 · 그림 · 남의 서식이 화면에만 꽂히지 않게), 여러 줄은 줄마다 새 줄로 */
   const onPaste = (e: React.ClipboardEvent<HTMLDivElement>, line: Line) => {
     e.preventDefault();
+    const files = imageFiles(e.clipboardData);
+    if (files.length && !line.carriedFrom) { flush(line.row.b.id, e.currentTarget); void putImages(files, line.row.b, true); return; }
     const t = e.clipboardData.getData('text/plain');
     if (!t) return;
     if (!/\n/.test(t.trim()) || line.carriedFrom) { document.execCommand('insertText', false, t.replace(/\s*\r?\n\s*/g, ' ')); return; }
@@ -347,6 +351,22 @@ export function NoteEditor({ ws, date, area, title, ph, icon, onDay }: {
     ws.editBlocks(text !== b.text && !r.patches.some((p) => p.id === b.id) ? [{ id: b.id, text }, ...r.patches] : r.patches, r.created, base);
     const last = r.created[r.created.length - 1];
     focusNext.current = { id: last ? last.id : b.id, at: 'end' };
+  };
+
+  // ── 그림 (SYNC §14) — 붙여넣기 · 끌어 놓기 · 폰 사진 단추. 그 줄 바로 뒤에 그림 줄로
+  const putImages = async (files: File[], after: Block | null, pasted: boolean) => {
+    const made = await ws.addImages(files, date, area, after, pasted);
+    if (made.length) focusNext.current = null;
+  };
+  const filePick = useRef<HTMLInputElement>(null);
+  const pickAfter = useRef<Block | null>(null);
+  const onDropFiles = (e: React.DragEvent) => {
+    const files = imageFiles(e.dataTransfer);
+    if (!files.length) return;
+    e.preventDefault();
+    const id = blkOf(e.target)?.dataset.id;
+    const after = (id && selRows.find((l) => l.row.b.id === id && !l.carriedFrom && !l.moved)?.row.b) || own[own.length - 1]?.b || null;
+    void putImages(files, after, false);
   };
 
   // ── 폰 — 고치는 줄을 알아 두면 키보드 위 도구 줄이 그 줄에 일한다
@@ -520,17 +540,21 @@ export function NoteEditor({ ws, date, area, title, ph, icon, onDay }: {
   return (
     <div className={area === 'wmemo' ? 'note memo wp-memo' : `note ${area}`} data-area={area} ref={box}
       onMouseDown={onBoxDown} onMouseMove={onBoxMove} onMouseUp={() => { bm.current = null; }}
+      onDragOver={(e) => { if (Array.from(e.dataTransfer.types).includes('Files')) e.preventDefault(); }} onDrop={onDropFiles}
       onFocus={mobile ? (e) => setCur((e.target as HTMLElement).dataset.edit ?? null) : undefined}
       onBlur={mobile ? () => setTimeout(() => { if (!box.current?.contains(document.activeElement)) setCur(null); }, 0) : undefined}>
       <h4>{icon}<span>{title}</span></h4>
       {lines.map((ln, li) => (
         <BlockRow key={ln.row.b.id} ln={ln} area={area} ph={ph} viewDate={date} today={today} no={ordNo(rowsAll, li)} sel={selSet.has(ln.row.b.id)} onPaste={onPaste}
+          img={{ load: ws.imageBlob, size: (w) => ws.patchBlocks([{ id: ln.row.b.id, w }]), shift: (out) => { const el = box.current?.querySelector<HTMLElement>(`[data-id="${CSS.escape(ln.row.b.id)}"]`); if (el) shiftLine(ln, el, out); } }}
           tri={area === 'today' && ln.row.b.type === 'check' ? triOf(blocks, ln.row.b.id) : null}
           dnd={dragProps(ln)}
           dragCls={`${dragSet?.has(ln.row.b.id) ? ' dragging' : ''}${dropLine?.id === ln.row.b.id ? ` ${dropLine.cls}` : ''}`}
           onKey={onKey} onInput={onInput} onBlur={(id, el) => { flush(id, el); setMen(null); }} onChip={onChip}
           onCheck={(b) => ws.toggleBlock(b, date)} onDel={(b) => ws.removeBlock(b)} />
       ))}
+      <input ref={filePick} type="file" accept="image/*" multiple hidden
+        onChange={(e) => { const f = Array.from(e.target.files ?? []); e.target.value = ''; if (f.length) void putImages(f, pickAfter.current, false); }} />
       {men && <MenMenu at={men.at} items={men.items} idx={men.idx} onPick={pickMen} />}
       {dpick && <DatePick at={dpick.at} sel={dpick.ref} today={today} onPick={pickDate} onClose={() => setDpick(null)}
         onGo={onDay ? () => { const k = dpick.ref; setDpick(null); onDay(k); } : undefined} />}
@@ -538,7 +562,8 @@ export function NoteEditor({ ws, date, area, title, ph, icon, onDay }: {
         <KbBar area={area} type={curLine.row.b.type} depth={curLine.row.depth} fixed={!!curLine.carriedFrom}
           onShift={(out) => { const el = curEl(); if (el) shiftLine(curLine, el, out); }}
           onType={(t) => { const el = curEl(); if (el) setType(curLine, el, t); }}
-          onDone={() => (document.activeElement as HTMLElement | null)?.blur()} />
+          onDone={() => (document.activeElement as HTMLElement | null)?.blur()}
+          onImage={() => { pickAfter.current = curLine.row.b; filePick.current?.click(); }} />
       )}
       {/* 빈 날 — 적을 자리는 «화면» 이 준다. 빈 줄을 데이터로 깔지 않는다 (결함표 B11) */}
       {!own.length && (
@@ -551,6 +576,8 @@ export function NoteEditor({ ws, date, area, title, ph, icon, onDay }: {
             onPaste={(e) => {
               // 빈 날에 붙여넣기 — 빈 줄 하나를 세우고 그 줄에 여러 줄을 붓는다 (첫 줄이 그 줄을 채운다)
               e.preventDefault();
+              const files = imageFiles(e.clipboardData);
+              if (files.length) { void putImages(files, null, true); return; }
               const t = e.clipboardData.getData('text/plain');
               if (!t.trim() || own.length) return;
               const nb = appendBlock(blocks, date, area, '', { id: ws.newId(), now: Date.now() });
@@ -567,9 +594,10 @@ export function NoteEditor({ ws, date, area, title, ph, icon, onDay }: {
   );
 }
 
-function BlockRow({ ln, area, ph, viewDate, today, no, sel, onPaste, tri, dnd, dragCls, onKey, onInput, onBlur, onChip, onCheck, onDel }: {
+function BlockRow({ ln, area, ph, viewDate, today, no, sel, onPaste, img, tri, dnd, dragCls, onKey, onInput, onBlur, onChip, onCheck, onDel }: {
   ln: Line; area: BlockArea; ph: string; viewDate: string; today: string; no: number; sel: boolean;
   onPaste: (e: React.ClipboardEvent<HTMLDivElement>, ln: Line) => void;
+  img: { load: (id: string) => Promise<Blob | null>; size: (w: number | null) => void; shift: (out: boolean) => void };
   tri: Tri | null; dnd: React.HTMLAttributes<HTMLDivElement>; dragCls: string;
   onKey: (e: React.KeyboardEvent<HTMLDivElement>, ln: Line) => void;
   onInput: (e: React.FormEvent<HTMLDivElement>, ln: Line) => void;
@@ -593,6 +621,22 @@ function BlockRow({ ln, area, ph, viewDate, today, no, sel, onPaste, tri, dnd, d
 
   if (ln.ghostHead != null) {
     return <div className="blk head h3" data-area={area} style={style}><div className="txt">{ln.ghostHead}</div></div>;
+  }
+  // 그림 줄 (v3 img-blk) — 누르면 골라지고(tabIndex) Tab · ⇧Tab 으로 들여쓰고 Backspace · Delete 로 지운다
+  if (b.type === 'image' && b.img) {
+    return (
+      <div className={`blk img-blk${dragCls}${sel ? ' bsel' : ''}`} tabIndex={0} data-id={b.id} data-area={area} style={style} {...dnd}
+        onKeyDown={(e) => {
+          if (e.key === 'Backspace' || e.key === 'Delete') { e.preventDefault(); onDel(b); }
+          else if (e.key === 'Tab') { e.preventDefault(); img.shift(e.shiftKey); }
+        }}>
+        <span className="grip" data-grip={b.id} data-area={area}
+          onMouseDown={(e) => (e.currentTarget.parentElement as HTMLElement).setAttribute('draggable', 'true')}
+          onMouseUp={(e) => (e.currentTarget.parentElement as HTMLElement).removeAttribute('draggable')}>⠿</span>
+        <ImgView id={b.img} w={b.w ?? null} nw={b.nw ?? null} load={img.load} onSize={img.size} />
+        <button className="del" data-del={b.id} data-area={area} onClick={() => onDel(b)}>✕</button>
+      </div>
+    );
   }
   // 손잡이를 누를 때만 줄이 끌린다 — 글자를 고르는 끌기와 섞이지 않게 (v3 와 같다)
   const grip = <span className="grip" data-grip={b.id} data-area={area}
@@ -640,6 +684,46 @@ function BlockRow({ ln, area, ph, viewDate, today, no, sel, onPaste, tri, dnd, d
   return (
     <div className={`blk${b.done ? ' done' : ''}${tri ? ' tri' : ''}${dragCls}${sel ? ' bsel' : ''}`} data-id={b.id} data-area={area} style={style} {...dnd}>
       {grip}{mark}{txt}{triCnt}{born}{stamp}{del}
+    </div>
+  );
+}
+
+/**
+ * 그림 한 장 (v3 .im-w · .im · .im-rz · DESIGN H) — 손을 안 댄 그림은 원본 크기(칸보다 크면 칸에 맞춤),
+ * 손잡이로 조절하면 가로 비율(%)만 저장 · 두 번 누르면 원본으로. 100% 의 기준은 .im-w
+ * 그림은 보일 때 받는다 (기기에 있으면 기기에서)
+ */
+function ImgView({ id, w, nw, load, onSize }: { id: string; w: number | null; nw: number | null; load: (id: string) => Promise<Blob | null>; onSize: (w: number | null) => void }) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [miss, setMiss] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  const [drag, setDrag] = useState<number | null>(null);
+  useEffect(() => {
+    let alive = true, u: string | null = null;
+    const el = box.current;
+    const go = () => load(id).then((b) => { if (!alive) return; if (!b) { setMiss(true); return; } u = URL.createObjectURL(b); setUrl(u); }, () => alive && setMiss(true));
+    // 화면에 들어올 때 받는다 — 하루를 열어도 안 보이는 그림은 안 받는다
+    const io = el && 'IntersectionObserver' in window ? new IntersectionObserver((es) => { if (es.some((x) => x.isIntersecting)) { io?.disconnect(); go(); } }, { rootMargin: '400px' }) : null;
+    if (io && el) io.observe(el); else go();
+    return () => { alive = false; io?.disconnect(); if (u) URL.revokeObjectURL(u); };
+  }, [id, load]);
+  const pct = drag ?? w;
+  const style: React.CSSProperties = pct ? { width: `${Math.max(10, Math.min(100, pct))}%` } : nw ? { width: `min(100%, ${Math.round(nw)}px)` } : {};
+  const onRz = (e: React.PointerEvent) => {
+    e.preventDefault(); e.stopPropagation();
+    const wrap = box.current; if (!wrap) return;
+    const total = wrap.getBoundingClientRect().width, left = wrap.getBoundingClientRect().left;
+    let last = pct ?? 100;
+    const move = (ev: PointerEvent) => { last = Math.round(Math.max(10, Math.min(100, ((ev.clientX - left) / total) * 100))); setDrag(last); };
+    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); setDrag(null); onSize(last); };
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+  };
+  return (
+    <div className="im-w" ref={box}>
+      <div className="im" style={style}>
+        {url ? <img src={url} alt="" draggable={false} /> : <div className="im-ph" aria-label={miss ? '그림을 못 불러왔어요' : '그림 불러오는 중'}>{miss ? '그림을 못 불러왔어요' : ''}</div>}
+        <span className="im-rz" title="끌어서 크기 조절 · 두 번 누르면 원본 크기" onPointerDown={onRz} onDoubleClick={() => onSize(null)} />
+      </div>
     </div>
   );
 }

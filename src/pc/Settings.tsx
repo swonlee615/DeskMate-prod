@@ -12,11 +12,13 @@ import { catVar, SLOT_COLORS } from '../domain/attendance/logs';
 import { CAT_EX, nextCatColor, type Cat } from '../domain/attendance/cats';
 import { applyLook, LEAVE_GOAL_HINT, MODES, SET_NAV, systemIsDark, THEMES, TIMER_COLORS, type Settings } from '../ui/settingsNav';
 import type { PomoCfg } from '../app/usePomodoro';
+import { IMG_HINT, imgDay, Thumb, useImageList } from '../ui/ImageList';
+import { fmtMB } from '../domain/images';
 
 type Draft = Settings & PomoCfg;
 const clamp = (v: number, a: number, b: number, d: number) => (Number.isFinite(v) ? Math.max(a, Math.min(b, Math.round(v))) : d);
 
-export function SettingsModal({ ws, onClose }: { ws: Workspace; onClose: () => void }) {
+export function SettingsModal({ ws, onClose, onDay }: { ws: Workspace; onClose: () => void; onDay: (k: string) => void }) {
   const orig = useRef(ws.settings);
   const [pane, setPane] = useState('general');
   const [d, setD] = useState<Draft>({ ...ws.settings, ...ws.timer.cfg });
@@ -135,6 +137,7 @@ export function SettingsModal({ ws, onClose }: { ws: Workspace; onClose: () => v
                 </div>
               </section>
             )}
+            {pane === 'data' && <DataPane ws={ws} onDay={(k) => { cancel(); onDay(k); }} />}
             {pane === 'slot' && (
               <section className="set-panel on" data-set-panel="slot">
                 <h4>시간 기록 카테고리</h4>
@@ -196,5 +199,34 @@ function CatList({ ws }: { ws: Workspace }) {
         </div>
       )}
     </div>
+  );
+}
+
+/** 데이터 › 이미지 — 쓰는 양 막대 · 그림 목록 (SYNC §14) */
+function DataPane({ ws, onDay }: { ws: Workspace; onDay: (k: string) => void }) {
+  const { list, usedTxt, pct } = useImageList(ws);
+  const [ask, setAsk] = useState<string | null>(null);
+  return (
+    <section className="set-panel on" data-set-panel="data">
+      <h4>데이터</h4>
+      <div className="sec-t" style={{ marginTop: 0 }}>이미지</div>
+      <div className="img-use"><b>{usedTxt}</b><span>{list.length}장</span></div>
+      <div className="bar"><i className="done" style={{ width: `${pct}%` }} /></div>
+      <p className="hint">{IMG_HINT}</p>
+      {list.length ? (
+        <ul className="img-list">
+          {list.map((m) => (
+            <li key={m.id}>
+              <Thumb ws={ws} id={m.id} className="img-th" />
+              <span className="img-in"><b>{imgDay(m.date)}</b><span>{m.area === 'memo' || m.area === 'wmemo' ? 'Memo' : 'Today'} · {fmtMB(m.size)}</span></span>
+              <button className="btn ghost sm" onClick={() => onDay(m.date)}>그 날로</button>
+              {ask === m.id
+                ? <button className="btn danger sm" onClick={() => { ws.removeImage(m.id); setAsk(null); }}>정말 삭제</button>
+                : <button className="btn ghost sm" onClick={() => setAsk(m.id)}>삭제</button>}
+            </li>
+          ))}
+        </ul>
+      ) : <p className="hint">아직 넣은 그림이 없어요. 할 일 · 메모에 그림을 붙여넣거나 끌어다 놓으면 여기에 모여요.</p>}
+    </section>
   );
 }

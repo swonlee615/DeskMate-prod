@@ -2,12 +2,22 @@ rules_version = '2';
 // Firebase 콘솔 → Firestore → 규칙 에 이 내용을 붙여 넣는다.
 // 1) 본인 데이터만 읽고 쓴다
 // 2) 이메일 인증을 마친 계정만 쓴다 — Google · Apple 은 처음부터 인증된 이메일이다
+// ⚠️ 바꾸면 콘솔에 다시 붙여 넣어야 서버에 반영된다
 service cloud.firestore {
   match /databases/{database}/documents {
+    function me(uid) {
+      return request.auth != null && request.auth.uid == uid && request.auth.token.email_verified == true;
+    }
+    // 3) 그림 — 한 장 700KB 까지 · 바이트만 (SYNC §14). 앱을 고쳐 보내도 서버가 막는다
+    match /users/{uid}/images/{id} {
+      allow read, delete: if me(uid);
+      allow create, update: if me(uid)
+        && request.resource.data.data is bytes
+        && request.resource.data.data.size() <= 716800;
+    }
+    // 그 밖의 내 데이터 (그림 칸은 위 규칙만 따른다)
     match /users/{uid}/{document=**} {
-      allow read, write: if request.auth != null
-        && request.auth.uid == uid
-        && request.auth.token.email_verified == true;
+      allow read, write: if me(uid) && document[0] != 'images';
     }
   }
 }

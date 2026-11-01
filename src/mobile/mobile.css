@@ -840,3 +840,12 @@ button.m-cat.on { color: var(--text-strong); font-weight: 700; box-shadow: inset
 .m-kb-sep { width: 1px; height: 22px; margin: 0 4px; background: var(--border-soft); }
 .m-kb-sp { flex: 1; }
 .m-wk-memo { margin-top: 12px; }
+
+/* 설정 › 데이터 › 이미지 */
+.m-img-use { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.m-img-use > div:first-child { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; color: var(--text-muted); }
+.m-img-use b { font-size: 16px; color: var(--text-strong); font-variant-numeric: tabular-nums; }
+.m-img-th { width: 48px; height: 48px; border-radius: 8px; overflow: hidden; background: var(--tint-3); flex: none; }
+.m-img-th img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.m-img-del { height: 34px; padding: 0 12px; border-radius: 9px; font-size: 13px; color: var(--text-muted); background: var(--surface-3); flex: none; }
+.m-img-del.on { color: var(--on-accent); background: var(--red-fill); }

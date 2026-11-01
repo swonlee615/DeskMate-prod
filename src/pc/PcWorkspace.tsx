@@ -200,7 +200,7 @@ export function PcWorkspace({ ws }: { ws: Workspace }) {
         {ws.toast?.action && <button className="tu" onClick={ws.toast.action.run}>{ws.toast.action.label}</button>}
       </div>
 
-      {setOpen && <SettingsModal ws={ws} onClose={() => setSetOpen(false)} />}
+      {setOpen && <SettingsModal ws={ws} onClose={() => setSetOpen(false)} onDay={(k) => { setSetOpen(false); setView('worklog'); openDay(k); }} />}
       {acctOpen && (
         <AccountDialog auth={backend.auth} user={user} pending={sync?.pending ?? 0} onClose={() => setAcctOpen(false)} />
       )}

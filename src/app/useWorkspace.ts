@@ -19,7 +19,9 @@ import { useMinute } from './clock';
 import { applyLook, SETTINGS_DEFAULT, type Settings } from '../ui/settingsNav';
 import { rankToFix, type RankFix } from '../domain/stats';
 import { usePomodoro, type Pomodoro, type PomoDoc } from './usePomodoro';
-import { deleteChunk, inverseOf, triFix, triToggle, type Block, type Patch } from '../domain/todos/tree';
+import { afterSibling, appendBlock, deleteChunk, inverseOf, triFix, triToggle, type Block, type BlockArea, type Patch } from '../domain/todos/tree';
+import { fmtMB, IMG_QUOTA, imgFits, imgToPurge, type ImgMeta } from '../domain/images';
+import { shrinkImage } from '../ui/image';
 import { ddCanPin, ddClean, ddLabel, type DDay } from '../domain/dday';
 import { HB_MAX, hbClean, hbDoneAt, hbFreqLabel, type Habit, type HbInput, type OffDay } from '../domain/habits';
 
@@ -28,6 +30,7 @@ const POMO_ID = 'pomo';
 /** 시간 기록 카테고리 문서 — 사람 하나에 하나 (목록 통째로 한 필드) */
 const CATS_ID = 'cats';
 const RANKS_ID = 'ranks';
+const IMGS_ID = 'images';
 
 const SETTINGS_ID = 'settings';
 /** 근태 표가 보여 주는 주 수 (이번 주 포함) */
@@ -111,6 +114,14 @@ export interface Workspace {
   /** 아카이브 = «저장됨» 으로 옮김 (고정은 풀린다) · 끄면 목록으로 */
   archiveDDay: (id: string, on: boolean) => void;
   deleteDDay: (id: string) => void;
+  /** 그림 목록 (items/images) — 크기 · 날짜 · 줄. 그림 파일은 따로 (SYNC §14) */
+  images: Record<string, ImgMeta>;
+  /** 그림 넣기 — 줄인 뒤 한도를 보고 올려서, after 줄 바로 뒤에(없으면 맨 끝에) 그림 줄로. 넣은 줄 id 들 */
+  addImages: (files: Blob[], date: string, area: BlockArea, after: Block | null, pasted: boolean) => Promise<string[]>;
+  /** 그림 파일 받기 (기기에 있으면 기기에서) */
+  imageBlob: (id: string) => Promise<Blob | null>;
+  /** 설정에서 그림 지우기 — 그 그림 줄도 지운다 */
+  removeImage: (id: string) => void;
   /** 지난 날 내 순위 — 그 날이 끝나면 한 번 세어 고정한다 (SYNC §11). 날짜 → 등수 */
   ranks: Record<string, RankFix>;
   /** 첫 기록 날짜 — 활동 «미근무» 가 그 날부터 센다. 처음 열 때 한 번 읽는다 */
@@ -263,6 +274,52 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
   const timerRef = useRef<Pomodoro | null>(null);
   timerRef.current = timer;
 
+  // ── 그림 (SYNC §14)
+  const imgDoc = items.find((x) => x.id === IMGS_ID) as (Item & { map?: Record<string, ImgMeta> }) | undefined;
+  const images = useMemo(() => imgDoc?.map ?? {}, [imgDoc]);
+  const imgRef = useRef(images);
+  imgRef.current = images;
+  /** 그림 줄을 지우거나 되돌리면 그 그림에 표시 — 하루가 지나면 파일을 비운다 */
+  function markGone(ps: Patch[]) {
+    const ch: Record<string, unknown> = {};
+    for (const p of ps) {
+      if (!('deletedAt' in p)) continue;
+      const img = blocks.find((x) => x.id === p.id)?.img;
+      if (img && imgRef.current[img]) ch[`map.${img}.gone`] = p.deletedAt ?? null;
+    }
+    if (Object.keys(ch).length) repo.patchItem(IMGS_ID, ch);
+  }
+  const addImages: Workspace['addImages'] = async (files, date, area, after, pasted) => {
+    const made: string[] = [];
+    let prev = after, list = blocks;
+    for (const f of files) {
+      const s = await shrinkImage(f);
+      if (!s) { say('그림 파일만 넣을 수 있어요'); continue; }
+      if (!imgFits(imgRef.current, s.bytes.length)) { say(`그림 용량 ${fmtMB(IMG_QUOTA)} 이 다 찼어요 — 설정 › 데이터 › 이미지에서 정리할 수 있어요`, undefined, true); break; }
+      const id = newId(), now = Date.now();
+      await repo.putImage(id, s.bytes, s.mime);
+      // 붙여넣은 그림은 화면 배율만큼 줄여 보인다 — 레티나 스크린샷이 두 배로 커지지 않게 (v3 DESIGN H)
+      const nw = Math.round(pasted ? s.w / (window.devicePixelRatio || 1) : s.w);
+      const nb: Block = {
+        ...appendBlock(list, date, area, '', { id: newId(), now }, 'image'),
+        ...(prev ? afterSibling(list, prev) : {}), img: id, nw,
+      };
+      repo.mergeItem({ id: IMGS_ID, kind: 'images', map: { [id]: { size: s.bytes.length, date, area, block: nb.id, at: now, w: s.w, h: s.h } } } as Item);
+      imgRef.current = { ...imgRef.current, [id]: { size: s.bytes.length, date, area, block: nb.id, at: now, w: s.w, h: s.h } };
+      editBlocks([], [nb]);
+      list = [...list, nb]; prev = nb; made.push(nb.id);
+    }
+    return made;
+  };
+  const imageBlob = useCallback((id: string) => repo.getImage(id), [repo]);
+  const removeImage = (id: string) => {
+    const m = imgRef.current[id];
+    if (m) repo.patchBlocks([{ id: m.block, deletedAt: Date.now() }]);
+    void repo.deleteImage(id);
+    repo.patchItem(IMGS_ID, { [`map.${id}`]: null });
+    say('그림을 지웠어요');
+  };
+
   const setDoc = items.find((x) => x.id === SETTINGS_ID) as (Item & Partial<Settings>) | undefined;
   const settings = useMemo<Settings>(() => ({ ...SETTINGS_DEFAULT, ...setDoc }), [setDoc]);
   const saveSettings: Workspace['saveSettings'] = (x) => repo.mergeItem({ id: SETTINGS_ID, kind: 'settings', ...x } as Item);
@@ -370,6 +427,7 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
     if (undoStack.current.length > 100) undoStack.current.shift();
   };
   const editBlocks = (ps: Patch[], created: Block[] = [], base?: Block[]) => {
+    markGone(ps);
     record(ps, created, base);
     for (const b of created) repo.addBlock(b);
     if (ps.length) repo.patchBlocks(ps);
@@ -379,6 +437,7 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
   const undoBlocks = () => {
     const top = undoStack.current.pop();
     if (!top) return false;
+    markGone(top.inv);
     repo.patchBlocks(top.inv);
     return true;
   };
@@ -552,6 +611,16 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
     .sort((a, b) => STATUS_ORDER[a.st.key] - STATUS_ORDER[b.st.key] || a.m.nick.localeCompare(b.m.nick)), [team, nowMin]);
   const myMin = dayParts(day, now).workMs / 60000;
   const ranking = useMemo(() => leaderboard(team, nowMin, myMin, nick), [team, nowMin, Math.floor(myMin), nick]); // eslint-disable-line react-hooks/exhaustive-deps
+  // 지운 줄의 그림 비우기 — 앱을 열 때 한 번, 줄을 지운 지 하루가 지난 그림만 (SYNC §14)
+  const purged = useRef(false);
+  useEffect(() => {
+    if (!itemsIn || purged.current) return;
+    purged.current = true;
+    const ids = imgToPurge(images, Date.now());
+    for (const id of ids) void repo.deleteImage(id);
+    if (ids.length) repo.patchItem(IMGS_ID, Object.fromEntries(ids.map((id) => [`map.${id}`, null])));
+  }, [itemsIn, images, repo]);
+
   // 지난 순위 고정 — 받아 둔 날 중 끝났고 아직 안 고정한 날만. 합치기 저장이라 다른 기기 · 받기 전 문서를 덮지 않는다
   const ranks = useMemo(() => ((items.find((x) => x.id === RANKS_ID) as (Item & { days?: Record<string, RankFix> }) | undefined)?.days ?? {}), [items]);
   useEffect(() => {
@@ -568,7 +637,7 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
     onOn, onOff, onRest, onLeave, dayOf, editDay, pendingDays, resolvePending, canCarry: canCarryFor,
     blocks, addBlock, patchBlocks, editBlocks, undoBlocks, lastEditAt, toggleBlock, removeBlock, newId,
     ddays, saveDDay, pinDDay, archiveDDay, deleteDDay,
-    ranks, firstDate, habits, offDay, saveHabit, archiveHabit, deleteHabit, toggleHabit,
+    images, addImages, imageBlob, removeImage, ranks, firstDate, habits, offDay, saveHabit, archiveHabit, deleteHabit, toggleHabit,
     logs, saveSpan, deleteSpan, fixConflicts, cats, setCats,
     mates, ranking, mateStatus,
     nick, initial: nick.slice(0, 1).toUpperCase(),

@@ -1,5 +1,5 @@
 /**
- * 폰 편집기 — 키보드 위 도구 줄 (노션 앱처럼). 폰에는 Tab 키가 없어서 들여쓰기를 여기서 한다
+ * 폰 편집기 — 키보드 위 도구 줄 (노션 앱처럼). 폰에는 Tab 키가 없어서 들여쓰기를 여기서 한다 · 사진 넣기
  *
  * ★ 동작은 NoteEditor 가 넘겨준 함수 그대로 (PC Tab/⇧Tab · `[] ` · `- ` 와 같은 함수) — 여기서 따로 만들지 않는다
  * ★ 단추를 눌러도 글 칸의 포커스가 안 빠지게 pointerdown 을 막는다 → 키보드가 내려가지 않는다
@@ -31,11 +31,12 @@ const IC_CHECK = I(<><rect x="4.5" y="4.5" width="15" height="15" rx="3.5" /><pa
 const IC_BULLET = I(<><circle cx="6" cy="7" r="1.2" fill="currentColor" stroke="none" /><circle cx="6" cy="12" r="1.2" fill="currentColor" stroke="none" /><circle cx="6" cy="17" r="1.2" fill="currentColor" stroke="none" /><path d="M10 7h9M10 12h9M10 17h9" /></>);
 const IC_OUT = I(<><path d="M4 6h16M11 12h9M4 18h16" /><path d="M8 9.5 5 12l3 2.5" /></>);
 const IC_IN = I(<><path d="M4 6h16M11 12h9M4 18h16" /><path d="m5 9.5 3 2.5-3 2.5" /></>);
+const IC_IMG = I(<><rect x="3.5" y="5" width="17" height="14" rx="2.5" /><circle cx="9" cy="10" r="1.6" /><path d="m4 17 5-4.5 3.5 3 3-2.5 4.5 4" /></>);
 const IC_DONE = I(<><rect x="3.5" y="4.5" width="17" height="10" rx="2" /><path d="M7 8h.01M10 8h.01M13 8h.01M16 8h.01M8 11.5h8" /><path d="m9.5 18 2.5 2 2.5-2" /></>);
 
-export function KbBar({ area, type, depth, fixed, onShift, onType, onDone }: {
+export function KbBar({ area, type, depth, fixed, onShift, onType, onDone, onImage }: {
   area: BlockArea; type: BlockType; depth: number; fixed: boolean;
-  onShift: (out: boolean) => void; onType: (t: BlockType) => void; onDone: () => void;
+  onShift: (out: boolean) => void; onType: (t: BlockType) => void; onDone: () => void; onImage: () => void;
 }) {
   const inset = useKbInset();
   // 누르는 순간 포커스를 지킨다 — click 은 그 다음에 온다
@@ -53,6 +54,8 @@ export function KbBar({ area, type, depth, fixed, onShift, onType, onDone }: {
       </>}
       {btn('내어쓰기', IC_OUT, () => onShift(true), { off: fixed || depth === 0 })}
       {btn('들여쓰기', IC_IN, () => onShift(false), { off: fixed || depth >= 8 })}
+      <i className="m-kb-sep" aria-hidden="true" />
+      {btn('사진 넣기', IC_IMG, onImage, { off: fixed })}
       <span className="m-kb-sp" />
       {btn('키보드 내리기', IC_DONE, onDone)}
     </div>,

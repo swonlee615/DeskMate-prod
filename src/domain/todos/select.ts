@@ -64,6 +64,7 @@ export function selText(rows: Pick<Row, 'b' | 'depth'>[], ids: string[]): string
   const on = new Set(ids);
   return rows.map((r, i) => {
     if (!on.has(r.b.id)) return null;
+    if (r.b.type === 'image') return '(이미지)';   // v3 blockToText
     const pad = '  '.repeat(r.depth), t = r.b.text;
     const h = HEAD_N[r.b.type];
     if (h) return `${pad}${'#'.repeat(h)} ${t}`;
