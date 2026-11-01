@@ -35,7 +35,7 @@
 |---|---|---|
 | ✅ | 서버 규칙 — 본인 데이터만, 인증된 이메일만 | `firestore.rules` 를 콘솔에 게시 |
 | ⬜ | Firestore 위치 **asia-northeast3 (서울)** | 만들 때만 정할 수 있다 |
-| ⬜ | Firebase Hosting 배포 · https 주소 | 폰 PWA 는 https 에서만 |
-| ⬜ | 출시 빌드에 Firebase 설정이 반드시 들어가는지 | 설정이 없으면 «개발 모드(로그인 없음)» 로 돈다 — 배포 스크립트에서 막는다 |
+| ⬜ | Firebase Hosting 배포 · https 주소 | **`배포.command` 더블클릭** — 시험 → 빌드 → 설정 확인 → 올리기(사이트 + 서버 규칙). 처음 한 번 Firebase 로그인. 주소 `https://deskmate-86c84.web.app` · 폰 PWA 는 https 에서만 |
+| ✅ | 출시 빌드에 Firebase 설정이 반드시 들어가는지 | `배포.command` 가 `.env.local` 과 빌드 안의 프로젝트 id 를 확인하고, 없으면 올리지 않는다 |
 | ⬜ | 일일 백업 | Firestore 예약 백업 (유료 요금제 필요) |
 | ⬜ | 오류 수집 | Sentry 무료 등급 등 |
