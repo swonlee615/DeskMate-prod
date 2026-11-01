@@ -15,7 +15,6 @@ import {
   catSplit, dowRhythm, hbTable, labelSplit, leaveSummary, weekGoal, period, rankSeries, rankStat, restGrade, series, summarize, weekHistory, yearHeat,
   type CatRow, type DayRow, type HbTable, type LabelRow, type MIv, type PeriodKind, type RankPt, type WeekRow,
 } from '../domain/stats';
-import { ROSTER } from '../domain/sim/team';
 import { addDays, dateOf, fmtDur, keyOf, weekStart } from '../ui/v3fmt';
 
 const DOW = '일월화수목금토';
@@ -41,7 +40,7 @@ export function MActivity({ ws, onDay }: { ws: Workspace; onDay: (k: string) => 
   const hb = useMemo(() => hbTable(ws.habits, p, ws.today, ws.offDay), [ws.habits, p.from, p.end, ws.today]); // eslint-disable-line react-hooks/exhaustive-deps
   const me = ws.ranking.find((r) => r.me);
   const todayRank = me && me.min > 0 ? { pos: me.rank, n: ws.ranking.length } : null;
-  const ranks = useMemo(() => rankSeries(rows, ws.today, todayRank, ws.nick, ws.ranks), [rows, ws.today, todayRank?.pos, ws.nick, ws.ranks]); // eslint-disable-line react-hooks/exhaustive-deps
+  const ranks = useMemo(() => rankSeries(rows, ws.today, todayRank, ws.nick, ws.ranks, ws.teamCfg), [rows, ws.today, todayRank?.pos, ws.nick, ws.ranks, ws.teamCfg]); // eslint-disable-line react-hooks/exhaustive-deps
   /** 주간 히스토리의 줄 → 그 주의 «주간» (v3.1.194) */
   const toWeek = (k: string) => { setKind('week'); setOff(Math.round((weekStart(dateOf(ws.today)).getTime() - dateOf(k).getTime()) / (7 * 864e5))); };
 
@@ -124,7 +123,7 @@ export function MActivity({ ws, onDay }: { ws: Workspace; onDay: (k: string) => 
       </>}
       {/* 습관은 출근과 따로 쌓인다 — 출근 기록이 없는 기간에도 보여 준다 (v3.1.236) */}
       {hb && <HabitCard t={hb} kind={kind} live={p.live} />}
-      {sm.days > 0 && <RankCard kind={kind} pts={ranks} rows={rows} from={p.from} end={p.end} today={ws.today} onDay={openIf} now={p.live ? { v: todayRank } : null} />}
+      {sm.days > 0 && <RankCard kind={kind} pts={ranks} rows={rows} from={p.from} end={p.end} today={ws.today} onDay={openIf} now={p.live ? { v: todayRank } : null} size={ws.teamCfg.members.length + 1} />}
     </div>
   );
 }
@@ -333,9 +332,9 @@ function HabitCard({ t, kind, live }: { t: HbTable; kind: PeriodKind; live: bool
 }
 
 /** 내 순위 이력 — 주간 · 월간은 등수 선(위가 1위 · 점 크기 = 겨룬 사람 수 · 오늘은 속 빈 점), 연간은 히트맵 (v3.1.257) */
-function RankCard({ kind, pts, rows, from, end, today, onDay, now }: { kind: PeriodKind; pts: RankPt[]; rows: DayRow[]; from: string; end: string; today: string; onDay: (k: string) => void; now: { v: { pos: number; n: number } | null } | null }) {
+function RankCard({ kind, pts, rows, from, end, today, onDay, now, size }: { kind: PeriodKind; pts: RankPt[]; rows: DayRow[]; from: string; end: string; today: string; onDay: (k: string) => void; now: { v: { pos: number; n: number } | null } | null; size: number }) {
   const year = dateOf(from).getFullYear();
-  const N = ROSTER.length + 1;
+  const N = size;
   const st = rankStat(pts, N);
   if (!st.days && !pts.length) return null;
   const sum = st.days > 0 && (

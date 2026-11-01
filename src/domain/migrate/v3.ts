@@ -15,6 +15,7 @@ import type { Block, BlockArea, BlockType } from '../todos/tree';
 import type { Log } from '../attendance/logs';
 import type { DDay } from '../dday';
 import type { Habit } from '../habits';
+import type { Member } from '../sim/team';
 
 // ── v3 모양 (db.js load) — 쓰는 칸만
 export interface V3Block { id: string; type: string; text?: string; done?: boolean; doneAt?: number | null; indent?: number; src?: string; movedId?: string; movedTo?: string; bornAt?: string; someday?: boolean; w?: number; nw?: number; name?: string }
@@ -32,12 +33,17 @@ export interface V3State {
   goalHours?: number; leaveGoal?: boolean; theme?: string; mode?: string; workspace?: string; timerColor?: string;
   focusMin?: number; shortMin?: number; longMin?: number; longEvery?: number; autoStart?: boolean;
   autoAway?: boolean; autoAwayMin?: number;
+  members?: Partial<Member>[];
+  userNick?: string; userName?: string; userRank?: string; userColor?: string; userAvatar?: string | null;
+  wsLogo?: string | null; wsColor?: string; teamStart?: number;
 }
 
 export interface V3Image { id: string; dataUrl: string; date: string; area: BlockArea; block: string }
 export interface Converted {
   events: AttEvent[]; blocks: Block[]; logs: Log[]; ddays: DDay[]; habits: Habit[];
   cats: { color: string; name: string }[] | null;
+  /** v3 동료 — 성향 · 그림 · 켜고 끔까지 그대로 (2026-11-02 소유자: 가져오면 v3 멤버) */
+  members: Member[] | null;
   settings: Record<string, unknown>; pomo: Record<string, unknown>;
   images: V3Image[];
   /** 사람이 읽을 요약 — 무엇을 몇 개 옮겼고 무엇을 어떻게 바꿨나 */
@@ -162,10 +168,20 @@ export function convertV3(st: V3State, now: number): Converted {
   if (st.timerColor) settings.timerColor = st.timerColor;
   if (typeof st.autoAway === 'boolean') settings.away = st.autoAway;
   if (typeof st.autoAwayMin === 'number') settings.awayMin = Math.max(3, Math.min(60, st.autoAwayMin));
+  // 내 프로필 · 워크스페이스 꾸밈 · 팀 근무 시작
+  if (st.userNick) settings.nick = st.userNick;
+  if (st.userName) settings.name = st.userName;
+  if (st.userRank) settings.rank = st.userRank;
+  if (st.userColor) settings.color = st.userColor;
+  if (st.userAvatar) settings.avatar = st.userAvatar;
+  if (st.wsLogo) settings.wsLogo = st.wsLogo;
+  if (st.wsColor) settings.wsColor = st.wsColor;
+  if (typeof st.teamStart === 'number') settings.teamStart = st.teamStart;
+  const members: Member[] | null = st.members?.length ? st.members.map((m, i) => ({ ...(m as Member), id: m.id ?? `v3m${i}`, avatar: m.avatar ?? null, enabled: m.enabled !== false })) : null;
   const pomo: Record<string, unknown> = {};
   for (const k of ['focusMin', 'shortMin', 'longMin', 'longEvery', 'autoStart'] as const) if (st[k] != null) pomo[k] = st[k];
 
-  return { events, blocks, logs, ddays, habits, cats: st.cats?.length ? st.cats : null, settings, pomo, images, report: rep };
+  return { events, blocks, logs, ddays, habits, cats: st.cats?.length ? st.cats : null, members, settings, pomo, images, report: rep };
 }
 
 /** 확인용 — 웹이 재생한 하루와 v3 하루의 근무 · 휴게 분을 나란히 (스크립트 · 가져오기 화면이 같이 쓴다) */

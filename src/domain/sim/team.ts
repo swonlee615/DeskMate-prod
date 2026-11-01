@@ -14,7 +14,14 @@ export interface Member {
   chrono: number; diligence: number; chattiness: number; focusLen: number; overtime: number;
   usesDnd: boolean; meetingProp: number; emoji: string; remoteProp: number; leaveProp: number; sickProp: number;
   color: string;
+  /** 프로필 그림 (작은 data URL · v3 와 같다) · 끈 멤버 */
+  avatar?: string | null; enabled?: boolean;
 }
+
+/** 팀 = 멤버 + 팀 근무시간대 — 계정마다 다르다 (v3 를 가져오면 v3 의 멤버 · 시간대, 아니면 기본 4명) */
+export interface Team { members: Member[]; hours: { start: number; end: number } }
+/** v3 팀 근무시간대 — 시작 시각 + 하루 목표 + 점심 1시간 */
+export const teamHours = (start: number, goalHours: number) => ({ start, end: start + goalHours * 60 + 60 });
 
 /** 멤버 4명 (2026-10-30 소유자 — v3 의 12명에서 줄이고 이름 · 프로필을 새로) · 색은 v3.1.188 팔레트에서 서로 먼 넷 */
 const AV_COLORS = ['#027cb1', '#be3771', '#18721b', '#b15120'];
@@ -241,9 +248,9 @@ function pairOneOnOnes(days: Record<string, MateDay>, dk: string) {
 }
 
 /** 그 날 팀 전체의 하루 — 같은 날짜면 늘 같다 */
-export function buildTeam(dk: string, members = ROSTER): Record<string, MateDay> {
+export function buildTeam(dk: string, members = ROSTER, hours = TEAM_DEFAULT): Record<string, MateDay> {
   const days: Record<string, MateDay> = {};
-  for (const m of members) days[m.id] = buildDay(m, dk);
+  for (const m of members) days[m.id] = buildDay(m, dk, hours);
   pairOneOnOnes(days, dk);
   return days;
 }

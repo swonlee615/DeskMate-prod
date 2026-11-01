@@ -285,6 +285,7 @@ function V3Import({ ws }: { ws: Workspace }) {
             <li>할 일 · 메모 <b>{n(r.lines)}줄</b> — 다음 날로 넘어간 흔적은 처음 적은 날의 줄 하나로 합쳐요</li>
             <li>시간 기록 <b>{n(r.slots)}건</b>, 근무 밖 휴게 {n(r.rests)}건, 뽀모도로 {n(r.pomos + r.pomosAdded)}회</li>
             <li>그림 <b>{n(r.images)}장</b>, D-Day {n(pick.conv.ddays.length)}개, 습관 {n(pick.conv.habits.length)}개</li>
+            {pick.conv.members && <li>멤버 <b>{n(pick.conv.members.length)}명</b>(성향과 프로필 그림까지), 내 프로필, 워크스페이스 로고와 색, 팀 근무시간대</li>}
             <li>원본 파일도 통째로 보관해요. 대화, 앱 사용 기록, 저장됨처럼 웹에 아직 없는 기능의 데이터도 남아요.</li>
           </ul>
           <p className="hint">웹에 같은 날 기록이 있으면 로컬 앱의 기록으로 바뀌어요.</p>

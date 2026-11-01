@@ -37,6 +37,8 @@ export interface Repo {
   watchRange(from: string, to: string, cb: (d: DayEvents) => void): () => void;
   /** 첫 기록 날짜 (지우지 않은 이벤트 중 가장 이른 날) — 활동 «미근무» 가 그 날부터 센다 (v3.1.242). 없으면 null */
   firstDate(): Promise<string | null>;
+  /** 그 기간의 이벤트를 한 번 읽는다 (구독 아님) — v3 가져오기가 «이미 있던 웹 기록» 을 알아야 할 때 */
+  eventsIn(from: string, to: string): Promise<AttEvent[]>;
   /** 이벤트 한 건 쌓기. 오프라인이어도 바로 돌아온다 (서버 반영은 나중에) */
   addEvent(e: AttEvent): void;
   /** 지우기 = 표시만 (deletedAt). 다른 기기에도 «지웠다» 가 전해져야 하므로 */

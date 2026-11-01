@@ -95,6 +95,8 @@ export function createLocalRepo(): Repo {
       return all.filter((e) => !e.deletedAt).map((e) => e.date).sort()[0] ?? null;
     },
 
+    async eventsIn(from, to) { return pick(from, to); },
+
     addEvent(e) {
       all = [...all.filter((x) => x.id !== e.id), e];
       save(all);

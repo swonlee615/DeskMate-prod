@@ -26,8 +26,13 @@ export interface Settings {
   mode: LookMode; theme: string; wsName: string; goalHours: number; leaveGoal: boolean; timerColor: string;
   /** 자리비움 자동 감지 · 기준 분 (v3 autoAway · autoAwayMin — 3~60, 기본 켬 · 10분) */
   away: boolean; awayMin: number;
+  /** 내 프로필 (v3 userNick · userName · userRank · userColor · userAvatar) — 비어 있으면 로그인 계정 이름 */
+  nick: string; name: string; rank: string; color: string; avatar: string | null;
+  /** 워크스페이스 로고 · 배지 색 · 팀 근무 시작(분) (v3 wsLogo · wsColor · teamStart) */
+  wsLogo: string | null; wsColor: string; teamStart: number | null;
 }
-export const SETTINGS_DEFAULT: Settings = { mode: 'system', theme: 'navy', wsName: 'DeskMate', goalHours: 8, leaveGoal: true, timerColor: '#2b8fd8', away: true, awayMin: 10 };
+export const SETTINGS_DEFAULT: Settings = { mode: 'system', theme: 'navy', wsName: 'DeskMate', goalHours: 8, leaveGoal: true, timerColor: '#2b8fd8', away: true, awayMin: 10,
+  nick: '', name: '', rank: '', color: '#1264a3', avatar: null, wsLogo: null, wsColor: '#1264a3', teamStart: null };   // color-ok: v3 기본 프로필 · 배지 색 (데이터 값)
 
 /** v3 화면 모드 (v3.1.37) — 기본은 시스템 설정 */
 export const MODES: [LookMode, string, string, string][] = [

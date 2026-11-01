@@ -3,16 +3,17 @@
  * ★ 마크업 · 클래스는 v3 와 같다. 동료의 상태는 ws.mates / ws.ranking (src/domain/sim/team.ts)
  * 대화 · 채널 · DM · 허들은 옮기지 않는다 (2026-10-27 소유자) — 동료는 상태 · 랭킹만
  */
+import { avStyle, avText } from '../ui/avatar';
 import { useLayoutEffect } from 'react';
 import type { Workspace } from '../app/useWorkspace';
 import type { MateStatus, Member, Presence } from '../domain/sim/team';
 import { fmtDur } from '../ui/v3fmt';
 
-/** v3 avatarHtml — 이모지가 있으면 이모지, 없으면 첫 글자 */
-export function Avatar({ m, presence }: { m: Pick<Member, 'nick' | 'emoji' | 'color'>; presence?: Presence }) {
+/** v3 avatarHtml — 그림이 있으면 그림, 없으면 이모지 · 첫 글자 */
+export function Avatar({ m, presence }: { m: Pick<Member, 'nick' | 'emoji' | 'color' | 'avatar'>; presence?: Presence }) {
   return (
     <span className={`av${presence ? ' haspd' : ''}`}>
-      <span className="avi" style={{ backgroundColor: m.color }}>{m.emoji || m.nick.slice(0, 1).toUpperCase()}</span>
+      <span className="avi" style={avStyle(m.color, m.avatar)}>{avText(m.emoji || m.nick.slice(0, 1).toUpperCase(), m.avatar)}</span>
       {presence && <span className="pdot" data-p={presence} />}
     </span>
   );

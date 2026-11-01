@@ -14,7 +14,6 @@ import {
   catSplit, dowRhythm, hbTable, labelSplit, leaveSummary, period, rankSeries, rankStat, REST_GRADE, restGrade, series, summarize,
   weekGoal, weekHistory, yearHeat, type DayRow, type HbTable, type MIv, type PeriodKind, type RankPt,
 } from '../domain/stats';
-import { ROSTER } from '../domain/sim/team';
 import { dateOf, DOW, fmtClock, fmtDur, keyOf, leaveOf, LEAVES, weekStart } from '../ui/v3fmt';
 import { CHEV } from './Worklog';
 
@@ -70,7 +69,7 @@ export function PcActivity({ ws, hidden, onOpenDay }: { ws: Workspace; hidden: b
   const hb = useMemo(() => hbTable(ws.habits, p, ws.today, ws.offDay), [ws.habits, p.from, p.end, ws.today]); // eslint-disable-line react-hooks/exhaustive-deps
   const me = ws.ranking.find((r) => r.me);
   const todayRank = me && me.min > 0 ? { pos: me.rank, n: ws.ranking.length } : null;
-  const ranks = useMemo(() => rankSeries(rows, ws.today, todayRank, ws.nick, ws.ranks), [rows, ws.today, todayRank?.pos, ws.nick, ws.ranks]); // eslint-disable-line react-hooks/exhaustive-deps
+  const ranks = useMemo(() => rankSeries(rows, ws.today, todayRank, ws.nick, ws.ranks, ws.teamCfg), [rows, ws.today, todayRank?.pos, ws.nick, ws.ranks, ws.teamCfg]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 기록이 있는 날만 누를 수 있다 — 표시 자체를 안 붙인다 (v3 odAttr · odTip)
   const odOk = (k: string) => { const d = ws.days[k]; return !!d && (d.onAt != null || !!d.leave); };
@@ -92,7 +91,7 @@ export function PcActivity({ ws, hidden, onOpenDay }: { ws: Workspace; hidden: b
   );
   const tail = <>
     {hb && <HabitCard t={hb} kind={kind} live={p.live} />}
-    <RankCard kind={kind} pts={ranks} from={p.from} end={p.end} today={ws.today} first={ws.firstDate} od={od} odTip={odTip} now={p.live ? { v: todayRank } : null} />
+    <RankCard kind={kind} pts={ranks} from={p.from} end={p.end} today={ws.today} first={ws.firstDate} od={od} odTip={odTip} now={p.live ? { v: todayRank } : null} size={ws.teamCfg.members.length + 1} />
   </>;
 
   let body: React.ReactNode;
@@ -466,12 +465,14 @@ function HabitCard({ t, kind, live }: { t: HbTable; kind: PeriodKind; live: bool
 }
 
 /** 내 순위 이력 (v3.1.106 · 252 · 257) — 위가 1위 · 점 크기 = 그 날 겨룬 사람 수 · 오늘은 속 빈 점 + 점선 · 연간은 히트맵 */
-function RankCard({ kind, pts, from, end, today, first, od, odTip, now }: {
+function RankCard({ kind, pts, from, end, today, first, od, odTip, now, size }: {
   kind: PeriodKind; pts: RankPt[]; from: string; end: string; today: string; first: string | null; od: (k: string) => object; odTip: (k: string) => string;
   /** 오늘이 든 기간이면 지금 등수 (null = 지난 기간 — 칸을 안 세운다) */
   now: { v: { pos: number; n: number } | null } | null;
+  /** 겨루는 사람 수 (멤버 + 나) */
+  size: number;
 }) {
-  const N = ROSTER.length + 1;
+  const N = size;
   const st = rankStat(pts, N);
   const head = <h4>내 순위 이력</h4>;
   if (!st.days && !pts.some((x) => x.live)) {

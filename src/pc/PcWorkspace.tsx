@@ -6,6 +6,7 @@
  *   PC 창을 아무리 좁혀도 모바일 화면으로 바뀌지 않는다 — v3 의 3단 · 2단 · 1단(서랍) 으로만 바뀐다.
  */
 import { PomoClock } from '../ui/Live';
+import { avStyle, avText } from '../ui/avatar';
 import { useEffect, useState } from 'react';
 import { SettingsModal } from './Settings';
 import type { Workspace } from '../app/useWorkspace';
@@ -96,7 +97,9 @@ export function PcWorkspace({ ws }: { ws: Workspace }) {
       <div className="top-strip" />
       <div className={cls} id="app" data-layout={mode}>
         <aside className="rail">
-          <div className="ws-badge" id="wsBadge">{ws.settings.wsName.trim().slice(0, 1).toUpperCase() || 'D'}</div>
+          <div className={`ws-badge${ws.settings.wsLogo ? ' img' : ''}`} id="wsBadge"
+            style={ws.settings.wsLogo ? { backgroundImage: `url("${ws.settings.wsLogo}")`, backgroundColor: 'transparent' } : { backgroundColor: ws.settings.wsColor }}>
+            {ws.settings.wsLogo ? '' : ws.settings.wsName.trim().slice(0, 1).toUpperCase() || 'D'}</div>
           <button className={`rail-btn${view === 'worklog' ? ' on' : ''}`} data-view="worklog" onClick={() => go('worklog')}>
             <span className="ri"><svg viewBox="0 0 20 20"><path d="M3.2 8.6 10 3.2l6.8 5.4V16a1.2 1.2 0 0 1-1.2 1.2h-3.3v-4.8H7.7v4.8H4.4A1.2 1.2 0 0 1 3.2 16V8.6Z" /></svg></span>
             <small>홈</small>
@@ -132,7 +135,7 @@ export function PcWorkspace({ ws }: { ws: Workspace }) {
           </div>
           <div className="sb-foot">
             <button className="sb-row" id="rowMe" onClick={openAccount} title={user.email ?? nick}>
-              <span className="av haspd"><span className="avi" style={{ backgroundColor: '#1264a3' }}>{initial}</span><span className="pdot" data-p={presence} /></span>
+              <span className="av haspd"><span className="avi" style={avStyle(ws.settings.color, ws.settings.avatar)}>{avText(initial, ws.settings.avatar)}</span><span className="pdot" data-p={presence} /></span>
               <span className="nm"><span className="sb-me-nick">{nick}</span></span>
               <span className="tag">나</span>
             </button>

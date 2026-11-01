@@ -14,7 +14,7 @@ import { addBreakSpan, canCarry, editBreak, removeBreak, resolveAt, resolveCarry
 import { catsOf, cleanCats, type Cat } from '../domain/attendance/cats';
 import { breakConflicts, logsOf, overlapIds, resolveConflicts, splitRest, type Log, type SpanInput, type SpanRef } from '../domain/attendance/logs';
 import { addDays, dateOf, fmtDur, keyOf, weekStart } from '../ui/v3fmt';
-import { buildTeam, leaderboard, ROSTER, STATUS_ORDER, statusAt, type LbRow, type Member, type MateStatus } from '../domain/sim/team';
+import { buildTeam, leaderboard, ROSTER, STATUS_ORDER, statusAt, TEAM_DEFAULT, teamHours, type LbRow, type Member, type MateStatus, type Team } from '../domain/sim/team';
 import { useMinute } from './clock';
 import { useIdleAway, type IdlePerm } from './useIdleAway';
 import { applyLook, SETTINGS_DEFAULT, type Settings } from '../ui/settingsNav';
@@ -38,6 +38,7 @@ const CATS_ID = 'cats';
 const RANKS_ID = 'ranks';
 const IMGS_ID = 'images';
 const V3_ID = 'v3import';
+const MEMBERS_ID = 'members';
 
 const SETTINGS_ID = 'settings';
 /** 근태 표가 보여 주는 주 수 (이번 주 포함) */
@@ -52,6 +53,8 @@ const OFF_CANCEL = { day: '1분이 안 돼서 출근을 취소했어요', sessio
 export interface Toast { text: string; action?: { label: string; run: () => void }; bad?: boolean }
 
 export interface Workspace {
+  /** 팀 — 멤버 · 근무시간대 (랭킹 · 순위 이력 · 사이드바가 같이 쓴다) */
+  teamCfg: Team;
   /** 이 브라우저의 자리비움 감지 권한 · 묻기 (PC 브라우저 · Chrome/Edge) */
   idle: { perm: IdlePerm; ask: () => Promise<void> };
   /** 설정 (items/settings) — 계정에 하나 */
@@ -360,7 +363,13 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
     onStep('원본 파일을 보관하는 중');
     for (let i = 0; i < parts; i++) repo.putArchive(`v3-sqlite-${i}`, bytes.slice(i * PART, (i + 1) * PART), { kind: 'v3-sqlite', part: i, of: parts, size: bytes.length });
     onStep(`근태 ${c.report.days}일을 옮기는 중`);
-    for (const e of c.events) repo.addEvent(e);
+    // 같은 날 웹에 이미 있던 기록은 «v3 하루에 녹아 있다» 고 적는다 — 안 그러면 재생이 v3 하루 위에 그 기록을 다시 얹는다
+    const ovs = c.events.filter((e) => e.type === 'override');
+    const prior = ovs.length ? await repo.eventsIn(ovs[0].date, ovs[ovs.length - 1].date) : [];
+    for (const e of c.events) {
+      if (e.type === 'override') e.basedOn = prior.filter((x) => x.date === e.date && !x.id.startsWith('v3-') && x.type !== 'pomoDone').map((x) => x.id);
+      repo.addEvent(e);
+    }
     onStep(`할 일 · 메모 ${c.report.lines}줄을 옮기는 중`);
     for (const b of c.blocks) repo.addBlock(b);
     for (const l of c.logs) repo.addLog(l);
@@ -369,6 +378,7 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
     for (const h of c.habits) repo.addItem(h as unknown as Item);
     if (c.cats) repo.addItem({ id: CATS_ID, kind: 'cats', list: cleanCats(c.cats) } as Item);
     if (Object.keys(c.settings).length) repo.mergeItem({ id: SETTINGS_ID, kind: 'settings', ...c.settings } as Item);
+    if (c.members) repo.addItem({ id: MEMBERS_ID, kind: 'members', list: c.members } as Item);
     if (Object.keys(c.pomo).length) repo.mergeItem({ id: POMO_ID, kind: 'pomo', ...POMO_DEFAULT, ...(pomoDoc ?? {}), ...c.pomo } as Item);
     let n = 0;
     for (const im of c.images) {
@@ -670,15 +680,21 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
       { label: '되돌리기', run: () => { repo.deleteEvent(e); setToast(null); } });
   };
 
-  const nick = user.name ?? user.email?.split('@')[0] ?? '나';
+  const nick = settings.nick.trim() || (user.name ?? user.email?.split('@')[0] ?? '나');
 
   // ── 가상 동료 — 날짜 씨앗으로 매번 같은 하루 (저장하지 않는다)
-  const team = useMemo(() => buildTeam(today), [today]);
+  // 팀 = 멤버(계정에 저장 · 없으면 기본 4명) + 팀 근무시간대(설정 · 없으면 기본)
+  const memDoc = items.find((x) => x.id === MEMBERS_ID) as (Item & { list?: Member[] }) | undefined;
+  const teamCfg = useMemo<Team>(() => ({
+    members: (memDoc?.list ?? ROSTER).filter((m) => m.enabled !== false),
+    hours: settings.teamStart != null ? teamHours(settings.teamStart, settings.goalHours) : TEAM_DEFAULT,
+  }), [memDoc, settings.teamStart, settings.goalHours]);
+  const team = useMemo(() => buildTeam(today, teamCfg.members, teamCfg.hours), [today, teamCfg]);
   const nowMin = (() => { const t = new Date(now); return t.getHours() * 60 + t.getMinutes(); })();
-  const mates = useMemo(() => ROSTER.map((m) => ({ m, st: statusAt(team[m.id], m, nowMin) }))
+  const mates = useMemo(() => teamCfg.members.map((m) => ({ m, st: statusAt(team[m.id], m, nowMin) }))
     .sort((a, b) => STATUS_ORDER[a.st.key] - STATUS_ORDER[b.st.key] || a.m.nick.localeCompare(b.m.nick)), [team, nowMin]);
   const myMin = dayParts(day, now).workMs / 60000;
-  const ranking = useMemo(() => leaderboard(team, nowMin, myMin, nick), [team, nowMin, Math.floor(myMin), nick]); // eslint-disable-line react-hooks/exhaustive-deps
+  const ranking = useMemo(() => leaderboard(team, nowMin, myMin, nick, teamCfg.members), [team, nowMin, Math.floor(myMin), nick, teamCfg]); // eslint-disable-line react-hooks/exhaustive-deps
   // 지운 줄의 그림 비우기 — 앱을 열 때 한 번, 줄을 지운 지 하루가 지난 그림만 (SYNC §14)
   const purged = useRef(false);
   useEffect(() => {
@@ -693,9 +709,9 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
   const ranks = useMemo(() => ((items.find((x) => x.id === RANKS_ID) as (Item & { days?: Record<string, RankFix> }) | undefined)?.days ?? {}), [items]);
   useEffect(() => {
     if (!itemsIn) return;
-    const fix = rankToFix(days, ranks, today, now, nick);
+    const fix = rankToFix(days, ranks, today, now, nick, teamCfg);
     if (Object.keys(fix).length) repo.mergeItem({ id: RANKS_ID, kind: 'ranks', days: fix } as Item);
-  }, [repo, itemsIn, days, ranks, today, nick]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [repo, itemsIn, days, ranks, today, nick, teamCfg]); // eslint-disable-line react-hooks/exhaustive-deps
   const mateStatus = (id: string) => mates.find((x) => x.m.id === id)?.st ?? null;
 
   return {
@@ -705,7 +721,7 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
     onOn, onOff, onRest, onLeave, dayOf, editDay, pendingDays, resolvePending, canCarry: canCarryFor,
     blocks, addBlock, patchBlocks, editBlocks, undoBlocks, lastEditAt, toggleBlock, removeBlock, newId,
     ddays, saveDDay, pinDDay, archiveDDay, deleteDDay,
-    v3Preview, v3Import, v3Imported, images, addImages, imageBlob, removeImage, ranks, firstDate, habits, offDay, saveHabit, archiveHabit, deleteHabit, toggleHabit,
+    teamCfg, v3Preview, v3Import, v3Imported, images, addImages, imageBlob, removeImage, ranks, firstDate, habits, offDay, saveHabit, archiveHabit, deleteHabit, toggleHabit,
     logs, saveSpan, deleteSpan, fixConflicts, cats, setCats,
     mates, ranking, mateStatus,
     nick, initial: nick.slice(0, 1).toUpperCase(),

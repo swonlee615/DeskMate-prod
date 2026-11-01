@@ -8,6 +8,7 @@
  * ★ 머리의 타이머 알약은 PC 머리의 미니 타이머와 같다 — 늘 보이고, 누르면 집중 타이머로
  * ★ 모양만 다르다 — 한 손으로 누르기 좋게. 클래스는 전부 `m-` 로 시작해 PC(v3)와 안 섞인다. 색 · 글꼴은 v3 토큰
  */
+import { avStyle, avText } from '../ui/avatar';
 import { PomoClock } from '../ui/Live';
 import { useLayoutEffect, useRef, useState } from 'react';
 import type { Workspace } from '../app/useWorkspace';
@@ -134,7 +135,7 @@ function Settings({ ws, onAccount, onOpen }: { ws: Workspace; onAccount: () => v
     <>
     <ul className="m-card m-list">
       <li className="m-row" onClick={cloud ? onAccount : undefined}>
-        <span className="m-av">{ws.initial}</span>
+        <span className="m-av" style={avStyle(ws.settings.color, ws.settings.avatar)}>{avText(ws.initial, ws.settings.avatar)}</span>
         <div className="m-row-l"><b>{ws.nick}</b><span>{ws.user.email ?? (cloud ? '' : '개발 모드 · 이 기기에만 저장돼요')}</span></div>
         {cloud && <i className="m-chev" aria-hidden="true">›</i>}
       </li>
@@ -260,7 +261,7 @@ function TeamTab({ ws }: { ws: Workspace }) {
         return (
           <li key={r.id} className="m-row">
             <span className="m-rank">{r.rank}</span>
-            <span className="m-av" style={r.m ? { background: r.m.color } : undefined}>{r.m ? r.m.emoji || r.m.nick.slice(0, 1) : ws.initial}<i className={`m-dot ${p}`} /></span>
+            <span className="m-av" style={r.m ? avStyle(r.m.color, r.m.avatar) : avStyle(ws.settings.color, ws.settings.avatar)}>{r.m ? avText(r.m.emoji || r.m.nick.slice(0, 1), r.m.avatar) : avText(ws.initial, ws.settings.avatar)}<i className={`m-dot ${p}`} /></span>
             <div className="m-row-l"><b>{r.nick}{r.me && <small> (나)</small>}</b>
               <span>{r.me ? STATE_LABEL[ws.state] : st ? `${st.emoji ? st.emoji + ' ' : ''}${st.topic || st.label}` : ''}</span></div>
             <div className="m-row-r"><b>{fmtDur(r.min)}</b></div>

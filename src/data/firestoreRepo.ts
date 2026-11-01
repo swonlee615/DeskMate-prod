@@ -12,6 +12,7 @@
  */
 import { Bytes, collection, deleteDoc, deleteField, doc, getDoc, getDocFromCache, setDoc, updateDoc, query, where, onSnapshot, writeBatch, orderBy, limit, getDocs, type Firestore } from 'firebase/firestore';
 import type { Repo, SyncStatus } from './repo';
+import type { AttEvent } from '../domain/attendance/types';
 
 export function createFirestoreRepo(db: Firestore, uid: string): Repo {
   let pending = 0;
@@ -74,6 +75,11 @@ export function createFirestoreRepo(db: Firestore, uid: string): Repo {
       // ponytail: 앞 50건 안에 지우지 않은 것이 없으면 null — 첫날 기록을 50번 넘게 지운 경우만 틀린다
       const snap = await getDocs(query(col, orderBy('date'), limit(50)));
       return snap.docs.map((d) => d.data() as { date: string; deletedAt?: number | null }).find((e) => !e.deletedAt)?.date ?? null;
+    },
+
+    async eventsIn(from, to) {
+      const snap = await getDocs(query(col, where('date', '>=', from), where('date', '<=', to)));
+      return snap.docs.map((d) => d.data() as AttEvent);
     },
 
     addEvent(e) { track(setDoc(doc(col, e.id), e)); },

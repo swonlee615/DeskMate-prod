@@ -3,6 +3,7 @@
  * ★ PC 근태 «전체» 뷰(주별 표) + 우측 패널(집중 타이머)을 한 줄로 세운 것. 타이머는 PC 와 같은 하나다 (SYNC §9)
  * ★ 타이머는 PC 다이얼(부채꼴)을 그대로 쓰고 둘레만 폰에 맞춘 MTimer
  */
+import { avStyle, avText } from '../ui/avatar';
 import { Since } from '../ui/Live';
 import { useState } from 'react';
 import type { Workspace } from '../app/useWorkspace';
@@ -118,7 +119,7 @@ function Desks({ ws }: { ws: Workspace }) {
   return (
     <div className="m-desks">
       <span className="m-desks-a" aria-hidden="true">
-        {show.map(({ m }) => <i key={m.id} style={{ background: m.color }}>{m.emoji || m.nick.slice(0, 1)}</i>)}
+        {show.map(({ m }) => <i key={m.id} style={avStyle(m.color, m.avatar)}>{avText(m.emoji || m.nick.slice(0, 1), m.avatar)}</i>)}
         {on.length > show.length && <i className="more">+{on.length - show.length}</i>}
       </span>
       {/* 덩어리째만 줄을 바꾼다 — «자리 비 / 움 1» 처럼 낱말 가운데서 끊기지 않게 */}
