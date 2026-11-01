@@ -31,6 +31,7 @@ export interface V3State {
   weeks?: Record<string, { memo?: V3Block[]; today?: V3Block[] }>;
   goalHours?: number; leaveGoal?: boolean; theme?: string; mode?: string; workspace?: string; timerColor?: string;
   focusMin?: number; shortMin?: number; longMin?: number; longEvery?: number; autoStart?: boolean;
+  autoAway?: boolean; autoAwayMin?: number;
 }
 
 export interface V3Image { id: string; dataUrl: string; date: string; area: BlockArea; block: string }
@@ -159,6 +160,8 @@ export function convertV3(st: V3State, now: number): Converted {
   if (typeof st.goalHours === 'number') settings.goalHours = st.goalHours;
   if (typeof st.leaveGoal === 'boolean') settings.leaveGoal = st.leaveGoal;
   if (st.timerColor) settings.timerColor = st.timerColor;
+  if (typeof st.autoAway === 'boolean') settings.away = st.autoAway;
+  if (typeof st.autoAwayMin === 'number') settings.awayMin = Math.max(3, Math.min(60, st.autoAwayMin));
   const pomo: Record<string, unknown> = {};
   for (const k of ['focusMin', 'shortMin', 'longMin', 'longEvery', 'autoStart'] as const) if (st[k] != null) pomo[k] = st[k];
 

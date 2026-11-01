@@ -32,6 +32,9 @@ export function sortEvents(events: AttEvent[]): AttEvent[] {
   return [...events].sort((a, b) => a.at - b.at || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
 
+/** 자동 감지를 믿는 기기 — PC 앱 · PC 브라우저(유휴 감지 · 2026-11-02 소유자). 폰은 손에 들고 다니는 것이라 «안 만짐» 이 «자리 비움» 이 아니다 */
+const detects = (ev: AttEvent) => ev.deviceKind === 'desktop' || ev.deviceKind === 'browser';
+
 /** 정리·확정 전의 날것. 테스트와 디버깅용 */
 export function replayRaw(date: string, events: AttEvent[], leave: Leave = ''): Day {
   const mine = sortEvents(events).filter((e) => !e.deletedAt && e.date === date);
@@ -150,7 +153,7 @@ export function replayRaw(date: string, events: AttEvent[], leave: Leave = ''): 
         break;
 
       case 'awayStart': {
-        if (ev.deviceKind !== 'desktop') break;
+        if (!detects(ev)) break;
         awaySince.set(ev.deviceId, at);
         if (cur() === 'work' && allAway()) {
           // 마지막으로 비운 PC 의 시각부터가 «모두 비운» 구간이다
@@ -172,7 +175,7 @@ export function replayRaw(date: string, events: AttEvent[], leave: Leave = ''): 
         break;
 
       case 'awayEnd':
-        if (ev.deviceKind !== 'desktop') break;
+        if (!detects(ev)) break;
         awaySince.set(ev.deviceId, null);
         if (cur() === 'break' && autoOpen) {
           closeOpen(at);

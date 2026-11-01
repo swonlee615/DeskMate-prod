@@ -21,7 +21,7 @@ import { MDay } from './MDay';
 import { CloseX, HabitChips } from './parts';
 import { IMG_HINT, imgDay, Thumb, useImageList } from '../ui/ImageList';
 import { fmtMB } from '../domain/images';
-import { LEAVE_GOAL_HINT, MODES, SET_NAV, SLOT_HINT, systemIsDark, THEMES, TIMER_COLORS } from '../ui/settingsNav';
+import { AWAY_HINT, LEAVE_GOAL_HINT, MODES, SET_NAV, SLOT_HINT, systemIsDark, THEMES, TIMER_COLORS } from '../ui/settingsNav';
 import { CAT_EX, nextCatColor, type Cat } from '../domain/attendance/cats';
 import { catVar, SLOT_COLORS } from '../domain/attendance/logs';
 import './mobile.css';
@@ -202,6 +202,13 @@ function SetPanel({ ws, k, goDay }: { ws: Workspace; k: string; goDay: (date: st
       <button key={col} role="radio" aria-checked={st.timerColor === col} aria-label={n} className={st.timerColor === col ? 'on' : ''}
         style={{ '--c': col } as React.CSSProperties} onClick={() => ws.saveSettings({ timerColor: col })} />))}</div>
     <p className="m-set-hint">다이얼의 남은 시간에 쓰여요. 휴식 중에는 같은 색이 옅게 칠해집니다. 초록은 근태 색이라 뺐어요.</p>
+  </>;
+  if (k === 'away') return <>
+    <ul className="m-card m-list">
+      {tgl('자리비움 자동 감지', st.away, (b) => ws.saveSettings({ away: b }))}
+      {num('기준 (분)', st.awayMin, 3, 60, (n) => ws.saveSettings({ awayMin: n }))}
+    </ul>
+    <p className="m-set-hint">{AWAY_HINT} 감지는 PC의 Chrome이나 Edge에서 해요. 폰은 손에 들고 다녀서 감지하지 않아요.</p>
   </>;
   if (k === 'data') return <DataImages ws={ws} goDay={goDay} />;
   if (k === 'slot') return <>

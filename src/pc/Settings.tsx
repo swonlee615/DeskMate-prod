@@ -13,6 +13,7 @@ import { CAT_EX, nextCatColor, type Cat } from '../domain/attendance/cats';
 import { applyLook, LEAVE_GOAL_HINT, MODES, SET_NAV, systemIsDark, THEMES, TIMER_COLORS, type Settings } from '../ui/settingsNav';
 import type { PomoCfg } from '../app/usePomodoro';
 import { IMG_HINT, imgDay, Thumb, useImageList } from '../ui/ImageList';
+import { AWAY_HINT, idleText } from '../ui/settingsNav';
 import { fmtMB } from '../domain/images';
 import type { V3Pick } from '../app/useWorkspace';
 
@@ -34,7 +35,7 @@ export function SettingsModal({ ws, onClose, onDay }: { ws: Workspace; onClose: 
   };
   const save = () => {
     const goalHours = clamp(d.goalHours, 1, 14, orig.current.goalHours);
-    ws.saveSettings({ mode: d.mode, theme: d.theme, wsName: d.wsName.trim() || 'DeskMate', goalHours, leaveGoal: d.leaveGoal, timerColor: d.timerColor });
+    ws.saveSettings({ mode: d.mode, theme: d.theme, wsName: d.wsName.trim() || 'DeskMate', goalHours, leaveGoal: d.leaveGoal, timerColor: d.timerColor, away: d.away, awayMin: clamp(d.awayMin, 3, 60, orig.current.awayMin) });
     const c = ws.timer.cfg;
     const pomo: PomoCfg = { ...c, focusMin: clamp(d.focusMin, 5, 90, c.focusMin), shortMin: clamp(d.shortMin, 1, 30, c.shortMin), longMin: clamp(d.longMin, 5, 60, c.longMin), autoStart: d.autoStart };
     if ((Object.keys(pomo) as (keyof PomoCfg)[]).some((k) => pomo[k] !== c[k])) ws.timer.setCfg(pomo);
@@ -136,6 +137,21 @@ export function SettingsModal({ ws, onClose, onDay }: { ws: Workspace; onClose: 
                   </div>
                   <p className="hint">다이얼의 남은 시간과 가운데 버튼에 쓰여요. 휴식 중에는 같은 색이 옅게 칠해집니다. 초록은 근태(출근 · 근무 중) 색이라 뺐어요.</p>
                 </div>
+              </section>
+            )}
+            {pane === 'away' && (
+              <section className="set-panel on" data-set-panel="away">
+                <h4>자리비움 · 업무 앱</h4>
+                <p className="hint" style={{ marginTop: 0 }}>{AWAY_HINT}</p>
+                <div className="field row2">
+                  <div><label>자리비움 자동 감지</label>{tgl(d.away, (b) => put({ away: b }), '자리비움 자동 감지')}</div>
+                  <div><label htmlFor="set-awayMin">기준 (분)</label>{num('awayMin', 3, 60)}</div>
+                </div>
+                <div className="sec-t">이 브라우저</div>
+                <p className="hint">{idleText(ws.idle.perm)}</p>
+                {ws.idle.perm === 'prompt' && <button className="btn primary sm" onClick={() => void ws.idle.ask()}>이 브라우저에서 감지 허용</button>}
+                <div className="sec-t">업무 앱 기준</div>
+                <p className="hint">어떤 앱을 쓰고 있는지는 브라우저가 볼 수 없어요. 업무 앱 기준 감지와 출근 감지는 PC 앱에서 생겨요.</p>
               </section>
             )}
             {pane === 'data' && <DataPane ws={ws} onDay={(k) => { cancel(); onDay(k); }} />}

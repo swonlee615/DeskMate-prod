@@ -196,6 +196,15 @@ describe('다기기 — 자동 감지', () => {
     expect(stateOf(d)).toBe('work');
   });
 
+  it('PC 브라우저의 유휴 감지도 자리비움이다 (2026-11-02) — 화면 잠금은 그 시각부터', () => {
+    const d = deriveDay(D, [
+      ev('clockIn', '09:00', 'chrome', 'browser'),
+      ev('awayStart', '10:00', 'chrome', 'browser', { by: 'power' }),
+      ev('awayEnd', '10:30', 'chrome', 'browser'),
+    ], t('11:00'));
+    expect(d.breaks).toEqual([{ s: t('10:00'), e: t('10:30'), kind: 'break', auto: true, by: 'power' }]);
+  });
+
   it('PC 두 대 — 한 대만 비면 자리비움이 아니다', () => {
     const d = deriveDay(D, [
       ev('clockIn', '09:00', 'pcA'),

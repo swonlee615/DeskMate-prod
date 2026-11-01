@@ -10,7 +10,7 @@ export const SET_NAV: SetNav[] = [
   { k: 'members', ni: '👥', nm: '멤버 설정' },
   { k: 'pomo', ni: '🍅', nm: '뽀모도로', on: true },
   { k: 'slot', ni: '⏱️', nm: '시간 기록', on: true },
-  { k: 'away', ni: '💻', nm: '자리비움 · 업무 앱' },
+  { k: 'away', ni: '💻', nm: '자리비움 · 업무 앱', on: true },
   { k: 'data', ni: '🗄', nm: '데이터', on: true },
   { k: 'plugin', ni: '🧩', nm: '플러그인' },
   { k: 'sec', ni: '🛡', nm: '시스템 알림', sep: true },
@@ -22,8 +22,12 @@ export const SLOT_HINT = '시간 기록에 쓰는 색마다 이름을 붙이면 
 
 export type LookMode = 'system' | 'light' | 'dark';
 /** 계정에 하나 — 모든 기기가 같은 값을 쓴다 */
-export interface Settings { mode: LookMode; theme: string; wsName: string; goalHours: number; leaveGoal: boolean; timerColor: string }
-export const SETTINGS_DEFAULT: Settings = { mode: 'system', theme: 'navy', wsName: 'DeskMate', goalHours: 8, leaveGoal: true, timerColor: '#2b8fd8' };
+export interface Settings {
+  mode: LookMode; theme: string; wsName: string; goalHours: number; leaveGoal: boolean; timerColor: string;
+  /** 자리비움 자동 감지 · 기준 분 (v3 autoAway · autoAwayMin — 3~60, 기본 켬 · 10분) */
+  away: boolean; awayMin: number;
+}
+export const SETTINGS_DEFAULT: Settings = { mode: 'system', theme: 'navy', wsName: 'DeskMate', goalHours: 8, leaveGoal: true, timerColor: '#2b8fd8', away: true, awayMin: 10 };
 
 /** v3 화면 모드 (v3.1.37) — 기본은 시스템 설정 */
 export const MODES: [LookMode, string, string, string][] = [
@@ -51,3 +55,12 @@ export function applyLook(mode: LookMode, theme: string) {
 export const systemIsDark = prefersDark;
 
 export const LEAVE_GOAL_HINT = '켜 두면 연차 · 병가인 날은 목표 0, 반차인 날은 목표가 절반이 됩니다. 주 목표도 평일 목표를 더한 값이라 같이 줄어요 (금요일 연차면 주 32시간). 끄면 근태는 달력 색으로만 남고, 목표는 날마다 하루 목표 그대로 계산합니다.';
+
+export const AWAY_HINT = '근무 중에 키보드와 마우스가 기준 시간 넘게 멈추거나 화면이 잠기면, 그때부터 휴게로 자동 기록하고 돌아오면 닫아요.';
+/** 이 브라우저의 감지 상태를 사람 말로 */
+export function idleText(perm: 'unsupported' | 'granted' | 'denied' | 'prompt'): string {
+  if (perm === 'granted') return '이 브라우저에서 감지하고 있어요. 다른 앱이나 탭을 보고 있어도 이 맥의 입력을 기준으로 봐요.';
+  if (perm === 'denied') return '이 브라우저에서 감지 권한이 꺼져 있어요. 주소창 왼쪽의 사이트 설정에서 «유휴 감지»를 허용해 주세요.';
+  if (perm === 'prompt') return '이 브라우저에서 감지하려면 한 번 허용해 주세요.';
+  return '이 브라우저에서는 감지할 수 없어요. PC의 Chrome이나 Edge에서 열면 쓸 수 있어요.';
+}
