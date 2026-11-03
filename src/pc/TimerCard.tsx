@@ -39,7 +39,7 @@ export function TimerCard({ t, tc, onSet, onDraft }: { t: Pomodoro; tc: string; 
         </button>
         <div className="t-time">
           <b id="clock">{preview ? `${String(draftN).padStart(2, '0')}:00` : live.clock}</b>
-          <small id="tmode">{draft != null ? '집중 — 입력 중' : `${t.label}${t.running ? ' 중' : ' 대기'}`}</small>
+          <small id="tmode">{draft != null ? '집중 시간 입력 중' : `${t.label}${t.running ? ' 중' : ' 대기'}`}</small>
         </div>
         <button className="dial-ic" id="btnSkip" type="button" aria-label="건너뛰기" data-tip="건너뛰기" onClick={t.skip}>
           <svg viewBox="0 0 20 20"><path d="M4 4.6v10.8c0 .6.7 1 1.2.6L12 11c.4-.3.4-1 0-1.3L5.2 4C4.7 3.6 4 4 4 4.6Z" fill="currentColor" /><rect x="13.5" y="4" width="2.6" height="12" rx="1" fill="currentColor" /></svg>

@@ -605,7 +605,7 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
       if (!habits.some((h) => h.id === id)) return '저장하지 못했어요.';
       repo.patchItem(id, { ...c });
     } else {
-      if (habits.filter((h) => !h.archivedAt).length >= HB_MAX) return `습관은 ${HB_MAX}개까지 만들 수 있어요 — 하나를 보관하거나 지워 주세요.`;
+      if (habits.filter((h) => !h.archivedAt).length >= HB_MAX) return `습관은 ${HB_MAX}개까지 만들 수 있어요. 하나를 보관하거나 지워 주세요.`;
       repo.addItem({ id: newId(), kind: 'habit', ...c, createdAt: Date.now(), archivedAt: null } as Habit);
     }
     say(`${c.emoji ? c.emoji + ' ' : ''}${c.title} · ${hbFreqLabel(c)}`);
@@ -628,7 +628,7 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
 
   // ── 시간 기록 · 근무 밖 휴게
   const saveSpan: Workspace['saveSpan'] = (date, orig, v) => {
-    if (!(v.e > v.s)) return '시간을 확인해 주세요 — 끝나는 시각이 시작보다 뒤여야 해요';
+    if (!(v.e > v.s)) return '시간을 확인해 주세요. 끝나는 시각이 시작보다 뒤여야 해요';
     const text = v.text.trim();
     if (v.kind === 'slot' && !text) return '무엇을 했는지 적어 주세요';
     const at = Date.now();
@@ -658,7 +658,7 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
     if (ref && origKind !== v.kind) {
       if (ref.type === 'brk') d = removeBreak(d, ref.idx) ?? d; else kill(ref.id);
       ref = null;
-      msg = v.kind === 'break' ? '휴게로 바꿨어요 — 근무시간에서 빠져요' : '시간 기록으로 바꿨어요 — 근무시간에 들어가요';
+      msg = v.kind === 'break' ? '휴게로 바꿨어요. 근무시간에서 빠져요' : '시간 기록으로 바꿨어요. 근무시간에 들어가요';
     }
     if (v.kind === 'slot') {
       if (ref?.type === 'slot') { gone.add(ref.id); patch(ref.id, v.s, v.e); } else add('slot', v.s, v.e, v.color);
@@ -680,7 +680,7 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
       const { inside, outside } = splitRest(d, v.s, v.e);
       for (const [a, z] of inside) d = addBreakSpan(d, ms(a), ms(z), text) ?? d;
       for (const [a, z] of outside) add('rest', a, z, v.color);
-      msg ||= inside.length ? '휴게를 넣었어요 — 근무시간에서 빠져요' : '휴게를 넣었어요 — 근무시간에는 영향이 없어요';
+      msg ||= inside.length ? '휴게를 넣었어요. 근무시간에서 빠져요' : '휴게를 넣었어요. 근무시간에는 영향이 없어요';
     }
     if (d !== d0) { const e = overrideDay(date, d); undo.push(() => repo.deleteEvent(e)); }
     say(msg, { label: '되돌리기', run: () => { undo.forEach((f) => f()); setToast(null); } });
@@ -700,7 +700,7 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
     if (!r.n) { say('정리할 게 없어요'); return; }
     const left = breakConflicts(r.day).length;
     const e = overrideDay(date, r.day);
-    say(left ? `휴게 ${r.n}건을 정리했는데 ${left}건이 아직 겹쳐 있어요 — 알려 주세요` : `겹친 휴게 ${r.n}건을 정리해 ${fmtDur(back)}을 근무시간으로 돌렸어요`,
+    say(left ? `휴게 ${r.n}건을 정리했는데 ${left}건이 아직 겹쳐 있어요. 알려 주세요` : `겹친 휴게 ${r.n}건을 정리해 ${fmtDur(back)}을 근무시간으로 돌렸어요`,
       { label: '되돌리기', run: () => { repo.deleteEvent(e); setToast(null); } });
   };
 

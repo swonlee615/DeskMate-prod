@@ -35,7 +35,7 @@ export function MToday({ ws, goDay }: { ws: Workspace; goDay: (date: string, edi
       {ws.pendingDays.length > 0 && <Pend ws={ws} date={ws.pendingDays[0]} onEdit={() => goDay(ws.pendingDays[0], true)} />}
 
       {/* 카드 어디를 눌러도 오늘 하루 상세로 — 버튼(출근 · 휴식 · 퇴근)은 제 일만 한다 */}
-      <section className={`m-card m-hero ${state}`} aria-label="오늘 근태 — 누르면 오늘 상세"
+      <section className={`m-card m-hero ${state}`} aria-label="오늘 근태. 누르면 오늘 상세가 열려요"
         onClick={(e) => { if (!(e.target as HTMLElement).closest('button')) goDay(ws.today); }}>
         <div className="m-state">
           <i className={`m-dot ${state}`} aria-hidden="true" />

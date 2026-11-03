@@ -28,7 +28,7 @@ const GCOLS = 12;       // 한 줄 = 1시간
 const MEMO_CHIPS = ['점심', '저녁', '병원', '회의 이동', '산책', '통화'];
 /** v3 REST_GRADE — 휴게 ÷ (근무 + 휴게) */
 const REST_GRADE = [
-  { max: 8, cls: 'warn', label: '주의', tip: '너무 적어요 — 쉬지 않고 붙어 있는 상태' },
+  { max: 8, cls: 'warn', label: '주의', tip: '너무 적어요. 쉬지 않고 붙어 있는 상태예요' },
   { max: 18, cls: 'good', label: '우수', tip: '이상적인 비율' },
   { max: 28, cls: 'ok', label: '양호', tip: '조금 넉넉하지만 무난해요' },
   { max: 40, cls: 'warn', label: '주의', tip: '자리를 비운 시간이 많아요' },
@@ -139,7 +139,7 @@ export function DayPage({ ws, date, full, onClose, onFull, onGo, focusOff, onDD 
               <div className="autonote">{d.autoClosed === 'away'
                 ? `${d.offAt != null ? hhmm(d.offAt) : '그 시각'}부터 자리를 비우셔서, 그때 퇴근한 것으로 기록했어요.`
                 : `휴식 중 자정을 넘겨서, 휴식을 누른 ${d.offAt != null ? hhmm(d.offAt) : '시각'}을 퇴근으로 기록했어요.`} 시각이 다르면 <b>상세</b>에서 고쳐주세요.
-                <button className="note-x" id="autoNoteX" title="확인했어요 — 다시 안 띄웁니다"
+                <button className="note-x" id="autoNoteX" title="확인했어요. 다시 띄우지 않아요"
                   onClick={() => ws.editDay(date, (day) => ({ ...day, autoClosed: 'confirmed' }), '확인했어요')}>✕</button></div>
             )}
 
@@ -163,7 +163,7 @@ export function DayPage({ ws, date, full, onClose, onFull, onGo, focusOff, onDD 
               <span className="dh-sum">
                 {d.onAt != null && d.offAt != null
                   ? <b title={`${(work / 60).toFixed(2)}시간`}>{fmtDur(work)}</b>
-                  : <b className="empty" title={d.onAt != null ? `아직 근무 중이라 합계를 내지 않아요 — 퇴근하면 채워집니다 (지금까지 ${fmtDur(work)})` : '출근 기록이 없어요'}>–</b>}
+                  : <b className="empty" title={d.onAt != null ? `아직 근무 중이라 합계를 내지 않아요. 퇴근하면 채워져요 (지금까지 ${fmtDur(work)})` : '출근 기록이 없어요'}>–</b>}
                 <i className="sl">/</i>
                 <span className="rest" title={`휴게 ${restN}건${openBreak(d) ? ' · 진행 중' : ''}`}>휴게 {fmtDur(rest)}</span>
                 <RestGrade d={d} work={work} rest={rest} />
@@ -257,7 +257,7 @@ function RestGrade({ d, work, rest }: { d: Day; work: number; rest: number }) {
   const pct = Math.round((rest / (work + rest)) * 100);
   const g = work + rest >= 60 ? REST_GRADE.find((x) => pct < x.max) ?? null : null;
   return (
-    <span className={`dh-rg${g ? ` g-${g.cls}` : ''}`} title={`휴게 비율 — 휴게 ÷ (근무 + 휴게)\n${g ? `${g.label} · ${g.tip}` : '1시간이 안 돼 등급은 보류'}`}>
+    <span className={`dh-rg${g ? ` g-${g.cls}` : ''}`} title={`휴게 비율: 휴게 ÷ (근무 + 휴게)\n${g ? `${g.label} · ${g.tip}` : '1시간이 안 돼 등급은 보류'}`}>
       {pct}%{g ? ` ${g.label}` : ''}
     </span>
   );
@@ -288,7 +288,7 @@ function WeekStrip({ ws, date, onGo }: { ws: Workspace; date: string; onGo: (k: 
   const mon = weekStart(dateOf(date));
   const scale = ws.goal.hours * 60;
   return (
-    <div className="week-strip" title="이번 주 — 날짜를 누르면 그 날로 갑니다">
+    <div className="week-strip" title="이번 주. 날짜를 누르면 그 날로 가요">
       {Array.from({ length: 7 }, (_, i) => {
         const dt = addDays(mon, i);
         const k = keyOf(dt);
@@ -303,7 +303,7 @@ function WeekStrip({ ws, date, onGo }: { ws: Workspace; date: string; onGo: (k: 
           ? [`${dt.getMonth() + 1}월 ${dt.getDate()}일 (${DOW[dt.getDay()]})`,
             `출근 ${d.onAt != null ? hhmm(d.onAt) : '–'} · 퇴근 ${d.offAt != null ? hhmm(d.offAt) : '–'}`,
             `근무 ${d.onAt != null ? fmtDur(min) : '–'}`, d.leave ? `· ${d.leave}` : ''].filter(Boolean).join('\n')
-          : `${dt.getMonth() + 1}월 ${dt.getDate()}일 (${DOW[dt.getDay()]}) — 기록 없음\n눌러서 엽니다`;
+          : `${dt.getMonth() + 1}월 ${dt.getDate()}일 (${DOW[dt.getDay()]})\n기록 없음. 누르면 열려요`;
         return (
           <button key={k} className={cls} data-wsd={k} title={tip} onClick={() => onGo(k)}>
             <em>{DOW[dt.getDay()]}</em><b>{dt.getDate()}</b>
@@ -470,7 +470,7 @@ function Conflicts({ ws, date, d }: { ws: Workspace; date: string; d: Day }) {
   return (
     <div className="conflict"><div className="cf-row">
       <b>휴게 {conf.length}건이 시간 기록 안에 겹쳐 있어요 ({fmtDur(min)}).</b>
-      {' '}그만큼 근무시간에서 빠지고 있습니다 — 그 시간에 일한 게 맞다면 정리해 주세요.
+      {' '}그만큼 근무시간에서 빠지고 있어요. 그 시간에 일한 게 맞다면 정리해 주세요.
       <button className="mini-btn" id="cfFix" onClick={() => ws.fixConflicts(date)}>겹친 휴게 정리</button>
       <div className="cf-hits">{conf.map((c, ci) => (
         <button key={ci} className={`cf-hit${on === ci ? ' on' : ''}`} data-cfhit={ci} onClick={() => hit(ci)}
@@ -511,7 +511,7 @@ export function SlotList({ d, logs, cats, now, rows, onOpen, onGoto }: {
     const out = slotOutside(d, s.s);
     items.push({ at: base + s.s * 60000 + 0.1, el: (
       <div key={s.id} className={`tg-item r2${out ? ' outside' : ''}`} data-slot={s.id} onClick={() => onOpen(openLog(s))}
-        title={`${fmtM(s.s)} ~ ${fmtM(s.e)} · ${fmtDur(s.e - s.s)}${catName(cats, s.color) ? `\n[${catName(cats, s.color)}]` : ''}${s.text ? `\n${s.text}` : ''}${out ? '\n\n출퇴근 기록 밖에 적은 기록이에요 — 근무시간에는 들어갑니다' : ''}`}>
+        title={`${fmtM(s.s)} ~ ${fmtM(s.e)} · ${fmtDur(s.e - s.s)}${catName(cats, s.color) ? `\n[${catName(cats, s.color)}]` : ''}${s.text ? `\n${s.text}` : ''}${out ? '\n\n출퇴근 기록 밖에 적은 기록이에요. 근무시간에는 들어가요' : ''}`}>
         <i style={{ background: s.color ?? undefined }} />
         <span className="rg">{fmtM(s.s)} ~ {fmtM(s.e)}</span>
         <span className="du">{fmtDur(s.e - s.s)}</span>
@@ -535,7 +535,7 @@ export function SlotList({ d, logs, cats, now, rows, onOpen, onGoto }: {
     items.push({ at: base + r.s * 60000 + 0.25, el: (
       <div key={r.id} className={`tg-item r2 brk-item${r.text ? ' has-note' : ''}${r.color ? ' tagged' : ''}`} data-rest={r.id}
         style={r.color ? { '--hc': r.color } as React.CSSProperties : undefined} onClick={() => onOpen(openLog(r))}
-        title={`휴게 ${fmtM(r.s)} ~ ${fmtM(r.e)}${r.text ? `\n${r.text}` : ''}\n근무 밖 휴게 — 근무시간에는 영향 없음`}>
+        title={`휴게 ${fmtM(r.s)} ~ ${fmtM(r.e)}${r.text ? `\n${r.text}` : ''}\n근무 밖 휴게라 근무시간에는 영향이 없어요`}>
         {restBar(r.color)}
         <span className="rg">{fmtM(r.s)} ~ {fmtM(r.e)}</span>
         <span className="du">{fmtDur(r.e - r.s)}</span>
@@ -701,7 +701,7 @@ function LabelCombo({ picks, value, placeholder, onChange, onEnter }: { picks: L
                 <span className="ao-n">{a.t}</span>{a.done && <i className="ao-dn">✓ 끝냄</i>}</button>
             </div>
           );
-        }) : <div className="ap-opt none">맞는 게 없어요 — <b>적은 그대로</b> 씁니다</div>}
+        }) : <div className="ap-opt none">맞는 게 없어요. <b>적은 그대로</b> 써요</div>}
       </div>
     </div>
   );
@@ -772,7 +772,7 @@ function SpanDialog({ ws, date, d, o, onClose }: { ws: Workspace; date: string; 
                 const on = c.color === catKey(color);
                 return (
                   <button type="button" key={c.color} className={`cat${on ? ' on' : ''}`} data-c={c.color}
-                    title={`${c.name || '이름 없는 색'}${!isSlot && on ? ' — 다시 누르면 해제' : ''}`}
+                    title={`${c.name || '이름 없는 색'}${!isSlot && on ? '\n다시 누르면 해제' : ''}`}
                     onClick={() => setColor(!isSlot && on ? null : c.color)}>
                     <i style={{ background: c.color }} /><span>{c.name || <em>이름 없음</em>}</span></button>
                 );

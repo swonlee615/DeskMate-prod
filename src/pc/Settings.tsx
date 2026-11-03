@@ -92,9 +92,9 @@ export function SettingsModal({ ws, onClose, onDay }: { ws: Workspace; onClose: 
                         <span className="tw"><i style={{ background: rail }} /><i style={{ background: side }} /></span><span>{name}</span></button>
                     ))}
                   </div>
-                  <p className="hint">레일과 사이드바 계열의 색을 바꿉니다.
-                    라이트 모드에서는 <b>본문 바탕까지 같은 색 가족</b>으로 따라갑니다 —
-                    포레스트를 고르면 카드도 아주 옅은 초록빛이 됩니다.</p>
+                  <p className="hint">레일과 사이드바 색을 바꿔요.
+                    라이트 모드에서는 <b>본문 바탕까지 같은 색 계열</b>로 바뀌어요.
+                    포레스트를 고르면 카드도 아주 옅은 초록빛이 돼요.</p>
                 </div>
                 <p className="hint">앱 아이콘, 메뉴바, 시스템 알림은 PC 앱에서 쓸 수 있어요.</p>
               </section>

@@ -75,7 +75,7 @@ export function MActivity({ ws, onDay }: { ws: Workspace; onDay: (k: string) => 
 
         {kind === 'year' ? <Heat year={dateOf(p.from).getFullYear()} rows={rows} today={ws.today} onDay={openIf} /> : (
           <section className="m-card m-an-c">
-            <h4>근무시간 추이 <em>— 목표 {ws.goal.hours}h</em></h4>
+            <h4>근무시간 추이 <em>목표 {ws.goal.hours}h</em></h4>
             <Bars rows={rows} goal={goal} today={ws.today} dense={kind === 'month'} onDay={openIf} end={p.end} />
           </section>
         )}
@@ -160,7 +160,7 @@ function Heat({ year, rows, today, onDay }: { year: number; rows: ReturnType<typ
   useLayoutEffect(() => { const el = box.current; if (el) el.scrollLeft = el.scrollWidth; }, [year]);
   return (
     <section className="m-card m-an-c">
-      <h4>근무 히트맵 <em>— 진할수록 오래 · 초록은 목표를 채운 날</em></h4>
+      <h4>근무 히트맵 <em>진할수록 오래 · 초록은 목표를 채운 날</em></h4>
       <div className="m-an-heat" ref={box}>
         {weeks.map((w, i) => {
           const m = dateOf(w[0].key);
@@ -224,7 +224,7 @@ function DowRhythm({ rows, avg }: { rows: DayRow[]; avg: number }) {
   if (!ds.some((x) => x.n)) return null;
   return (
     <section className="m-card m-an-c">
-      <h4>요일 리듬 <em>— 이 달, 요일마다 언제 일하고 쉬었나</em></h4>
+      <h4>요일 리듬 <em>이 달, 요일마다 언제 일하고 쉬었나</em></h4>
       <div className="m-rh dow">
         <div className="m-rh-r hd"><span /><span /><span className="m-rh-v"><i>휴게</i><i>비근무</i></span></div>
         {ds.map((x) => {
@@ -256,7 +256,7 @@ function WeekHist({ weeks, goal, onWeek }: { weeks: WeekRow[]; goal: number; onW
   const out = weeks.some((w) => w.out);
   return (
     <section className="m-card m-an-c">
-      <h4>주간 히스토리 <em>— 주 {Math.round(goal / 60)}시간 기준</em></h4>
+      <h4>주간 히스토리 <em>주 {Math.round(goal / 60)}시간 기준</em></h4>
       <div className="m-wh">
         {weeks.map((w, i) => {
           const s0 = dateOf(w.key), e0 = dateOf(w.end);
@@ -311,7 +311,7 @@ function Labels({ list }: { list: LabelRow[] }) {
 function HabitCard({ t, kind, live }: { t: HbTable; kind: PeriodKind; live: boolean }) {
   return (
     <section className="m-card m-an-c">
-      <h4>습관{t.note && <em> — {t.note}</em>}</h4>
+      <h4>습관{t.note && <em> {t.note}</em>}</h4>
       <div className="m-hb" style={{ '--cols': t.heads.length } as React.CSSProperties}>
         <div className="m-hb-r hd"><span />
           <div className="m-hb-cs">{t.heads.map((x, i) => <span key={i} className={`${x.now ? 'now' : ''}${x.fut ? ' fut' : ''}`}><b>{kind === 'year' ? x.t.replace('월', '') : x.t}</b>{x.s && kind === 'week' && <i>{x.s}</i>}</span>)}</div>
@@ -350,7 +350,7 @@ function RankCard({ kind, pts, rows, from, end, today, onDay, now, size }: { kin
     const { weeks } = yearHeat(year, rows, today);
     return (
       <section className="m-card m-an-c m-rk-y">
-        <h4>내 순위 이력 <em>— 진하기 = 그 날 상위 몇 %</em></h4>
+        <h4>내 순위 이력 <em>진하기 = 그 날 상위 몇 %</em></h4>
         {sum}
         <HeatScroll year={year}>
           {weeks.map((w, i) => (
@@ -432,7 +432,7 @@ function GoalCard({ g }: { g: ReturnType<typeof weekGoal> }) {
       : <>주 목표에 <b>{fmtDur(g.gap)}</b> 못 미쳤어요</>;
   return (
     <section className="m-card m-an-c">
-      <h4>목표까지 <em>— 주 {fmtDur(g.goal)}</em></h4>
+      <h4>목표까지 <em>주 {fmtDur(g.goal)}</em></h4>
       <div className="m-an-pct"><b>{g.pct}<small>%</small></b><span>{sub}</span></div>
       <div className="m-an-track"><i style={{ width: `${Math.min(100, g.pct)}%` }} /></div>
     </section>

@@ -116,7 +116,7 @@ export function PcActivity({ ws, hidden, onOpenDay }: { ws: Workspace; hidden: b
       </div>
 
       {kind === 'year' ? <YearHeat gh={ws.goal.hours} year={dateOf(p.from).getFullYear()} rows={rows} today={ws.today} od={od} odTip={odTip} /> : (
-        <div className="card" style={{ marginBottom: 12 }}><h4>근무시간 추이 <span className="goalline">— 목표 {ws.goal.hours}h</span></h4>
+        <div className="card" style={{ marginBottom: 12 }}><h4>근무시간 추이 <span className="goalline">목표 {ws.goal.hours}h</span></h4>
           <div className="bars dow2" style={{ '--goal': goal / (Math.max(goal, ...rows.map((r) => r.work)) * 1.05) } as React.CSSProperties}>
             {rows.map((r) => {
               const d = dateOf(r.key), max = Math.max(goal, ...rows.map((x) => x.work)) * 1.05;
@@ -208,7 +208,7 @@ function Rhythm({ rows, today, now, sm, od }: { rows: DayRow[]; today: string; n
         const live = r.off == null && r.key === today;
         const segs = r.segs.length ? r.segs : [{ s: r.on, e: r.off ?? Math.max(r.on + 10, nowM) }];
         const tip = segs.map((g, i) => `${i + 1}차 ${mFmt(g.s)} – ${mFmt(g.e)}`).join('\n')
-          + (r.brks.length ? `\n휴게 ${r.brks.length}건 · ${fmtDur(r.rest)}` : '') + (live ? `\n아직 진행 중 — 지금 ${mFmt(nowM)}` : '');
+          + (r.brks.length ? `\n휴게 ${r.brks.length}건 · ${fmtDur(r.rest)}` : '') + (live ? `\n아직 진행 중 (지금 ${mFmt(nowM)})` : '');
         return (
           <div key={r.key} className={`rh-row${live ? ' live' : ''}`} {...od(r.key)}><span className="rh-d">{lab}</span>
             <span className="rh-track" data-tip={tip}>
@@ -224,7 +224,7 @@ function Rhythm({ rows, today, now, sm, od }: { rows: DayRow[]; today: string; n
         평균 출근 <b>{sm.avgOn != null ? fmtClock(Math.round(sm.avgOn)) : '–'}</b>{basis(ons)}
         {' '}· 평균 퇴근 <b>{sm.avgOff != null ? fmtClock(Math.round(sm.avgOff)) : '–'}</b>{basis(offs)}
         {' '}· 평균 근무시간 <b>{fmtDur(sm.avg)}</b>
-        <span style={{ color: 'var(--text-dim)' }}> — 위 줄들은 날짜별 «실제 기록» 이에요{offs < worked.length ? ' · 아직 안 끝난 날은 퇴근이 없어 평균에 못 넣어요' : ''}</span></div>
+        <span style={{ color: 'var(--text-dim)' }}>. 위 줄들은 날짜별 «실제 기록»이에요{offs < worked.length ? ' · 아직 안 끝난 날은 퇴근이 없어 평균에 못 넣어요' : ''}</span></div>
     </div>
   );
 }
@@ -235,7 +235,7 @@ function DowRhythm({ rows, avg }: { rows: DayRow[]; avg: number }) {
   if (!ds.some((x) => x.n)) return null;
   const hH = (v: number) => `${(Math.round(v) / 60).toFixed(1)}H`;
   return (
-    <div className="card rh-dow" style={{ marginBottom: 12 }}><h4>요일 리듬 <span className="goalline">— 이 달, 요일마다 언제 일하고 언제 쉬었나</span></h4>
+    <div className="card rh-dow" style={{ marginBottom: 12 }}><h4>요일 리듬 <span className="goalline">이 달, 요일마다 언제 일하고 언제 쉬었나</span></h4>
       <div className="rh-hd"><span /><span /><span className="rh-t"><span>휴게</span><span>비근무</span></span></div>
       <div className="rhythm">{ds.map((x) => {
         if (!x.n) return (
@@ -243,7 +243,7 @@ function DowRhythm({ rows, avg }: { rows: DayRow[]; avg: number }) {
             <span className="rh-track" data-tip={`이 달에 ${DOW[x.dow]}요일 기록이 없어요`} /><span className="rh-t"><span>–</span><span>–</span></span></div>
         );
         const op = 1 / x.n;
-        const tip = `${DOW[x.dow]}요일 ${x.n}일\n평균 휴게 ${hH(x.avgRest)} · 평균 비근무 ${hH(x.avgIdle)}${x.n > 1 ? `\n${x.n}일을 겹쳐 그렸어요 — 진할수록 그 시각에 자주 일했다는 뜻입니다` : ''}`;
+        const tip = `${DOW[x.dow]}요일 ${x.n}일\n평균 휴게 ${hH(x.avgRest)} · 평균 비근무 ${hH(x.avgIdle)}${x.n > 1 ? `\n${x.n}일을 겹쳐 그렸어요. 진할수록 그 시각에 자주 일했다는 뜻이에요` : ''}`;
         return (
           <div key={x.dow} className="rh-row"><span className="rh-d">{DOW[x.dow]} <i className="rh-n2">{x.n}일</i></span>
             <span className="rh-track" data-tip={tip}>{x.rs.map((r) => [
@@ -257,11 +257,11 @@ function DowRhythm({ rows, avg }: { rows: DayRow[]; avg: number }) {
       <Axis ticks={TICKS} />
       <div className="rh-help">
         <span><i className="k-seg" />근무</span><span><i className="k-rest" />휴게</span>
-        <span>빈 자리 — 붙어 있지 않았거나 일하지 않은 시간</span>
-        <span>여러 날은 <b>겹쳐서</b> 그립니다 — 진할수록 그 시각에 자주 일했어요</span>
+        <span>빈 자리는 붙어 있지 않았거나 일하지 않은 시간</span>
+        <span>여러 날은 <b>겹쳐서</b> 그려요. 진할수록 그 시각에 자주 일했어요</span>
       </div>
       <div className="sub2" style={{ marginTop: 8 }}>평균 근무시간 <b>{fmtDur(avg)}</b>
-        <span style={{ color: 'var(--text-dim)' }}> — 날짜별로 보려면 <b>주간</b> 으로</span></div>
+        <span style={{ color: 'var(--text-dim)' }}>. 날짜별로 보려면 <b>주간</b>으로</span></div>
     </div>
   );
 }
@@ -273,7 +273,7 @@ function WeekHist({ weeks, goal, today, onWeek }: { weeks: ReturnType<typeof wee
   const less = weeks.some((w) => w.goal < goal);
   return (
     <div className="card" style={{ marginBottom: 12 }}><h4>주간 히스토리
-      <span className="goalline">— 주 {fmtDurU(goal)} 기준 · 월~일 한 주를 통째로 셉니다</span></h4>
+      <span className="goalline">주 {fmtDurU(goal)} 기준 · 월~일 한 주를 통째로 셉니다</span></h4>
       <div className="wh">{weeks.map((w, i) => {
         const s0 = dateOf(w.key), e0 = dateOf(w.end);
         const pw = w.goal ? Math.round((w.work / w.goal) * 100) : 0;
@@ -290,7 +290,7 @@ function WeekHist({ weeks, goal, today, onWeek }: { weeks: ReturnType<typeof wee
       })}</div>
       <div className="rh-help"><span><i className="k-seg" />그 주의 근무 합계</span>
         <span><i className="k-goal" />주 목표 {fmtDurU(goal)}{less ? ' · 연차·반차가 낀 주는 그만큼 줄어요' : ''}</span>
-        {weeks.some((w) => w.out) && <span><b>*</b> 다른 달의 날이 섞인 주 — 「주간」 탭과 같은 값이 되도록 <b>주 전체</b>를 셉니다</span>}
+        {weeks.some((w) => w.out) && <span><b>*</b> 다른 달의 날이 섞인 주는 「주간」 탭과 같은 값이 되도록 <b>주 전체</b>를 세요</span>}
         <span>줄을 누르면 그 주의 <b>주간</b> 으로 갑니다</span></div>
     </div>
   );
@@ -307,7 +307,7 @@ function GoalLeft({ g }: { g: ReturnType<typeof weekGoal> }) {
   const live = g.gap > 0 && g.left > 0;
   const tip = live ? Math.min(2.5, Math.max(0, 100 - g.pct)) : 0;
   return (
-    <div className="card"><h4>목표까지 <span className="goalline">— 주 <DurU m={g.goal} /></span></h4>
+    <div className="card"><h4>목표까지 <span className="goalline">주 <DurU m={g.goal} /></span></h4>
       <div className="big">{g.pct}<span>%</span></div>
       <div className="sub2">{sub}</div>
       <div className="bar" style={{ marginTop: 10 }}><i className="done" style={{ width: `${Math.min(100, g.pct)}%` }} />{tip > 0 && <i className="now" style={{ width: `${tip}%` }} />}</div>
@@ -323,7 +323,7 @@ function LeaveCard({ rows, first, today }: { rows: DayRow[]; first: string | nul
   return (
     <div className="card" style={{ marginBottom: 12 }}><h4>근태</h4>
       <div className="lv-sum">
-        <span className="lv-chip" style={{ '--lv': '#4a90e2' } as React.CSSProperties} data-tip="근태가 «근무» 인 날 — 연차·반차·병가가 찍힌 날은 각 칩에서 셉니다"><b>{s.chips['']}</b>근무</span>
+        <span className="lv-chip" style={{ '--lv': '#4a90e2' } as React.CSSProperties} data-tip="근태가 «근무»인 날이에요. 연차, 반차, 병가가 찍힌 날은 각 칩에서 세요"><b>{s.chips['']}</b>근무</span>
         {LEAVES.filter(([v]) => v && s.chips[v]).map(([v, label, c]) => <span key={v} className="lv-chip" style={{ '--lv': c } as React.CSSProperties}><b>{s.chips[v]}</b>{label}</span>)}
         <span className="lv-total" data-tip="근태와 상관없이 근무시간이 있는 날 · 미근무는 첫 기록 이후 어제까지 근무도 근태도 없는 날">근무 <b>{s.worked}일</b>
           {s.leaveDays > 0 && <> · 휴가 <b>{s.leaveDays % 1 ? s.leaveDays.toFixed(1) : s.leaveDays}일</b></>}
@@ -370,7 +370,7 @@ function ActCards({ rows, logs, ws }: { rows: DayRow[]; logs: Workspace['logs'];
           {vis.length ? vis.map((c) => row(c.color || 'none', c.none ? '미분류' : c.name || dim(c.known ? '이름 없는 색' : '미지정'),
             c.none ? ACT_NONE : c.color ? catVar(c.color) : 'var(--blue)', c.w, c.r, cmx,
             ct === 'all' && c.w > 0.5 && c.r > 0.5 ? `휴게 ${fmtDur(c.r)}` : ct === 'all' && c.r > 0.5 ? '휴게' : '',
-            c.none ? '미분류 — 카테고리를 안 붙인 근무(근무시간 중 시간 기록이 없는 몫)와 휴게(휴식 버튼 · 자동 포함)' : `근무 · 시간 기록 ${fmtDur(c.work)} · 휴게 ${fmtDur(c.rest)}`)) : empty}
+            c.none ? '미분류: 카테고리를 안 붙인 근무(근무시간 중 시간 기록이 없는 몫)와 휴게(휴식 버튼, 자동 포함)' : `근무 · 시간 기록 ${fmtDur(c.work)} · 휴게 ${fmtDur(c.rest)}`)) : empty}
         </div>
         {split.some((c) => c.known && !c.name) && <p className="hint" style={{ margin: '8px 0 0' }}>설정 → 시간 기록에서 색에 이름을 붙이면 여기에 카테고리 이름으로 나와요.</p>}
         {split.some((c) => !c.none && !c.known) && <p className="hint" style={{ margin: '8px 0 0' }}><b>미지정</b>은 지금 팔레트에 없는 색으로 남은 기록이에요. 그리드에서 그 칸의 색을 다시 골라 주면 합쳐집니다.</p>}
@@ -421,12 +421,12 @@ function YearHeat({ gh, year, rows, today, od, odTip }: { gh: number; year: numb
     if (c.lv === 0) return <i key={c.key} className={`yh-c ${c.weekend ? 'we' : 'n0'}`} data-tip={`${md(c.key)}\n기록 없음`} />;
     const lw = c.leave ? leaveOf(c.leave) : null;
     return <i key={c.key} className={`yh-c l${c.lv}${c.hit ? ' hit' : ''}${c.top ? ' top' : ''}${lw ? ' lvw' : ''}`} style={lw ? { '--lv': lw[2] || '#ecb22e' } as React.CSSProperties : undefined} {...od(c.key)}
-      data-tip={`${md(c.key)}${lw ? `\n${lw[1] || '휴가'}` : ''}\n근무 ${fmtDur(c.work)}\n${goalGapTxt(c.work, c.goal)}${c.top ? '\n— 올해 가장 오래 일한 날' : ''}${odTip(c.key)}`} />;
+      data-tip={`${md(c.key)}${lw ? `\n${lw[1] || '휴가'}` : ''}\n근무 ${fmtDur(c.work)}\n${goalGapTxt(c.work, c.goal)}${c.top ? '\n올해 가장 오래 일한 날' : ''}${odTip(c.key)}`} />;
   });
   const sw = (c: string) => <i className={`yh-sw ${c}`} />;
   return (
     <div className="card" style={{ marginBottom: 12 }}><h4>근무 히트맵
-      <span className="goalline">— 진할수록 오래 일했다 · <b className="yh-hitk">초록</b>은 목표 {gh}시간을 채운 날</span></h4>
+      <span className="goalline">진할수록 오래 일했다 · <b className="yh-hitk">초록</b>은 목표 {gh}시간을 채운 날</span></h4>
       <YhGrid year={year} cells={cells} />
       <div className="yh-foot">
         <span className="yh-lg scale"><i className="lb">0</i>{sw('z')}{sw('l1')}<i className="lb">{fmtDurH(th[0])}</i>{sw('l2')}<i className="lb">{fmtDurH(th[1])}</i>
@@ -434,7 +434,7 @@ function YearHeat({ gh, year, rows, today, od, odTip }: { gh: number; year: numb
         <span className="yh-lg">{sw('hit')}목표 {gh}시간 달성<em />
           {lvSeen.map(([v, l, c]) => <span key={v}><i className="yh-sw lv" style={{ '--lv': c } as React.CSSProperties} />{l}<em /></span>)}
           {sw('n0')}기록 없음<em /><i className="yh-sw l4 top" />가장 오래</span>
-        <span className="yh-sum" data-tip="근태와 상관없이 근무시간이 있는 날 — 연차·반차·병가에 일한 날도 셉니다">근무한 날 <b>{days}일</b> · 총 근무 <b>{Math.round(total / 60)}시간</b> · 하루 평균 <b>{fmtDur(Math.round(total / days))}</b></span>
+        <span className="yh-sum" data-tip="근태와 상관없이 근무시간이 있는 날이에요. 연차, 반차, 병가에 일한 날도 세요">근무한 날 <b>{days}일</b> · 총 근무 <b>{Math.round(total / 60)}시간</b> · 하루 평균 <b>{fmtDur(Math.round(total / days))}</b></span>
       </div>
     </div>
   );
@@ -502,7 +502,7 @@ function RankCard({ kind, pts, from, end, today, first, od, odTip, now, size }: 
       if (d.getFullYear() !== year || k > today || !first || k < first) { cells.push(<i key={k} className="yh-c" />); continue; }
       const v = by.get(k), we = d.getDay() === 0 || d.getDay() === 6;
       if (!v) { cells.push(<i key={k} className={`yh-c ${we ? 'we' : 'n0'}`} data-tip={`${md(k)}\n출근 기록 없음`} />); continue; }
-      if (v.n < 2) { cells.push(<i key={k} className="yh-c z" {...od(k)} data-tip={`${md(k)}\n혼자 근무 — 겨룬 사람이 없어 순위 없음\n근무 ${fmtDur(v.my)}${odTip(k)}`} />); continue; }
+      if (v.n < 2) { cells.push(<i key={k} className="yh-c z" {...od(k)} data-tip={`${md(k)}\n혼자 근무해서 순위가 없어요\n근무 ${fmtDur(v.my)}${odTip(k)}`} />); continue; }
       if (!v.live) { done++; if (v.pos === 1) firsts++; }
       const up = (v.pos - 1) / (v.n - 1);
       const lv = v.pos === 1 ? 'l4 hit' : up <= 0.25 ? 'l4' : up <= 0.5 ? 'l3' : up <= 0.75 ? 'l2' : 'l1';

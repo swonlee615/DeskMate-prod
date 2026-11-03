@@ -24,7 +24,7 @@ function DDayRow({ it, today, onOpen }: { it: DDay; today: string; onOpen: () =>
   const n = ddDiff(it.date, today);
   const cls = 'dd-row' + (n === 0 ? ' today' : n > 0 && n <= 3 ? ' near' : n < 0 ? ' past' : '') + (it.pinned ? ' pinned' : '');
   return (
-    <button className={cls} data-ddedit={it.id} title={`${it.title}\n${sub(it)}${it.pinned ? '\n고정 — 날마다 맨 위에 뜹니다' : ''}`} onClick={onOpen}>
+    <button className={cls} data-ddedit={it.id} title={`${it.title}\n${sub(it)}${it.pinned ? '\n고정됨. 날마다 맨 위에 떠요' : ''}`} onClick={onOpen}>
       {it.emoji && <span className="dd-em">{it.emoji}</span>}
       <span className="dd-b"><span className="dd-t">{it.title}</span><span className="dd-s">{sub(it)}</span></span>
       <span className="dd-n">{ddLabel(it.date, today)}</span>
@@ -199,7 +199,7 @@ export function DDayModal({ ws, it, date, onClose }: { ws: Workspace; it: DDay |
   const tryClose = () => {
     if (`${emoji}|${title}|${note}|${day}` === snap.current) { onClose(); return; }
     shake(boxRef.current);
-    ws.warn('적던 내용이 있어요 — 닫으려면 «취소» 를 눌러 주세요');
+    ws.warn('적던 내용이 있어요. 닫으려면 «취소»를 눌러 주세요');
   };
   const save = () => {
     if (!title.trim()) { nameRef.current?.focus(); setMsg('무엇을 기다리는 날인지 적어 주세요.'); return; }
@@ -249,14 +249,14 @@ export function DDayModal({ ws, it, date, onClose }: { ws: Workspace; it: DDay |
           {live && !archived && (
             <div className={`dd-arch dd-pinrow${pinned ? ' on' : ''}${pinFull ? ' full' : ''}`} id="ddPinRow" onClick={(e) => { if (!(e.target as HTMLElement).closest('#ddPin')) togglePin(); }}>
               <span className="dd-pinmk" aria-hidden="true">📌</span>
-              <div className="tx"><b>날마다 보이게 고정</b><span id="ddPinNote">{pinFull ? `이미 ${DD_PIN_MAX}개를 고정했어요 — 하나를 풀어야 켤 수 있어요` : `${nPin}/${DD_PIN_MAX} 사용 중`}</span></div>
+              <div className="tx"><b>날마다 보이게 고정</b><span id="ddPinNote">{pinFull ? `이미 ${DD_PIN_MAX}개를 고정했어요. 하나를 풀어야 켤 수 있어요` : `${nPin}/${DD_PIN_MAX} 사용 중`}</span></div>
               <button className="tgl" id="ddPin" type="button" role="switch" aria-checked={pinned} aria-label="날마다 보이게 고정" disabled={pinFull} onClick={togglePin} />
             </div>
           )}
           {live && (
             <div className={`dd-arch${archived ? ' on' : ''}`} id="ddArchRow" onClick={(e) => { if (!(e.target as HTMLElement).closest('#ddArch')) toggleArch(); }}>
               <div className="tx"><b id="ddArchT">아카이브로 이동</b>
-                <span id="ddArchS">{archived ? '「저장됨」 에 보관 중이에요 — 끄면 D-Day 목록으로 돌아와요.' : '목록에서 숨기고, 「저장됨」 메뉴로 이동합니다.'}</span></div>
+                <span id="ddArchS">{archived ? '「저장됨」에 보관 중이에요. 끄면 D-Day 목록으로 돌아와요.' : '목록에서 숨기고, 「저장됨」 메뉴로 이동합니다.'}</span></div>
               <button className="tgl" id="ddArch" type="button" role="switch" aria-checked={archived} aria-label="아카이브로 이동" onClick={toggleArch} />
             </div>
           )}

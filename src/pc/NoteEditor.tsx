@@ -306,7 +306,7 @@ export function NoteEditor({ ws, date, area, title, ph, icon, onDay }: {
       if (k.toLowerCase() === 'x') {
         if (!ok) { ws.say('복사가 안 돼서 잘라내기를 멈췄어요'); return; }
         const ps = selDelete(blocks, editIds, Date.now()); if (ps.length) ws.patchBlocks(ps); setBsel(null);
-      } else ws.say(ok ? `${selIds.length}줄을 복사했어요` : '복사가 확실하지 않아요 — 붙여넣기 전에 확인해 주세요');
+      } else ws.say(ok ? `${selIds.length}줄을 복사했어요` : '복사됐는지 확실하지 않아요. 붙여넣기 전에 확인해 주세요');
       return;
     }
     const mk = mod ? mkKey(e as unknown as React.KeyboardEvent) : null;
@@ -665,7 +665,7 @@ function BlockRow({ ln, area, ph, viewDate, today, no, sel, onPaste, img, tri, d
     onMouseUp={(e) => (e.currentTarget.parentElement as HTMLElement).removeAttribute('draggable')}>⠿</span>;
   const part = !!tri && tri.ok > 0 && !b.done;   // v3.1.245 — 하위를 다 끝내도 상위는 «-» 로 남는다
   const triCnt = tri ? <span className={`tri-n${tri.state === 'full' ? ' full' : ''}`} data-tip={`딸린 할 일 ${tri.ok}/${tri.n}`}>{tri.ok}/{tri.n}</span> : null;
-  const tip = tri ? (b.done ? '누르면 딸린 할 일까지 모두 해제' : tri.state === 'full' ? '딸린 할 일은 다 끝났어요 — 누르면 이 할 일도 완료' : '누르면 딸린 할 일까지 모두 완료') : undefined;
+  const tip = tri ? (b.done ? '누르면 딸린 할 일까지 모두 해제' : tri.state === 'full' ? '딸린 할 일은 다 끝났어요. 누르면 이 할 일도 완료' : '누르면 딸린 할 일까지 모두 완료') : undefined;
   const del = <button className="del" data-del={b.id} data-area={area} onClick={() => onDel(b)}>✕</button>;
   const stamp = b.done && b.doneAt ? <span className="stamp">{hhmm(b.doneAt)}</span> : null;
   const mark = b.type === 'num' ? <span className="bul num">{no || 1}.</span>

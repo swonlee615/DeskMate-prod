@@ -325,7 +325,7 @@ export function WeekPlanner({ ws, onOpenDay, dday }: { ws: Workspace; onOpenDay:
           <aside className="wp-side">
             <div className="wp-sh">
               <div className="wp-sr"><h3>이번 주 할 일</h3><em>{rate.done} / {rate.n}</em>
-                <button className="wp-addw" data-wpaddw="1" data-tip="이번 주에 할 일 추가 — 요일은 나중에(「미정」)" onClick={() => add('', null, 's')}>＋</button>
+                <button className="wp-addw" data-wpaddw="1" data-tip="이번 주에 할 일 추가. 요일은 나중에 정해요(「미정」)" onClick={() => add('', null, 's')}>＋</button>
               </div>
               <div className="wp-bar"><i style={{ width: `${rate.n ? Math.round((rate.done / rate.n) * 100) : 0}%` }} /></div>
               <div className="wp-msum">
@@ -378,7 +378,7 @@ function WpItem({ it, side, keys, today, onCheck, onMove, onBadge, onGrab, ed }:
         onKeyDown={(e) => ed.key(e, it, side)} />
       {tri && (
         <span className={`wp-sub${tri.state === 'full' ? ' full' : ''}`} data-wpday={it.key} data-wphl={b.id}
-          data-tip={`딸린 할 일 ${tri.ok}/${tri.n} — 눌러서 상세로`} onClick={onBadge}>{tri.ok}/{tri.n}</span>
+          data-tip={`딸린 할 일 ${tri.ok}/${tri.n}\n누르면 상세로 가요`} onClick={onBadge}>{tri.ok}/{tri.n}</span>
       )}
       {side && (
         <select className={`wp-sel${it.key ? '' : ' none'}`} data-wpmv={b.id} data-tip="다른 날로 옮기기" value={it.key}
@@ -394,7 +394,7 @@ function WpItem({ it, side, keys, today, onCheck, onMove, onBadge, onGrab, ed }:
 /** v3 triBox — 딸린 할 일이 일부만 끝났으면 가운데 줄 */
 function TriBox({ done, tri, onClick }: { done: boolean; tri: Tri | null; onClick: () => void }) {
   const part = !!tri && tri.ok > 0 && !done;   // v3.1.245
-  const tip = tri ? (done ? '누르면 딸린 할 일까지 모두 해제' : tri.state === 'full' ? '딸린 할 일은 다 끝났어요 — 누르면 이 할 일도 완료' : '누르면 딸린 할 일까지 모두 완료')
+  const tip = tri ? (done ? '누르면 딸린 할 일까지 모두 해제' : tri.state === 'full' ? '딸린 할 일은 다 끝났어요. 누르면 이 할 일도 완료' : '누르면 딸린 할 일까지 모두 완료')
     : done ? '되돌리기' : '완료로';
   return (
     <span className={`cb${done ? ' on' : part ? ' part' : ''}`} data-tip={tip} onClick={(e) => { e.stopPropagation(); onClick(); }}>

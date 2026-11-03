@@ -79,7 +79,7 @@ export function streak(rows: DayRow[]): { current: number; best: number } {
 
 /** 휴게 비율 등급 (v3 REST_GRADE) — 1시간 미만이면 판단 보류 */
 export const REST_GRADE = [
-  { max: 8, cls: 'warn', label: '주의', tip: '너무 적어요 — 쉬지 않고 붙어 있는 상태' },
+  { max: 8, cls: 'warn', label: '주의', tip: '너무 적어요. 쉬지 않고 붙어 있는 상태예요' },
   { max: 18, cls: 'good', label: '우수', tip: '이상적인 비율' },
   { max: 28, cls: 'ok', label: '양호', tip: '조금 넉넉하지만 무난해요' },
   { max: 40, cls: 'warn', label: '주의', tip: '자리를 비운 시간이 많아요' },

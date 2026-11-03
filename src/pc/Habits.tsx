@@ -49,7 +49,7 @@ export function HabitRings({ ws }: { ws: Workspace }) {
     const frac = week ? Math.min(1, week.c / week.n) : at ? 1 : 0;
     const done = frac >= 1; if (done) nFull++;
     const meta = week ? `${week.c}/${week.n}` : at ? hhmm(at) : '';
-    const say = `${h.title} · ${week ? `이번 주 ${week.c}/${week.n}회` : at ? `${hhmm(at)} 완료` : '아직'}${at ? ' — 누르면 취소' : ''}`;
+    const say = `${h.title} · ${week ? `이번 주 ${week.c}/${week.n}회` : at ? `${hhmm(at)} 완료` : '아직'}${at ? '. 누르면 취소' : ''}`;
     return (
       <button key={h.id} type="button" className={`hb-ring${done ? ' full' : frac ? ' part' : ''}`} data-hbtoggle={h.id}
         aria-pressed={!!at} aria-label={say} title={say} onClick={() => ws.toggleHabit(h.id, tk)}>
@@ -82,7 +82,7 @@ export function HabitStrip({ ws, date }: { ws: Workspace; date: string }) {
         const meta = week ? `${week.c}/${week.n}` : at ? hhmm(at) : '';
         return (
           <button key={h.id} type="button" className={`hb-chip${at ? ' on' : ''}`} data-hbtoggle={h.id} aria-pressed={!!at}
-            title={`${h.title} · ${hbFreqLabel(h)}${at ? ' — 누르면 취소' : ''}`} onClick={() => ws.toggleHabit(h.id, date)}>
+            title={`${h.title} · ${hbFreqLabel(h)}${at ? '\n누르면 취소' : ''}`} onClick={() => ws.toggleHabit(h.id, date)}>
             <i className="hb-cb" aria-hidden="true">{at ? CHECK : null}</i>
             <span>{h.emoji ? `${h.emoji} ` : ''}{h.title}</span>{meta && <em>{meta}</em>}
           </button>
@@ -124,7 +124,7 @@ export function HabitModal({ ws, h, onClose, onSaved }: { ws: Workspace; h: Habi
   const tryClose = () => {
     if (sig === snap.current) { onClose(); return; }
     shake(boxRef.current);
-    ws.warn('적던 내용이 있어요 — 닫으려면 «취소» 를 눌러 주세요');
+    ws.warn('적던 내용이 있어요. 닫으려면 «취소»를 눌러 주세요');
   };
   const save = () => {
     if (!title.trim()) { nameRef.current?.focus(); setMsg('어떤 습관인지 적어 주세요.'); return; }
@@ -219,7 +219,7 @@ export function HabitModal({ ws, h, onClose, onSaved }: { ws: Workspace; h: Habi
           </div>
           {live && (
             <div className={`dd-arch${archived ? ' on' : ''}`} id="hbArchRow" onClick={rowClick('#hbArch', () => ws.archiveHabit(live.id, !archived))}>
-              <div className="tx"><b>아카이브로 이동</b><span id="hbArchS">{archived ? '「저장됨」 에 보관 중이에요 — 끄면 습관 목록으로 돌아와요.' : '목록에서 숨기고, 「저장됨」 메뉴로 이동합니다. 기록은 남습니다.'}</span></div>
+              <div className="tx"><b>아카이브로 이동</b><span id="hbArchS">{archived ? '「저장됨」에 보관 중이에요. 끄면 습관 목록으로 돌아와요.' : '목록에서 숨기고, 「저장됨」 메뉴로 이동합니다. 기록은 남습니다.'}</span></div>
               <button className="tgl" id="hbArch" type="button" role="switch" aria-checked={archived} aria-label="아카이브로 이동" onClick={() => ws.archiveHabit(live.id, !archived)} />
             </div>
           )}

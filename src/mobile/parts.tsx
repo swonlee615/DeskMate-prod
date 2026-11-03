@@ -107,7 +107,7 @@ export function HabitChips({ ws, date }: { ws: Workspace; date: string }) {
       <div className="m-hb-l">
         {list.map(({ h, at, week }) => (
           <button key={h.id} className={at ? 'on' : ''} onClick={() => ws.toggleHabit(h.id, date)} aria-pressed={!!at}
-            aria-label={`${h.title}${week ? ` (이번 주 ${week.c}/${week.n})` : ''} — ${at ? '했어요' : '아직'}`}>
+            aria-label={`${h.title}${week ? ` (이번 주 ${week.c}/${week.n})` : ''}, ${at ? '했어요' : '아직'}`}>
             <i aria-hidden="true">{at ? '✓' : h.emoji || '·'}</i>
             <span>{h.title}</span>
             {week && <small>{week.c}/{week.n}</small>}
