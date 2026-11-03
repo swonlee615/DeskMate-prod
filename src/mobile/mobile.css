@@ -865,3 +865,4 @@ button.m-cat.on { color: var(--text-strong); font-weight: 700; box-shadow: inset
 .m-sv-dh .memo-bm { margin-left: 0; width: 36px; height: 36px; }
 .m-sv-gone { padding: 16px; display: flex; flex-direction: column; gap: 12px; font-size: 14px; color: var(--text-muted); }
 .m-sv-sync { padding: 0 4px; }
+.m-dh-more { background: transparent; font-size: 22px; }

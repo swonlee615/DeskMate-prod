@@ -47,6 +47,7 @@ export function MDay({ ws, date, setDate, editOpen }: { ws: Workspace; date: str
   const [span, setSpan] = useState<OpenSpan | null>(null);
   const [sesPick, setSesPick] = useState<number | null>(null);
   const [adding, setAdding] = useState(false);
+  const [more, setMore] = useState(false);
   const [sesOpen, setSesOpen] = useState(!!editOpen);
   useEffect(() => { setSesOpen(!!editOpen); }, [editOpen, date]);
   // 한 번에 한 판만 — 시간 기록이 쌓여도 · 할 일이 길어도 페이지가 아래로 늘어나지 않게
@@ -76,6 +77,7 @@ export function MDay({ ws, date, setDate, editOpen }: { ws: Workspace; date: str
           <b>{isToday ? '오늘' : dayLabel(dt, new Date(ws.now))}<i aria-hidden="true">▾</i></b>
           <span>{dt.getFullYear()}년 {dt.getMonth() + 1}월 {dt.getDate()}일 {DOW[dt.getDay()]}요일</span>
         </button>
+        <button className="m-x m-dh-more" onClick={() => setMore(true)} aria-label="이 날 더 보기">⋯</button>
       </header>
       <WeekStrip ws={ws} date={date} onGo={setDate} />
 
@@ -115,6 +117,13 @@ export function MDay({ ws, date, setDate, editOpen }: { ws: Workspace; date: str
       {span && <SpanSheet ws={ws} date={date} d={d} o={span} onClose={() => setSpan(null)} />}
       {sesPick != null && <SesSheet ws={ws} date={date} d={d} i={sesPick} onClose={() => setSesPick(null)} />}
       {adding && <AddSheet ws={ws} date={date} d={d} onClose={() => setAdding(false)} />}
+      {/* PC 줄 우클릭 메뉴(RowMenu)의 «이 날 기록 삭제» 와 같은 함수 — 휴지통으로, 되돌리기 알림 */}
+      {more && (
+        <Sheet title={`${dt.getMonth() + 1}월 ${dt.getDate()}일`} onClose={() => setMore(false)}>
+          <p className="m-hint">근태, 할 일, 메모, 시간 기록을 함께 휴지통으로 옮겨요. 30일 안에는 설정 › 데이터에서 복원할 수 있어요.</p>
+          <button className="m-btn off" onClick={() => { setMore(false); ws.deleteDay(date); }}>이 날 기록 삭제</button>
+        </Sheet>
+      )}
     </div>
   );
 }

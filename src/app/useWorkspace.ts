@@ -749,16 +749,20 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
     if (bl.length) repo.patchBlocks(bl.map((id) => ({ id, deletedAt: at })));
     for (const id of lg) repo.patchLog(id, { deletedAt: at });
     const d = dateOf(date), id = `trash-${date}-${at}`;
-    repo.addItem({ id, kind: 'trash', date, at, label: `${d.getMonth() + 1}월 ${d.getDate()}일 하루 기록`, ev: ev.map((e) => e.id), bl, lg } as unknown as Item);
-    say('휴지통으로 옮겼어요', { label: '되돌리기', run: () => { restoreTrash(id); setToast(null); } });
+    const t = { id, kind: 'trash', date, at, label: `${d.getMonth() + 1}월 ${d.getDate()}일 하루 기록`, ev: ev.map((e) => e.id), bl, lg } as TrashDay;
+    repo.addItem(t as unknown as Item);
+    // 되돌리기는 방금 만든 칸을 직접 넘긴다 — 이 알림이 잡은 trash 목록에는 아직 그 칸이 없다
+    say('휴지통으로 옮겼어요', { label: '되돌리기', run: () => { restoreDay(t); setToast(null); } });
   };
   const restoreTrash: Workspace['restoreTrash'] = (id) => {
     const t = trash.find((x) => x.id === id) ?? (items.find((x) => x.id === id) as unknown as TrashDay | undefined);
-    if (!t) return;
+    if (t) restoreDay(t);
+  };
+  const restoreDay = (t: TrashDay) => {
     for (const eid of t.ev) repo.restoreEvent({ id: eid } as AttEvent);
     if (t.bl.length) repo.patchBlocks(t.bl.map((bid) => ({ id: bid, deletedAt: null as unknown as number })));
     for (const lid of t.lg) repo.patchLog(lid, { deletedAt: null });
-    repo.patchItem(id, { deletedAt: Date.now() });
+    repo.patchItem(t.id, { deletedAt: Date.now() });
     say(`${t.label}을 복원했어요`);
   };
   const purgeTrash: Workspace['purgeTrash'] = (id) => {
