@@ -306,9 +306,9 @@ function AddSheet({ ws, date, d, onClose }: { ws: Workspace; date: string; d: Da
   if (on && !onT) msg = '출근 시각을 HH:MM 으로 적어 주세요';
   else if (off.trim() && !offT) msg = '퇴근 시각을 HH:MM 으로 적어 주세요';
   else if (onT && offT && !(msAt(date, offT) > msAt(date, onT))) msg = '퇴근이 출근보다 늦어야 해요';
-  else if (onT && d.onAt != null && msAt(date, onT) <= d.onAt) msg = `${hhmm(d.onAt)} 뒤여야 해요 — 그 날 첫 출근보다 앞이면 1차 출근을 고쳐 주세요`;
+  else if (onT && d.onAt != null && msAt(date, onT) <= d.onAt) msg = `${hhmm(d.onAt)}보다 뒤로 적어 주세요. 더 앞이어야 하면 1차 출근 시각을 고쳐 주세요`;
   return (
-    <Sheet title="근무 시간 추가" sub={d.offAt == null ? '적은 출근 시각에 앞 차수가 닫혀요' : `퇴근(${hhmm(d.offAt)})과 새 출근 사이는 비근무로 남아요`} onClose={onClose}>
+    <Sheet title="근무 시간 추가" sub={d.offAt == null ? '적은 출근 시각에 앞 차수가 퇴근 처리돼요' : `퇴근(${hhmm(d.offAt)})과 새 출근 사이는 비근무로 남아요`} onClose={onClose}>
       <div className="m-ses">
         <input className="m-tin" inputMode="numeric" maxLength={5} placeholder={slot ? hhmm(slot.on) : '00:00'} aria-label="출근 시각" value={on} onChange={(e) => setOn(e.target.value)} />
         <em>–</em>
@@ -317,7 +317,7 @@ function AddSheet({ ws, date, d, onClose }: { ws: Workspace; date: string; d: Da
       {msg && <p className="m-bad">{msg}</p>}
       <button className="m-btn go" disabled={!onT || !!msg} onClick={() => {
         if (!onT) return;
-        if (!ws.editDay(date, (day) => addSessionAt(day, msAt(date, onT), offT ? msAt(date, offT) : null), '차수를 추가했어요')) ws.say('추가하지 못했어요 — 시각을 확인해 주세요');
+        if (!ws.editDay(date, (day) => addSessionAt(day, msAt(date, onT), offT ? msAt(date, offT) : null), '차수를 추가했어요')) ws.say('차수를 추가하지 못했어요. 시각을 확인해 주세요');
         onClose();
       }}>추가</button>
     </Sheet>
@@ -338,7 +338,7 @@ function SpanSheet({ ws, date, d, o, onClose }: { ws: Workspace; date: string; d
   const dur = sM != null && eM != null ? eM - sM : null;
   const isSlot = kind === 'slot';
   const outNow = o.ref?.type !== 'brk' && sM != null && (d.onAt == null || slotOutside(d, sM));
-  const brkEm = outNow ? '쉰 시간을 남겨요 · 근무시간과 퇴근 시각에는 영향이 없어요' : '근무시간에서 빠져요 · 2시간을 넘기면 퇴근으로 봐요';
+  const brkEm = outNow ? '쉰 시간만 남겨요. 근무시간과 퇴근 시각은 그대로예요' : '근무시간에서 빠져요. 2시간을 넘기면 퇴근으로 봐요';
   const locked = isSlot && !text.trim();
   const picks = useMemo(() => labelPicks(ws.blocks, ws.logs, date, ws.today), [ws.blocks, ws.logs, date, ws.today]);
   const save = () => {
@@ -360,7 +360,7 @@ function SpanSheet({ ws, date, d, o, onClose }: { ws: Workspace; date: string; d
           <button className={isSlot ? '' : 'on'} onClick={() => { setKind('break'); if (!log) setColor(null); }}>☕️ 휴게</button>
         </div>
       )}
-      <p className="m-hint m-span-why">{isSlot ? '무엇을 했는지 남겨요 · 근무시간에 들어가요' : brkEm}</p>
+      <p className="m-hint m-span-why">{isSlot ? '무엇을 했는지 남겨요. 근무시간에 들어가요' : brkEm}</p>
       {/* 할 일 · 최근에 쓴 기록에서 고르기 (PC 콤보와 같은 labelPicks) — 폰은 기본 제안 목록(datalist)이 키보드 위에 뜬다 */}
       <input className="m-field" autoComplete="off" list={isSlot ? 'm-span-picks' : undefined} placeholder={isSlot ? '무엇을 했나요? (필수)' : '메모 (선택)'} value={text} onChange={(x) => setText(x.target.value)}
         onKeyDown={(x) => { if (x.key === 'Enter' && !x.nativeEvent.isComposing && !locked) save(); }} />

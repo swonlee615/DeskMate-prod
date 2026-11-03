@@ -39,7 +39,7 @@ export function VerifyScreen({ auth, user }: { auth: AuthService; user: User }) 
         {msg && <p className={`auth-msg ${msg.ok ? 'ok' : 'err'}`} role="status">{msg.text}</p>}
         <button className="w-btn w-primary w-wide" disabled={busy} onClick={() => run(async () => {
           await auth.refresh();
-          setMsg({ ok: false, text: '아직 인증이 확인되지 않았어요. 메일의 링크를 먼저 눌러 주세요.' });
+          setMsg({ ok: false, text: '아직 인증되지 않았어요. 메일에 있는 링크를 먼저 눌러 주세요.' });
         })}>
           인증했어요
         </button>

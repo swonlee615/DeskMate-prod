@@ -610,12 +610,12 @@ function AddDialog({ ws, date, d, onClose }: { ws: Workspace; date: string; d: D
   if (on && !onT) msg = '출근 시각을 HH:MM 으로 적어 주세요';
   else if (off.trim() && !offT) msg = '퇴근 시각을 HH:MM 으로 적어 주세요';
   else if (onT && offT && !(msAt(date, offT) > msAt(date, onT))) msg = '퇴근이 출근보다 늦어야 해요';
-  else if (onT && d.onAt != null && msAt(date, onT) <= d.onAt) msg = `${hhmm(d.onAt)} 뒤여야 해요 — 그 날 첫 출근보다 앞이면 1차 출근을 고쳐 주세요`;
+  else if (onT && d.onAt != null && msAt(date, onT) <= d.onAt) msg = `${hhmm(d.onAt)}보다 뒤로 적어 주세요. 더 앞이어야 하면 1차 출근 시각을 고쳐 주세요`;
   const ok = !!onT && !msg;
   return (
     <Modal id="sesAddModal" width={352} onClose={onClose}>
       <h3 id="sesAddTitle">근무 시간 추가</h3>
-      <p className="ses-sub" id="sesAddSub">{d.offAt == null ? '적은 출근 시각에 앞 차수가 닫혀요' : `퇴근(${hhmm(d.offAt)})과 새 출근 사이는 비근무로 남아요`}</p>
+      <p className="ses-sub" id="sesAddSub">{d.offAt == null ? '적은 출근 시각에 앞 차수가 퇴근 처리돼요' : `퇴근(${hhmm(d.offAt)})과 새 출근 사이는 비근무로 남아요`}</p>
       <div className="modal-body">
         <div className="field">
           <label id="sesAddLabel">출근 · 퇴근 시각</label>
@@ -632,7 +632,7 @@ function AddDialog({ ws, date, d, onClose }: { ws: Workspace; date: string; d: D
         <button className="btn primary" id="sesAddGo" disabled={!ok} onClick={() => {
           if (!onT) return;
           const done = ws.editDay(date, (day) => addSessionAt(day, msAt(date, onT), offT ? msAt(date, offT) : null), '차수를 추가했어요');
-          if (!done) ws.say('추가하지 못했어요 — 시각을 확인해 주세요');
+          if (!done) ws.say('차수를 추가하지 못했어요. 시각을 확인해 주세요');
           onClose();
         }}>추가</button>
       </div>

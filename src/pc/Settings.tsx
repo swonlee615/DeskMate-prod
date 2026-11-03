@@ -80,7 +80,7 @@ export function SettingsModal({ ws, onClose, onDay }: { ws: Workspace; onClose: 
                   <div className="mode-pick" id="setMode">
                     {MODES.map(([k, mi, b, i]) => (
                       <button key={k} type="button" data-mode-k={k} className={d.mode === k ? 'on' : ''} onClick={() => put({ mode: k })}>
-                        <span className="mi">{mi}</span><b>{b}</b><i>{k === 'system' && d.mode === 'system' ? `${i} — 지금은 ${systemIsDark() ? '다크' : '라이트'}` : i}</i></button>
+                        <span className="mi">{mi}</span><b>{b}</b><i>{k === 'system' && d.mode === 'system' ? `${i} (지금은 ${systemIsDark() ? '다크' : '라이트'})` : i}</i></button>
                     ))}
                   </div>
                 </div>
@@ -96,7 +96,7 @@ export function SettingsModal({ ws, onClose, onDay }: { ws: Workspace; onClose: 
                     라이트 모드에서는 <b>본문 바탕까지 같은 색 가족</b>으로 따라갑니다 —
                     포레스트를 고르면 카드도 아주 옅은 초록빛이 됩니다.</p>
                 </div>
-                <p className="hint">앱 아이콘 · 메뉴바 · 시스템 알림은 PC 앱에서 생겨요.</p>
+                <p className="hint">앱 아이콘, 메뉴바, 시스템 알림은 PC 앱에서 쓸 수 있어요.</p>
               </section>
             )}
             {pane === 'ws' && (
@@ -151,7 +151,7 @@ export function SettingsModal({ ws, onClose, onDay }: { ws: Workspace; onClose: 
                 <p className="hint">{idleText(ws.idle.perm)}</p>
                 {ws.idle.perm === 'prompt' && <button className="btn primary sm" onClick={() => void ws.idle.ask()}>이 브라우저에서 감지 허용</button>}
                 <div className="sec-t">업무 앱 기준</div>
-                <p className="hint">어떤 앱을 쓰고 있는지는 브라우저가 볼 수 없어요. 업무 앱 기준 감지와 출근 감지는 PC 앱에서 생겨요.</p>
+                <p className="hint">어떤 앱을 쓰고 있는지는 브라우저가 볼 수 없어요. 업무 앱 기준 감지와 출근 감지는 PC 앱에서 쓸 수 있어요.</p>
               </section>
             )}
             {pane === 'data' && <DataPane ws={ws} onDay={(k) => { cancel(); onDay(k); }} />}
@@ -275,14 +275,14 @@ function V3Import({ ws }: { ws: Workspace }) {
   const go = async () => {
     if (!pick) return;
     try { await ws.v3Import(pick, setStep); setPick(null); ws.say('로컬 앱 데이터를 가져왔어요'); }
-    catch { setStep(null); setErr('가져오다 멈췄어요. 같은 파일로 다시 가져오면 이어서 덮어써요.'); }
+    catch { setStep(null); setErr('가져오다가 멈췄어요. 같은 파일을 다시 가져오면 돼요. 이미 들어간 기록은 덮어써요.'); }
   };
   const r = pick?.conv.report, done = ws.v3Imported;
   return (
     <>
       <div className="sec-t">로컬 앱 데이터 가져오기</div>
       <p className="hint">맥에서 쓰던 DeskMate의 기록을 이 계정으로 옮겨요. 파일은 Finder에서 ⌘⇧G를 누르고
-        <b> ~/Library/Application Support/DeskMate</b> 를 열면 있는 <b>deskmate.sqlite</b> 예요.</p>
+        <b> ~/Library/Application Support/DeskMate</b>를 열면 있는 <b>deskmate.sqlite</b>예요.</p>
       {done && !pick && <p className="hint">{new Date(done.at).toLocaleDateString('ko-KR')}에 가져왔어요. 다시 가져오면 그 파일의 값으로 덮어써요.</p>}
       {ws.backend.mode === 'local' && <p className="hint">지금은 개발 모드라 이 기기에만 들어가요.</p>}
       {!pick && !step && (
@@ -294,11 +294,11 @@ function V3Import({ ws }: { ws: Workspace }) {
         <div className="v3-sum">
           <ul>
             <li>근태 <b>{n(r.days)}일</b> (휴게 {n(r.breaks)}건)</li>
-            <li>할 일 · 메모 <b>{n(r.lines)}줄</b> — 다음 날로 넘어간 흔적은 처음 적은 날의 줄 하나로 합쳐요</li>
+            <li>할 일과 메모 <b>{n(r.lines)}줄</b>. 다음 날로 넘어간 줄은 처음 적은 날의 한 줄로 합쳐요</li>
             <li>시간 기록 <b>{n(r.slots)}건</b>, 근무 밖 휴게 {n(r.rests)}건, 뽀모도로 {n(r.pomos + r.pomosAdded)}회</li>
             <li>그림 <b>{n(r.images)}장</b>, D-Day {n(pick.conv.ddays.length)}개, 습관 {n(pick.conv.habits.length)}개</li>
             {pick.conv.members && <li>멤버 <b>{n(pick.conv.members.length)}명</b>(성향과 프로필 그림까지), 내 프로필, 워크스페이스 로고와 색, 팀 근무시간대</li>}
-            <li>원본 파일도 통째로 보관해요. 대화, 앱 사용 기록, 저장됨처럼 웹에 아직 없는 기능의 데이터도 남아요.</li>
+            <li>원본 파일도 통째로 보관해요. 대화, 앱 사용 기록처럼 웹에 아직 없는 기능의 데이터도 남아요.</li>
           </ul>
           <p className="hint">웹에 같은 날 기록이 있으면 로컬 앱의 기록으로 바뀌어요.</p>
           <div className="v3-act">

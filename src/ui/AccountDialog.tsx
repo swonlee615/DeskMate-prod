@@ -28,7 +28,7 @@ export function AccountDialog({ auth, user, pending, onClose }: {
   };
 
   const signOut = () => {
-    if (pending > 0 && !confirm(`아직 서버에 안 올라간 기록이 ${pending}건 있어요. 지금 로그아웃하면 이 기록은 사라집니다. 로그아웃할까요?`)) return;
+    if (pending > 0 && !confirm(`아직 서버에 저장되지 않은 기록이 ${pending}건 있어요. 지금 로그아웃하면 이 기록은 사라져요. 그래도 로그아웃할까요?`)) return;
     run(() => auth.signOut());
   };
 
@@ -57,10 +57,10 @@ export function AccountDialog({ auth, user, pending, onClose }: {
 
         {step === 'delete' && <>
           <p className="modal-text">
-            계정과 모든 기록이 서버와 모든 기기에서 지워집니다. <b>되돌릴 수 없어요.</b>
+            계정과 모든 기록이 서버와 모든 기기에서 지워져요. <b>되돌릴 수 없어요.</b>
           </p>
           <label className="w-field">
-            <span>확인을 위해 <b>{CONFIRM_WORD}</b> 를 입력해 주세요</span>
+            <span>확인을 위해 <b>{CONFIRM_WORD}</b>를 입력해 주세요</span>
             <input value={word} onChange={(e) => setWord(e.target.value)} autoComplete="off" />
           </label>
           {error && <p className="auth-msg err" role="alert">{error}</p>}
@@ -74,7 +74,7 @@ export function AccountDialog({ auth, user, pending, onClose }: {
         </>}
 
         {step === 'reauth' && <>
-          <p className="modal-text">보안을 위해 다시 로그인한 뒤 계정을 삭제합니다.</p>
+          <p className="modal-text">보안을 위해 한 번 더 로그인하면 계정을 삭제해요.</p>
           {isPassword && (
             <label className="w-field">
               <span>비밀번호</span>

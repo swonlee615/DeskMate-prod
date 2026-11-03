@@ -34,7 +34,7 @@ export function PlansBox({ ws }: { ws: Workspace }) {
             </li>
           ))}
         </ul>
-      ) : <p className="m-empty">다가오는 날을 ＋ 로 적어 두세요.</p>)}
+      ) : <p className="m-empty">＋를 눌러 다가오는 날을 적어 두세요.</p>)}
       {tab === 'hb' && (hbs.length ? (
         <ul className="m-list">
           {hbs.map((h) => { const st = hbStreak(h, ws.today, ws.offDay); return (
@@ -45,7 +45,7 @@ export function PlansBox({ ws }: { ws: Workspace }) {
             </li>
           ); })}
         </ul>
-      ) : <p className="m-empty">매일 할 일을 ＋ 로 습관으로 만들어 두세요.</p>)}
+      ) : <p className="m-empty">＋를 눌러 매일 할 일을 습관으로 만들어 보세요.</p>)}
 
       {dd && <DDaySheet ws={ws} x={dd === 'new' ? null : dd} onClose={() => setDd(null)} />}
       {hb && <HabitSheet ws={ws} h={hb === 'new' ? null : hb} onClose={() => setHb(null)} />}

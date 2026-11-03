@@ -174,12 +174,12 @@ function SetPanel({ ws, k, goDay }: { ws: Workspace; k: string; goDay: (date: st
     <h3 className="m-set-h">화면 모드</h3>
     <div className="m-seg">{MODES.map(([m, , b]) => (
       <button key={m} className={st.mode === m ? 'on' : ''} onClick={() => ws.saveSettings({ mode: m })}>{b}</button>))}</div>
-    {st.mode === 'system' && <p className="m-set-hint">기기 설정을 따라갑니다 — 지금은 {systemIsDark() ? '다크' : '라이트'}</p>}
+    {st.mode === 'system' && <p className="m-set-hint">기기 설정을 따라가요. 지금은 {systemIsDark() ? '다크' : '라이트'}예요</p>}
     <h3 className="m-set-h">색상 테마</h3>
     <div className="m-card m-themes">{THEMES.map(([t, name, rail, side]) => (
       <button key={t} className={st.theme === t ? 'on' : ''} onClick={() => ws.saveSettings({ theme: t })} aria-pressed={st.theme === t}>
         <span><i style={{ background: rail }} /><i style={{ background: side }} /></span>{name}</button>))}</div>
-    <p className="m-set-hint">PC 의 레일 · 사이드바 색이에요. 라이트 모드에서는 바탕까지 같은 색 가족으로 따라갑니다.</p>
+    <p className="m-set-hint">PC의 레일과 사이드바 색이에요. 라이트 모드에서는 바탕도 같은 계열 색으로 바뀌어요.</p>
   </>;
   if (k === 'ws') return <>
     <ul className="m-card m-list">
@@ -202,7 +202,7 @@ function SetPanel({ ws, k, goDay }: { ws: Workspace; k: string; goDay: (date: st
     <div className="m-card m-tcs" role="radiogroup" aria-label="타이머 색">{TIMER_COLORS.map(([col, n]) => (
       <button key={col} role="radio" aria-checked={st.timerColor === col} aria-label={n} className={st.timerColor === col ? 'on' : ''}
         style={{ '--c': col } as React.CSSProperties} onClick={() => ws.saveSettings({ timerColor: col })} />))}</div>
-    <p className="m-set-hint">다이얼의 남은 시간에 쓰여요. 휴식 중에는 같은 색이 옅게 칠해집니다. 초록은 근태 색이라 뺐어요.</p>
+    <p className="m-set-hint">다이얼의 남은 시간에 쓰여요. 휴식 중에는 같은 색이 옅게 칠해져요. 초록은 근태 색이라 뺐어요.</p>
   </>;
   if (k === 'away') return <>
     <ul className="m-card m-list">

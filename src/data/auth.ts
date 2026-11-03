@@ -65,7 +65,7 @@ const MESSAGES: Record<string, string> = {
   'auth/wrong-password': '이메일 또는 비밀번호가 맞지 않아요.',
   'auth/user-not-found': '이메일 또는 비밀번호가 맞지 않아요.',
   'auth/user-disabled': '사용이 중지된 계정이에요.',
-  'auth/too-many-requests': '시도가 너무 많아요. 잠시 뒤에 다시 해 주세요.',
+  'auth/too-many-requests': '로그인 시도가 너무 많아요. 잠시 뒤에 다시 시도해 주세요.',
   'auth/network-request-failed': '인터넷에 연결되어 있지 않아요. 로그인은 온라인에서 해 주세요.',
   'auth/popup-blocked': '팝업이 막혀 있어요. 브라우저에서 팝업을 허용해 주세요.',
   'auth/account-exists-with-different-credential':
@@ -83,7 +83,7 @@ export function toAuthError(err: unknown): AuthError | null {
   const code = (err as { code?: string })?.code ?? 'unknown';
   if (SILENT.has(code)) return null;
   if (err instanceof AuthError) return err;
-  return new AuthError(code, MESSAGES[code] ?? '로그인 중에 문제가 생겼어요. 잠시 뒤에 다시 해 주세요.');
+  return new AuthError(code, MESSAGES[code] ?? '로그인 중에 문제가 생겼어요. 잠시 뒤에 다시 시도해 주세요.');
 }
 
 export function validateSignUp(name: string, email: string, password: string): string | null {

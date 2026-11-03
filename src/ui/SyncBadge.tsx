@@ -23,7 +23,7 @@ export function SyncBadge({ s }: { s: SyncStatus | null }) {
   else if (s.fromCache) { cls = 'busy'; text = '연결 중…'; }
   return (
     <span className={`sync sync-${cls}`} role="status" aria-live="polite"
-      title={s.mode === 'local' ? '서버에 연결하지 않은 개발 모드예요 — 이 기기에만 저장돼요' : undefined}>
+      title={s.mode === 'local' ? '개발 모드예요. 서버에 연결하지 않고 이 기기에만 저장해요' : undefined}>
       {cls === 'off' ? OFF_IC : <i aria-hidden />} {text}
     </span>
   );

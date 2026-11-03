@@ -11,7 +11,7 @@ export function useImageList(ws: Workspace) {
   return { list, used, usedTxt: `${fmtMB(used)} / ${fmtMB(IMG_QUOTA)}`, pct: Math.min(100, (used / IMG_QUOTA) * 100) };
 }
 export const imgDay = (k: string) => { const d = dateOf(k); return `${d.getMonth() + 1}월 ${d.getDate()}일 (${DOW[d.getDay()]})`; };
-export const IMG_HINT = '할 일 · 메모의 그림이에요. 그림 줄을 지우면 글처럼 되돌리기만 되고, 그 그림은 다음 날 자동으로 비워져 용량이 돌아와요.';
+export const IMG_HINT = '할 일과 메모에 넣은 그림이에요. 그림 줄을 지우면 다음 날 그림 파일도 지워지고, 그만큼 공간이 돌아와요.';
 
 /** 작은 미리보기 — 목록에 보일 때만 받는다 (기기에 있으면 기기에서) */
 export function Thumb({ ws, id, className }: { ws: Workspace; id: string; className?: string }) {

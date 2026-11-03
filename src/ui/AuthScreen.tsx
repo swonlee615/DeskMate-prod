@@ -37,7 +37,7 @@ export function AuthScreen({ auth, initialError }: { auth: AuthService; initialE
     else if (mode === 'signup') run(() => auth.emailSignUp(name, email, password));
     else run(async () => {
       await auth.resetPassword(email);
-      setInfo('가입된 이메일이면 비밀번호 재설정 메일이 갔어요. 메일함을 확인해 주세요.');
+      setInfo('가입된 이메일이라면 비밀번호 재설정 메일을 보냈어요. 메일함을 확인해 주세요.');
     });
   };
 
@@ -48,9 +48,9 @@ export function AuthScreen({ auth, initialError }: { auth: AuthService; initialE
       <div className="w-card auth">
         <h1>DeskMate</h1>
         <p className="auth-sub">
-          {mode === 'login' && !SHOW_EMAIL && 'Google 계정으로 시작합니다. PC와 폰에서 같은 기록을 씁니다.'}
-          {mode === 'login' && SHOW_EMAIL && '로그인하면 PC와 폰에서 같은 기록을 씁니다.'}
-          {mode === 'signup' && '계정을 만들면 PC와 폰에서 같은 기록을 씁니다.'}
+          {mode === 'login' && !SHOW_EMAIL && 'Google 계정으로 로그인하면 PC와 폰에서 같은 기록을 볼 수 있어요.'}
+          {mode === 'login' && SHOW_EMAIL && '로그인하면 PC와 폰에서 같은 기록을 볼 수 있어요.'}
+          {mode === 'signup' && '계정을 만들면 PC와 폰에서 같은 기록을 볼 수 있어요.'}
           {mode === 'reset' && '가입한 이메일로 비밀번호 재설정 링크를 보내 드려요.'}
         </p>
 

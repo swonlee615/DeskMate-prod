@@ -349,7 +349,7 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
     for (const f of files) {
       const s = await shrinkImage(f);
       if (!s) { say('그림 파일만 넣을 수 있어요'); continue; }
-      if (!imgFits(imgRef.current, s.bytes.length)) { say(`그림 용량 ${fmtMB(IMG_QUOTA)} 이 다 찼어요 — 설정 › 데이터 › 이미지에서 정리할 수 있어요`, undefined, true); break; }
+      if (!imgFits(imgRef.current, s.bytes.length)) { say(`그림 공간 ${fmtMB(IMG_QUOTA)}을 다 썼어요. 설정 › 데이터 › 이미지에서 안 쓰는 그림을 지워 주세요`, undefined, true); break; }
       const id = newId(), now = Date.now();
       await repo.putImage(id, s.bytes, s.mime);
       // 붙여넣은 그림은 화면 배율만큼 줄여 보인다 — 레티나 스크린샷이 두 배로 커지지 않게 (v3 DESIGN H)
@@ -728,7 +728,7 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
     const id = savedId(kind, key), cur = saved[id];
     if (!cur) { repo.mergeItem({ id: SAVED_ID, kind: 'saved', memos: { [id]: { savedAt: Date.now() } } } as Item); say('저장됨에 담았어요'); return; }
     repo.patchItem(SAVED_ID, { [`memos.${id}`]: null });
-    say('저장됨에서 뺐어요 · 메모는 그대로예요', { label: '되돌리기', run: () => { repo.mergeItem({ id: SAVED_ID, kind: 'saved', memos: { [id]: cur } } as Item); setToast(null); } });
+    say('저장됨에서 뺐어요. 메모는 지워지지 않아요', { label: '되돌리기', run: () => { repo.mergeItem({ id: SAVED_ID, kind: 'saved', memos: { [id]: cur } } as Item); setToast(null); } });
   };
   const pinSaved: Workspace['pinSaved'] = (id) => {
     const on = !saved[id]?.pinnedAt;
@@ -759,7 +759,7 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
     if (t.bl.length) repo.patchBlocks(t.bl.map((bid) => ({ id: bid, deletedAt: null as unknown as number })));
     for (const lid of t.lg) repo.patchLog(lid, { deletedAt: null });
     repo.patchItem(id, { deletedAt: Date.now() });
-    say(`${t.label}을 되살렸어요`);
+    say(`${t.label}을 복원했어요`);
   };
   const purgeTrash: Workspace['purgeTrash'] = (id) => {
     const t = trash.find((x) => x.id === id);

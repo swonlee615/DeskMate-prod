@@ -213,7 +213,7 @@ function Rhythm({ rows, today, onDay }: { rows: DayRow[]; today: string; onDay: 
         })}
         <Axis />
       </div>
-      <div className="m-rh-lg"><span><i className="m-rh-w" />근무</span><span><i className="m-rh-b" />휴게</span><span>빈 자리 — 일하지 않은 시간</span></div>
+      <div className="m-rh-lg"><span><i className="m-rh-w" />근무</span><span><i className="m-rh-b" />휴게</span><span>빈 자리는 일하지 않은 시간</span></div>
     </section>
   );
 }
@@ -244,8 +244,8 @@ function DowRhythm({ rows, avg }: { rows: DayRow[]; avg: number }) {
         })}
         <Axis />
       </div>
-      <div className="m-rh-lg"><span><i className="m-rh-w" />근무</span><span><i className="m-rh-b" />휴게</span><span>겹쳐 그려요 — 진할수록 그 시각에 자주 일했어요</span></div>
-      <p className="m-an-sub">평균 근무시간 <b>{fmtDur(avg)}</b> — 날짜별로 보려면 주간으로</p>
+      <div className="m-rh-lg"><span><i className="m-rh-w" />근무</span><span><i className="m-rh-b" />휴게</span><span>진할수록 그 시각에 자주 일했어요</span></div>
+      <p className="m-an-sub">평균 근무시간 <b>{fmtDur(avg)}</b>. 날짜별로 보려면 주간 탭으로</p>
     </section>
   );
 }
@@ -271,7 +271,7 @@ function WeekHist({ weeks, goal, onWeek }: { weeks: WeekRow[]; goal: number; onW
           );
         })}
       </div>
-      <p className="m-an-sub">{out ? '* 다른 달의 날이 섞인 주 — 주간 탭과 같은 값이 되게 주 전체를 셉니다 · ' : ''}줄을 누르면 그 주로</p>
+      <p className="m-an-sub">{out ? '* 다른 달의 날이 섞인 주는 주간 탭과 같도록 주 전체를 세요. ' : ''}줄을 누르면 그 주로</p>
     </section>
   );
 }
@@ -395,7 +395,7 @@ function RankCard({ kind, pts, rows, from, end, today, onDay, now, size }: { kin
           </g>
         ))}
       </svg>
-      {!st.days && <p className="m-an-sub">아직 끝난 날의 순위가 없어요 — 오늘 점은 진행 중이에요</p>}
+      {!st.days && <p className="m-an-sub">아직 끝난 날의 순위가 없어요. 오늘 점은 진행 중인 순위예요</p>}
     </section>
   );
 }

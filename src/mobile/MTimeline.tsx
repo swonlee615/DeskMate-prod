@@ -155,7 +155,7 @@ export function MTimeline({ ws, d, isToday, onOpen }: { ws: Workspace; d: Day; i
         ); })()}
       </div>
       {!full && h1 < 24 && <button className="m-tl-more" onClick={() => setFull(true)}>{fm(h1 * 60)} ~ 24:00 펼치기</button>}
-      <p className="m-hint m-tl-hint">빈 곳을 누르면 30분 기록 · 길게 눌러 끌면 그 구간을 적어요</p>
+      <p className="m-hint m-tl-hint">빈 곳을 누르면 30분을 적고, 길게 눌러 끌면 끈 만큼 적어요</p>
     </div>
   );
 }
