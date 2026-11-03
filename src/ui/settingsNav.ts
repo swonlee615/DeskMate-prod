@@ -2,6 +2,11 @@
  * 설정 칸 목록 (v3 #settings `.set-nav`) — PC 설정 창 · 폰 설정 탭이 같은 목록을 쓴다
  * on = 웹에 옮긴 칸. 나머지는 자리만 v3 그대로 «준비 중»
  */
+import { useEffect, useState } from 'react';
+import type { Workspace } from '../app/useWorkspace';
+import { catUsage } from '../domain/attendance/cats';
+import { fmtDur } from './v3fmt';
+
 export interface SetNav { k: string; ni: string; nm: string; on?: boolean; sep?: boolean }
 
 export const SET_NAV: SetNav[] = [
@@ -68,4 +73,12 @@ export function idleText(perm: 'unsupported' | 'granted' | 'denied' | 'prompt'):
   if (perm === 'denied') return '이 브라우저에서 감지 권한이 꺼져 있어요. 주소창 왼쪽의 사이트 설정에서 «유휴 감지»를 허용해 주세요.';
   if (perm === 'prompt') return '이 브라우저에서 감지하려면 한 번 허용해 주세요.';
   return '이 브라우저에서는 감지할 수 없어요. PC의 Chrome이나 Edge에서 열면 쓸 수 있어요.';
+}
+
+/** 카테고리 줄 옆 «N건 · 시간» (v3 renderCatSetup cat-sum) — 이 칸을 보는 동안만 모든 날의 기록을 받는다 */
+export function useCatSum(ws: Workspace) {
+  const [use, setUse] = useState<ReturnType<typeof catUsage> | null>(null);
+  const { watchAllLogs } = ws;
+  useEffect(() => watchAllLogs((l) => setUse(catUsage(l))), [watchAllLogs]);
+  return (color: string) => { const u = use?.get(color); return !use ? '' : u ? `${u.count}건 · ${fmtDur(u.min)}` : '아직 안 씀'; };
 }

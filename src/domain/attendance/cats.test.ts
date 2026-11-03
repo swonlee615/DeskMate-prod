@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Block } from '../todos/tree';
-import { catChoices, catName, catsOf, cleanCats, labelPicks, nextCatColor } from './cats';
+import { catChoices, catName, catsOf, catUsage, cleanCats, labelPicks, nextCatColor } from './cats';
 import { SLOT_COLORS, type Log } from './logs';
 
 const blk = (id: string, date: string, text: string, o: Partial<Block> = {}): Block =>
@@ -40,5 +40,17 @@ describe('「무엇을 했나요?」 고르기 목록 (v3 slotTodoItems)', () =>
     const blocks = [blk('a', '2026-10-27', '어제 못 한 일', { createdAt: new Date(2026, 9, 27, 9).getTime() })];
     expect(labelPicks(blocks, [], '2026-10-28', '2026-10-28').map((x) => x.t)).toEqual(['어제 못 한 일']);
     expect(labelPicks(blocks, [], '2026-10-26', '2026-10-28')).toEqual([]);
+  });
+});
+
+describe('설정 › 시간 기록 «N건 · 시간»', () => {
+  it('색마다 건수 · 분을 센다. 지운 기록 · 휴게는 빼고, 대소문자는 같은 색', () => {
+    const a = log('a', '2026-11-01', 540, 'x');
+    const b = { ...log('b', '2026-11-02', 600, 'y'), color: SLOT_COLORS[0].toUpperCase(), e: 660 };
+    const gone = { ...log('c', '2026-11-02', 700, 'z'), deletedAt: 1 };
+    const rest = { ...log('d', '2026-11-02', 800, ''), kind: 'rest' as const };
+    const u = catUsage([a, b, gone, rest]);
+    expect(u.get(SLOT_COLORS[0])).toEqual({ count: 2, min: 90 });
+    expect(u.size).toBe(1);
   });
 });

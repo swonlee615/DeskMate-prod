@@ -80,3 +80,15 @@ export function labelPicks(blocks: Block[], logs: Log[], date: string, today: st
   return out.slice(0, 40);
 }
 
+
+/** 설정 › 시간 기록의 «N건 · 시간» (v3 catTotals) — 색마다 시간 기록 건수 · 분. 휴게는 안 센다 */
+export function catUsage(logs: Log[]): Map<string, { count: number; min: number }> {
+  const m = new Map<string, { count: number; min: number }>();
+  for (const l of logs) {
+    if (l.deletedAt || l.kind !== 'slot') continue;
+    const k = catKey(l.color), cur = m.get(k) ?? { count: 0, min: 0 };
+    cur.count += 1; cur.min += l.e - l.s;
+    m.set(k, cur);
+  }
+  return m;
+}

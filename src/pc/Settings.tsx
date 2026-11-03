@@ -13,7 +13,7 @@ import { CAT_EX, nextCatColor, type Cat } from '../domain/attendance/cats';
 import { applyLook, LEAVE_GOAL_HINT, MODES, SET_NAV, systemIsDark, THEMES, TIMER_COLORS, type Settings } from '../ui/settingsNav';
 import type { PomoCfg } from '../app/usePomodoro';
 import { IMG_HINT, imgDay, Thumb, useImageList } from '../ui/ImageList';
-import { AWAY_HINT, idleText } from '../ui/settingsNav';
+import { AWAY_HINT, idleText, useCatSum } from '../ui/settingsNav';
 import { fmtMB } from '../domain/images';
 import type { V3Pick } from '../app/useWorkspace';
 
@@ -178,6 +178,7 @@ export function SettingsModal({ ws, onClose, onDay }: { ws: Workspace; onClose: 
 /** v3 renderCatSetup — 색(프리셋에서) · 이름 · 지우기 · 추가. 이름은 칸을 떠날 때 저장 */
 function CatList({ ws }: { ws: Workspace }) {
   const list = ws.cats;
+  const sum = useCatSum(ws);
   const [pop, setPop] = useState<{ i: number; x: number; y: number } | null>(null);
   useEffect(() => {
     if (!pop) return;
@@ -195,6 +196,7 @@ function CatList({ ws }: { ws: Workspace }) {
           <input data-f="name" maxLength={14} placeholder={`예) ${CAT_EX[i % CAT_EX.length]}`} defaultValue={c.name}
             onBlur={(e) => { if (e.target.value.trim() !== c.name) ws.setCats(put(i, { name: e.target.value })); }}
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) e.currentTarget.blur(); }} />
+          <span className="cat-sum">{sum(c.color)}</span>
           <button className="imgbtn danger" title="이 카테고리 삭제" onClick={() => ws.setCats(list.filter((_, j) => j !== i))}>✕</button>
         </div>
       ))}

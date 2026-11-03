@@ -188,6 +188,8 @@ export interface Workspace {
   // ── 시간 기록 · 근무 밖 휴게 (v3 slots · rests — LOGIC §5 · §6)
   /** 받아 둔 기간의 기록 전부 (지운 것 포함 — logsOf 가 거른다) */
   logs: Log[];
+  /** 모든 날의 기록 구독 — 설정 › 시간 기록의 «N건 · 시간» 만 쓴다 (보는 기간 손잡이와 따로) */
+  watchAllLogs: (cb: (logs: Log[]) => void) => () => void;
   /**
    * 시간표 상자에서 저장 (v3 saveSlot) — 종류 바꾸기 · 겹치면 새것이 이긴다 · 휴게의 근무 밖 몫 나누기까지.
    * 한 번의 되돌리기로 전부 돌아온다. 잘못된 입력이면 그 이유, 저장했으면 null
@@ -254,6 +256,7 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
   const [blocks, setBlocks] = useState<Block[]>([]);
   useEffect(() => repo.watchBlocks(from, to, (d) => setBlocks(d.blocks)), [repo, from, to]);
   const [logs, setLogs] = useState<Log[]>([]);
+  const watchAllLogs = useCallback((cb: (l: Log[]) => void) => repo.watchLogs('0000-01-01', '9999-12-31', cb), [repo]);
   useEffect(() => repo.watchLogs(from, to, setLogs), [repo, from, to]);
 
   const byDate = useMemo(() => {
@@ -810,7 +813,7 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
     blocks, addBlock, patchBlocks, editBlocks, undoBlocks, lastEditAt, toggleBlock, removeBlock, newId,
     ddays, saveDDay, pinDDay, archiveDDay, deleteDDay,
     saved, savedSort, isSaved, toggleSaved, pinSaved, setSavedSort, trash, deleteDay, restoreTrash, purgeTrash, emptyTrash, teamCfg, v3Preview, v3Import, v3Imported, images, addImages, imageBlob, removeImage, ranks, firstDate, habits, offDay, saveHabit, archiveHabit, deleteHabit, toggleHabit,
-    logs, saveSpan, deleteSpan, fixConflicts, cats, setCats,
+    logs, watchAllLogs, saveSpan, deleteSpan, fixConflicts, cats, setCats,
     mates, ranking, mateStatus,
     nick, initial: nick.slice(0, 1).toUpperCase(),
     presence: state === 'break' ? 'break' : state === 'work' ? 'active' : 'offline',

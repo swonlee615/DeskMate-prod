@@ -23,7 +23,7 @@ import { MSaved } from './MSaved';
 import { CloseX, HabitChips } from './parts';
 import { IMG_HINT, imgDay, Thumb, useImageList } from '../ui/ImageList';
 import { fmtMB } from '../domain/images';
-import { AWAY_HINT, LEAVE_GOAL_HINT, MODES, SET_NAV, SLOT_HINT, systemIsDark, THEMES, TIMER_COLORS } from '../ui/settingsNav';
+import { AWAY_HINT, LEAVE_GOAL_HINT, MODES, SET_NAV, SLOT_HINT, systemIsDark, THEMES, TIMER_COLORS, useCatSum } from '../ui/settingsNav';
 import { CAT_EX, nextCatColor, type Cat } from '../domain/attendance/cats';
 import { catVar, SLOT_COLORS } from '../domain/attendance/logs';
 import './mobile.css';
@@ -219,6 +219,7 @@ function SetPanel({ ws, k, goDay }: { ws: Workspace; k: string; goDay: (date: st
 /** PC 설정 › 시간 기록의 CatList 와 같은 일 — 색 점을 누르면 아래에 팔레트, 이름은 칸을 떠날 때 저장 */
 function CatList({ ws }: { ws: Workspace }) {
   const list = ws.cats;
+  const sum = useCatSum(ws);
   const [pal, setPal] = useState<number | null>(null);
   const put = (i: number, c: Partial<Cat>) => list.map((x, j) => (j === i ? { ...x, ...c } : x));
   return (
@@ -229,6 +230,7 @@ function CatList({ ws }: { ws: Workspace }) {
           <input maxLength={14} placeholder={`예) ${CAT_EX[i % CAT_EX.length]}`} defaultValue={c.name} aria-label="카테고리 이름"
             onBlur={(e) => { if (e.target.value.trim() !== c.name) ws.setCats(put(i, { name: e.target.value })); }}
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) e.currentTarget.blur(); }} />
+          <span className="m-cat-sum">{sum(c.color)}</span>
           <CloseX onClick={() => ws.setCats(list.filter((_, j) => j !== i))} />
           {pal === i && (
             <div className="m-pal">

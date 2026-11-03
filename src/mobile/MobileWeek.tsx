@@ -5,7 +5,7 @@
  *   달성 막대 · 근무 · 출근 · 일 평균 · 묶음별 목록 · 완료 · 줄마다 요일 칩
  * ★ 요일 칩을 누르면 옮기기 시트 — PC 콤보 · 끌기와 같은 moveItem 하나를 부른다
  * ★ 주 메모 = PC 주간의 Memo 와 같은 편집기 (맨 아래)
- * 아직 안 옮긴 것: 딸린 줄 펼치기 (폰에서는 바깥 할 일만 — PC 주간과 같다)
+ * ★ 딸린 할 일은 펼치지 않는다 (v3 · PC 주간과 같다). «1/3» 을 누르면 그 날 상세로
  */
 import { useState } from 'react';
 import type { Workspace } from '../app/useWorkspace';
@@ -50,7 +50,7 @@ export function MobileWeek({ ws, goDay }: { ws: Workspace; goDay: (date: string)
     apply(c, `${where}${kids ? ` (딸린 ${kids}줄도 함께)` : ''}`);
     setSheet(null);
   };
-  const row = (it: WItem) => <MItem key={it.b.id} it={it} ws={ws} onMore={() => setSheet(it)} />;
+  const row = (it: WItem) => <MItem key={it.b.id} it={it} ws={ws} onMore={() => setSheet(it)} onBadge={() => goDay(it.key || today)} />;
 
   const undone = listGroups(items, false);
   const done = listGroups(items, true);
@@ -111,7 +111,7 @@ function Groups({ gs, row }: { gs: WGroup[]; row: (it: WItem) => React.ReactNode
   ))}</>;
 }
 
-function MItem({ it, ws, onMore }: { it: WItem; ws: Workspace; onMore: () => void }) {
+function MItem({ it, ws, onMore, onBadge }: { it: WItem; ws: Workspace; onMore: () => void; onBadge: () => void }) {
   const { b, tri } = it;
   const part = !!tri && tri.ok > 0 && !b.done;   // v3.1.245 — 하위를 다 끝내도 상위는 «-»
   return (
@@ -121,7 +121,7 @@ function MItem({ it, ws, onMore }: { it: WItem; ws: Workspace; onMore: () => voi
       <input className="m-todo-t" defaultValue={plainText(b.text)} key={b.text} aria-label="할 일"
         onBlur={(e) => { if (e.target.value !== plainText(b.text)) ws.patchBlocks([{ id: b.id, text: e.target.value }]); }}
         onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) (e.target as HTMLInputElement).blur(); }} />
-      {tri && <span className={`m-wi-sub${tri.state === 'full' ? ' full' : ''}`}>{tri.ok}/{tri.n}</span>}
+      {tri && <button className={`m-wi-sub${tri.state === 'full' ? ' full' : ''}`} aria-label={`딸린 할 일 ${tri.ok}/${tri.n}, 상세로 가기`} onClick={onBadge}>{tri.ok}/{tri.n}</button>}
       {it.key && b.date < it.key && !b.done && <span className="m-born">D+{Math.round((dateOf(it.key).getTime() - dateOf(b.date).getTime()) / 86400000)}</span>}
       <button className={`m-wday${it.key ? '' : ' none'}`} aria-label="요일 · 묶음 옮기기 · 지우기" onClick={onMore}>
         {it.key ? DOW[dateOf(it.key).getDay()] : '미정'}<i aria-hidden="true">▾</i>
