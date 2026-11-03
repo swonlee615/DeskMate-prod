@@ -28,6 +28,7 @@ import { MateRows, Ranking } from './Team';
 import type { DDay } from '../domain/dday';
 import type { Habit } from '../domain/habits';
 import { RowMenu, TrashView } from './Trash';
+import { SearchView } from './Search';
 import { SavedView } from './Saved';
 import './pc.css';
 
@@ -47,7 +48,17 @@ const SB_ICON = (
   <svg viewBox="0 0 20 20"><rect x="2.8" y="4" width="14.4" height="12" rx="2.2" /><path d="M8 4v12" /></svg>
 );
 
-const TITLE = { worklog: 'ONnOFF', dash: '활동', later: '저장됨', trash: '휴지통' } as const;
+/** 검색 결과로 간 줄을 가운데로 굴리고 잠깐 밝힌다 (v3 scFlash · .sc-hit) */
+function scFlash(id: string) {
+  setTimeout(() => {
+    const el = document.querySelector<HTMLElement>(`.main [data-id="${CSS.escape(id)}"], .main [data-edit="${CSS.escape(id)}"], .main [data-slot="${CSS.escape(id)}"].tg-item`);
+    if (!el) return;
+    el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    el.classList.add('sc-hit');
+    setTimeout(() => el.classList.remove('sc-hit'), 3200);
+  }, 250);
+}
+const TITLE = { worklog: 'ONnOFF', dash: '활동', later: '저장됨', trash: '휴지통', search: '검색' } as const;
 
 export function PcWorkspace({ ws }: { ws: Workspace }) {
   const { backend, user, now, today, sync, days, day, nick, initial, presence } = ws;
@@ -76,7 +87,7 @@ export function PcWorkspace({ ws }: { ws: Workspace }) {
   }, [undoRef, redoRef]);
   useEffect(bindTips, []);
   // 레일 — 홈(근태) · 활동. 화면을 바꾸면 열어 둔 일간 상세는 닫는다
-  const [view, setView] = useState<'worklog' | 'dash' | 'later' | 'trash'>('worklog');
+  const [view, setView] = useState<'worklog' | 'dash' | 'later' | 'trash' | 'search'>('worklog');
   const go = (v: typeof view) => { setView(v); setDayKey(null); setDayFull(false); setDrawer(false); setSvOpen(false); };
   // 저장됨 — 고른 메모 · 좁을 때 상세를 연 상태 (머리줄 «뒤로» 가 닫는다)
   const [svSel, setSvSel] = useState('');
@@ -137,6 +148,8 @@ export function PcWorkspace({ ws }: { ws: Workspace }) {
             <div className="sb-title"><span id="wsName">{ws.settings.wsName}</span></div>
             <button className="icon-btn sb-toggle" id="sbToggleIn" title="사이드바 접기" onClick={() => setSbOff(true)}>{SB_ICON}</button>
           </div>
+          <button className={`sb-search${view === 'search' ? ' sel' : ''}`} id="btnSearch" onClick={() => go('search')}>
+            <svg viewBox="0 0 20 20" className="si"><circle cx="9" cy="9" r="5.3" /><path d="m13.1 13.1 3.1 3.1" /></svg><span>찾기...</span></button>
           <div className="sb-scroll" id="sbScroll">
             <button className="sb-section" aria-expanded="true"><span className="sb-caret">▾</span><span className="nm">멤버</span></button>
             <MateRows ws={ws} />
@@ -189,6 +202,11 @@ export function PcWorkspace({ ws }: { ws: Workspace }) {
             // 상세를 레이어로 열면 목록 오른쪽이 가려져 이 띠가 반쯤 잘린다 — 상세가 같은 띠를 보여 주므로 뒤의 것은 걷는다
             banner={pend.length > 0 && !asLayer && <PendBanner ws={ws} date={pend[0]} more={pend.length - 1} onEdit={() => openDay(pend[0], true)} />} />
           <TrashView ws={ws} hidden={view !== 'trash'} />
+          <SearchView ws={ws} hidden={view !== 'search' || (!!dayKey && !asLayer)} onJump={(r) => {
+            // 상세는 검색 위에 뜨고, 닫으면 결과 목록으로 (v3.1.13). 주간 메모 · 날짜 미정은 그 주의 주간 화면으로
+            if (r.k === 'week' || r.undated) { ws.setWpWeek(r.key); go('worklog'); setWeekReq((n) => n + 1); } else openDay(r.key);
+            scFlash(r.id);
+          }} />
           <SavedView ws={ws} hidden={view !== 'later' || (!!dayKey && !asLayer)} sel={svSel} setSel={setSvSel} open={svOpen} setOpen={setSvOpen}
             onDay={(k) => openDay(k)} onWeek={(k) => { ws.setWpWeek(k); go('worklog'); setWeekReq((n) => n + 1); }}
             onDD={(it) => openDD(it.date)(it)} onHb={(h) => openHb(h)} onTrash={() => go('trash')} />
