@@ -47,6 +47,23 @@ export function WeekPlanner({ ws, onOpenDay, dday }: { ws: Workspace; onOpenDay:
   const [fold, setFold] = useState(loadFold);
   const focusNext = useRef<{ id: string; scope: 'g' | 's' } | null>(null);
   const root = useRef<HTMLDivElement>(null);
+  // 굴린 뒤에만 위 · 아래 페이드 띠를 켠다 (v3 bindWpFade · v3.1.148 · v3.1.163 — 굴릴 거리가 띠보다 클 때만)
+  const main = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const m = main.current;
+    if (!m) return;
+    const sync = () => {
+      m.classList.toggle('sc-able', m.scrollHeight - m.clientHeight > 56);
+      m.classList.toggle('sc-top', m.scrollTop > 2);
+      m.classList.toggle('sc-more', m.scrollTop + m.clientHeight < m.scrollHeight - 2);
+    };
+    sync();
+    m.addEventListener('scroll', sync, { passive: true });
+    const ro = new ResizeObserver(sync);
+    ro.observe(m);
+    for (const c of Array.from(m.children)) ro.observe(c);
+    return () => { m.removeEventListener('scroll', sync); ro.disconnect(); };
+  }, []);
 
   const items = weekItems(blocks, wk, today, keep);
   const byId = new Map(items.map((x) => [x.b.id, x]));
@@ -281,7 +298,7 @@ export function WeekPlanner({ ws, onOpenDay, dday }: { ws: Workspace; onOpenDay:
         {!isThis && <button className="wp-back" data-wpmove="0" onClick={() => ws.setWpWeek(weekKeyOf(today))}>오늘</button>}
       </div>
       <div className="wp-body">
-        <section className="wp-main">
+        <section className="wp-main" ref={main}>
           <i className="wp-fade-t" aria-hidden="true" />
           <div className="wp-grid">
             {keys.map((k, i) => {
