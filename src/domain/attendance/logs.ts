@@ -160,7 +160,7 @@ export function timeline(day: Day, logs: Log[], now: number): TLSpan[] {
   }
   day.breaks.forEach((b, idx) => {
     const off = effKind(day, b, now) === 'off';
-    out.push({ kind: off ? 'off' : 'break', s: m(b.s), e: m(spanEnd(day, b, now)), ref: off ? null : { type: 'brk', idx }, text: b.note ?? '', color: null, live: b.e == null });
+    out.push({ kind: off ? 'off' : 'break', s: m(b.s), e: m(spanEnd(day, b, now)), ref: off ? null : { type: 'brk', idx }, text: b.note ?? '', color: off ? null : b.color ?? null, live: b.e == null });
   });
   for (const l of logsOf(logs, day.date)) {
     out.push({ kind: l.kind, s: l.s, e: l.e, ref: { type: l.kind, id: l.id }, text: l.text, color: l.color, live: false });

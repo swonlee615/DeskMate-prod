@@ -342,7 +342,7 @@ function SpanSheet({ ws, date, d, o, onClose }: { ws: Workspace; date: string; d
   const [s, setS] = useState(fmtM(o.s));
   const [e, setE] = useState(fmtM(o.e));
   const [text, setText] = useState(orig?.note ?? log?.text ?? '');
-  const [color, setColor] = useState<string | null>(log ? log.color : o.kind === 'slot' ? nextColor(nSlots) : null);
+  const [color, setColor] = useState<string | null>(log ? log.color : orig ? orig.color ?? null : o.kind === 'slot' ? nextColor(nSlots) : null);
   const sM = toMin(s), eM = toMin(e);
   const dur = sM != null && eM != null ? eM - sM : null;
   const isSlot = kind === 'slot';
@@ -387,6 +387,17 @@ function SpanSheet({ ws, date, d, o, onClose }: { ws: Workspace; date: string; d
             </>
           : MEMO_CHIPS.map((m) => <button key={m} className={`m-chip${text === m ? ' on' : ''}`} onClick={() => setText(m)}>{m}</button>)}
       </div>
+      {/* 휴게 카테고리 (v3.1.249) — 처음엔 안 골라져 있고, 고른 칩을 다시 누르면 해제 */}
+      {!isSlot && catChoices(ws.cats, color).length > 0 && (
+        <div className="m-span-row">
+          <span className="m-span-lb">카테고리</span>
+          {catChoices(ws.cats, color).map((c) => {
+            const on = c.color === catKey(color);
+            return <button key={c.color} className={`m-cat${on ? ' on' : ''}`} aria-pressed={on} onClick={() => setColor(on ? null : c.color)}>
+              <i style={{ background: c.color }} />{c.name || '이름 없음'}</button>;
+          })}
+        </div>
+      )}
       <div className="m-sheet-f">
         {o.ref && <button className="m-btn off" onClick={() => { ws.deleteSpan(date, o.ref as SpanRef); onClose(); }}>삭제</button>}
         <button className="m-btn go" disabled={locked} onClick={save}>저장</button>

@@ -62,6 +62,8 @@ export interface Span {
   by?: AwayBy;
   /** 휴게 메모 (LOGIC §5-1 — 점심 · 병원 · 회의 이동 …) */
   note?: string;
+  /** 휴게 카테고리 색 (v3.1.249) — 없으면 미분류 */
+  color?: string;
 }
 
 export type Leave = '' | '연차' | '오전 반차' | '오후 반차' | '병가';

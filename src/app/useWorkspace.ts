@@ -674,14 +674,14 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
       patch(ref.id, v.s, v.e);
       msg ||= '휴게를 고쳤어요';
     } else if (ref?.type === 'brk') {
-      const n = editBreak(d, ref.idx, ms(v.s), ms(v.e), text);
+      const n = editBreak(d, ref.idx, ms(v.s), ms(v.e), text, v.color);
       if (!n) return '시간을 확인해 주세요';
       d = n;
       msg ||= '휴게를 고쳤어요';
     } else {
       // 근무 안 몫은 근태 휴게, 밖 몫은 근무 밖 휴게 (v3.1.239) — 출퇴근은 안 바뀐다
       const { inside, outside } = splitRest(d, v.s, v.e);
-      for (const [a, z] of inside) d = addBreakSpan(d, ms(a), ms(z), text) ?? d;
+      for (const [a, z] of inside) d = addBreakSpan(d, ms(a), ms(z), text, v.color) ?? d;
       for (const [a, z] of outside) add('rest', a, z, v.color);
       msg ||= inside.length ? '휴게를 넣었어요. 근무시간에서 빠져요' : '휴게를 넣었어요. 근무시간에는 영향이 없어요';
     }

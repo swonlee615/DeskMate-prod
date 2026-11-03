@@ -213,28 +213,30 @@ export function setBreakAt(d0: Day, idx: number, field: 's' | 'e', ms: number): 
 }
 
 /** 휴게 상자에서 저장 — 시작 · 끝 · 메모를 한 번에 (v3 slotModal 의 휴게) */
-export function editBreak(d0: Day, idx: number, s: number, e: number, note: string): Day | null {
+export function editBreak(d0: Day, idx: number, s: number, e: number, note: string, color: string | null = null): Day | null {
   const b0 = d0.breaks[idx];
   if (!b0 || !(e > s) || e - s < MIN_BREAK_MS) return null;
   const d = clone(d0);
   const b = d.breaks[idx];
   b.s = s; b.e = e;
   if (note.trim()) b.note = note.trim(); else delete b.note;
+  if (color) b.color = color; else delete b.color;
   b.auto = false; delete b.by;
   d.breaks.sort((a, c) => a.s - c.s);
   return normalizeBreaks(d);
 }
 
 /** 시간표에서 끌어 만든 휴게 — 근무 안 몫만 들어온다 (근무 밖 몫은 근무 밖 휴게 · logs.splitRest) */
-export function addBreakSpan(d0: Day, s: number, e: number, note: string): Day | null {
+export function addBreakSpan(d0: Day, s: number, e: number, note: string, color: string | null = null): Day | null {
   if (!(e - s >= MIN_BREAK_MS)) return null;
   const d = clone(d0);
-  d.breaks.push({ s, e, kind: 'break', ...(note.trim() ? { note: note.trim() } : {}) });
+  d.breaks.push({ s, e, kind: 'break', ...(note.trim() ? { note: note.trim() } : {}), ...(color ? { color } : {}) });
   d.breaks.sort((a, c) => a.s - c.s);
   const n = normalizeBreaks(d);
   // 이미 휴게였던 자리면 구간은 그대로 — 메모만 «그 시각을 품은 휴게» 에 (v3.1.56)
   const host = n.breaks.find((b) => b.e != null && b.s <= s && s < b.e);
   if (host && note.trim()) host.note = note.trim();
+  if (host && color) host.color = color;
   return n;
 }
 

@@ -472,3 +472,17 @@ describe('v3.1.239 — 출퇴근에 걸친 휴게', () => {
     expect(workMinutes(d, END)).toBe(9 * 60 - 30);
   });
 });
+
+describe('v3.1.249 — 근태 휴게의 카테고리', () => {
+  const base = () => deriveDay(D, [
+    ev('clockIn', '09:00'), ev('breakStart', '12:00'), ev('breakEnd', '13:00'), ev('clockOut', '18:00'),
+  ], END);
+
+  it('붙이고 떼기 — 근무시간은 그대로', () => {
+    const on = editBreak(base(), 0, t('12:00'), t('13:00'), '점심', '#5b97cf')!;
+    expect(on.breaks[0]).toMatchObject({ note: '점심', color: '#5b97cf' });
+    expect(workMinutes(on, END)).toBe(8 * 60);
+    const off = editBreak(on, 0, t('12:00'), t('13:00'), '점심', null)!;
+    expect(off.breaks[0].color).toBeUndefined();
+  });
+});

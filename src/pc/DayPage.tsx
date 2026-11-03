@@ -340,7 +340,7 @@ export function Grid({ d, logs, now, isToday, onOpen }: { d: Day; logs: Log[]; n
       const off = effKind(d, b, now) === 'off';
       const s = minOf(b.s), e = minOf(spanEnd(d, b, now));
       for (let g = gFloor(s); g < Math.min(1440, e); g += GSTEP) {
-        if (!brk[g]) brk[g] = { off, idx, note: b.note, t: `${off ? '비근무' : '휴게'} ${hhmm(b.s)} ~ ${b.e != null ? hhmm(spanEnd(d, b, now)) : '진행 중'}${b.note ? `\n${b.note}` : ''}` };
+        if (!brk[g]) brk[g] = { off, idx, note: b.note, color: off ? null : b.color, t: `${off ? '비근무' : '휴게'} ${hhmm(b.s)} ~ ${b.e != null ? hhmm(spanEnd(d, b, now)) : '진행 중'}${b.note ? `\n${b.note}` : ''}` };
       }
     });
     // «끌어 놓은 자리가 근태 휴게인가» 는 근태 휴게만 본다 — 근무 밖 휴게를 넣기 전에 센다 (v3 brkCoverOf)
@@ -522,13 +522,16 @@ export function SlotList({ d, logs, cats, now, rows, onOpen, onGoto }: {
     if (effKind(d, b, now) === 'off') return;
     const e = spanEnd(d, b, now);
     items.push({ at: b.s + 0.25, el: (
-      <div key={`b${idx}`} className={`tg-item r2 brk-item${b.note ? ' has-note' : ''}`} data-brk={idx}
+      <div key={`b${idx}`} className={`tg-item r2 brk-item${b.note ? ' has-note' : ''}${b.color ? ' tagged' : ''}`} data-brk={idx}
+        style={b.color ? { '--hc': b.color } as React.CSSProperties : undefined}
         title={`휴게 ${hhmm(b.s)} ~ ${b.e != null ? hhmm(e) : '진행 중'}${b.note ? `\n${b.note}` : ''}\n${b.auto ? '자동 기록 · 자리비움' : '직접 만든 기록'}`}
         onClick={() => onOpen(openBrk(d, idx, now))}>
-        {restBar(null)}
+        {restBar(b.color ?? null)}
         <span className="rg">{hhmm(b.s)} ~ {b.e != null ? hhmm(e) : '지금'}</span>
         <span className="du">{b.e != null ? fmtDur((e - b.s) / 60000) : '진행 중'}</span>
-        <div className="tg-mid"><span className="cat-tag kind-brk">☕️ 휴게</span>{b.auto && !b.note && <span className="lb">자리비움</span>}{b.note && <span className="lb">{b.note}</span>}</div>
+        <div className="tg-mid">{b.color
+          ? <span className="cat-tag" style={{ '--c': catKey(b.color) } as React.CSSProperties}>☕️ {catName(cats, b.color) || '휴게'}</span>
+          : <span className="cat-tag kind-brk">☕️ 휴게</span>}{b.auto && !b.note && <span className="lb">자리비움</span>}{b.note && <span className="lb">{b.note}</span>}</div>
       </div>) });
   });
   for (const r of logsOf(logs, d.date, 'rest')) {
@@ -716,7 +719,7 @@ function SpanDialog({ ws, date, d, o, onClose }: { ws: Workspace; date: string; 
   const [e, setE] = useState(fmtM(o.e));
   const [text, setText] = useState(orig?.note ?? log?.text ?? '');
   // 시간 기록은 색이 늘 하나 (차례 색), 휴게는 없어도 된다 (v3.1.249)
-  const [color, setColor] = useState<string | null>(log ? log.color : o.kind === 'slot' ? nextColor(logsOf(ws.logs, date, 'slot').length) : null);
+  const [color, setColor] = useState<string | null>(log ? log.color : orig ? orig.color ?? null : o.kind === 'slot' ? nextColor(logsOf(ws.logs, date, 'slot').length) : null);
   const sM = toMin(s), eM = toMin(e);
   const dur = sM != null && eM != null ? eM - sM : null;
   const isSlot = kind === 'slot';
@@ -764,7 +767,7 @@ function SpanDialog({ ws, date, d, o, onClose }: { ws: Workspace; date: string; 
             </div>
           )}
         </div>
-        {color && (
+        {catChoices(ws.cats, color).length > 0 && (
           <div className="field" id="slotColorField">
             <label>카테고리 <span className="hint3">설정 → 시간 기록에서 관리해요</span></label>
             <div className="cats" id="slotColors">

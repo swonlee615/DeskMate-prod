@@ -38,7 +38,7 @@ export interface MIv { s: number; e: number }
 export interface DayRow {
   key: string; dow: number; work: number; rest: number; on: number | null; off: number | null; leave: Leave; goal: number; has: boolean;
   /** 출퇴근 리듬 — 근무 차수 · 근태 휴게(메모 함께) · 비근무 합 (분 · 00:00 기준). 그림이 다시 계산하지 않게 여기서 싣는다 (v2.9.84) */
-  segs: MIv[]; brks: (MIv & { note: string })[]; nonwork: number;
+  segs: MIv[]; brks: (MIv & { note: string; color?: string | null })[]; nonwork: number;
 }
 
 /** 그 기간의 하루하루 (v3 series) — 기록 없는 날도 줄은 있다 (막대 · 히트맵의 빈 칸) */
@@ -59,7 +59,7 @@ export function series(days: Record<string, Day>, from: string, to: string, now:
       goal: dayGoalMin(g, { leave: day?.leave ?? '' }),
       has: work > 0,
       segs: tl.filter((x) => x.kind === 'work').map(({ s, e }) => ({ s, e })),
-      brks: tl.filter((x) => x.kind === 'break').map(({ s, e, text }) => ({ s, e, note: text.trim() })),
+      brks: tl.filter((x) => x.kind === 'break').map(({ s, e, text, color }) => ({ s, e, note: text.trim(), color })),
       nonwork: p.offMs / 60000,
     });
   }
@@ -200,7 +200,7 @@ export function weekGoal(days: Record<string, Day>, rows: DayRow[], p: Period, t
 // ─────────────────────────────────────────────────────────── 카테고리별 (v3 catSplit · v3.1.249)
 
 /**
- * 근무 = 시간 기록(색별) + 미분류(그 날 근무시간 − 시간 기록 합) · 휴게 = 근태 휴게(색 없음 → 미분류) + 근무 밖 휴게(색별).
+ * 근무 = 시간 기록(색별) + 미분류(그 날 근무시간 − 시간 기록 합) · 휴게 = 근태 휴게 + 근무 밖 휴게 (색별, 색 없으면 미분류).
  * 일한 날만. 순서: 이름 붙은 색 → 이름 없는 색 → 팔레트에 없는 색 → 미분류, 같은 무리는 많은 순
  */
 export interface CatRow { color: string; name: string; known: boolean; none: boolean; work: number; rest: number }
@@ -222,7 +222,7 @@ export function catSplit(rows: DayRow[], logs: Log[], cats: Cat[]): CatRow[] {
   for (const r of worked.values()) {
     const rest0 = r.work - (slotMin.get(r.key) ?? 0);
     if (rest0 > 0.5) get('').work += rest0;
-    for (const b of r.brks) get('').rest += b.e - b.s;
+    for (const b of r.brks) get(b.color ?? null).rest += b.e - b.s;
   }
   const rank = (c: CatRow) => (c.none ? 3 : !c.known ? 2 : !c.name ? 1 : 0);
   return [...map.values()].filter((c) => c.work + c.rest > 0.5).sort((a, b) => rank(a) - rank(b) || b.work + b.rest - (a.work + a.rest));
@@ -276,7 +276,7 @@ export function labelSplit(rows: DayRow[], logs: Log[]): LabelRow[] {
     map.set(k, cur);
   };
   const worked = new Set(rows.filter((r) => r.has).map((r) => r.key));
-  for (const r of rows) if (worked.has(r.key)) for (const b of r.brks) add('rest', b.note.replace(/\s+/g, ' '), null, b.e - b.s);
+  for (const r of rows) if (worked.has(r.key)) for (const b of r.brks) add('rest', b.note.replace(/\s+/g, ' '), b.color ?? null, b.e - b.s);
   for (const l of logs) {
     if (l.deletedAt || !worked.has(l.date)) continue;
     const t = l.text.trim().replace(/\s+/g, ' ');

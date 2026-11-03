@@ -95,6 +95,11 @@ describe('목표까지 · 카테고리별', () => {
       { color: '', name: '', known: false, none: true, work: 180, rest: 30 },
     ]);
   });
+  it('근태 휴게에도 카테고리가 붙으면 그 색의 휴게로 센다 (v3.1.249)', () => {
+    const r = { ...row('2026-10-05', 1, 300), brks: [{ s: 720, e: 750, note: '', color: '#5b97cf' }] };
+    const out = catSplit([r], [], [{ color: '#5b97cf', name: '개발' }]);
+    expect(out[0]).toMatchObject({ color: '#5b97cf', rest: 30 });
+  });
 });
 
 describe('순위 고정 (SYNC §11)', () => {
