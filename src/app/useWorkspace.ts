@@ -140,6 +140,10 @@ export interface Workspace {
   editBlocks: (p: Patch[], created?: Block[], base?: Block[]) => void;
   /** ⌘Z — 이 기기에서 한 마지막 동작을 되돌린다. 되돌릴 게 없으면 false */
   undoBlocks: () => boolean;
+  /** ⌘⇧Z — 방금 되돌린 것을 다시. 새로 고치면 다시 할 것은 사라진다 */
+  redoBlocks: () => boolean;
+  /** 마지막으로 되돌린 시각 — 편집기가 «글자 다시 하기» 와 가른다 */
+  lastUndoAt: () => number;
   /** 마지막으로 되돌릴 동작을 한 때 (글자 치기와 어느 쪽이 나중인지 가린다) */
   lastEditAt: () => number;
   /** 체크 — 끝낸 날 = 체크한 화면의 날짜 (소유자 결정) */
@@ -525,11 +529,13 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
 
   // ── 할 일 고침 — 되돌리기는 «그 기기의 동작» 단위 (결함표 Q4). 다른 기기 고침은 건드리지 않는다
   const undoStack = useRef<{ inv: Patch[]; at: number }[]>([]);
+  const redoStack = useRef<{ inv: Patch[]; at: number }[]>([]);
   const record = (ps: Patch[], created: Block[] = [], base = blocks) => {
     const inv = inverseOf(base, ps, created);
     if (!inv.length) return;
     undoStack.current.push({ inv, at: Date.now() });
     if (undoStack.current.length > 100) undoStack.current.shift();
+    redoStack.current = [];
   };
   const editBlocks = (ps: Patch[], created: Block[] = [], base?: Block[]) => {
     markGone(ps);
@@ -539,13 +545,18 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
   };
   const addBlock = (b: Block) => editBlocks([], [b]);
   const patchBlocks = (ps: Patch[], rec = true) => { if (rec) editBlocks(ps); else repo.patchBlocks(ps); };
-  const undoBlocks = () => {
-    const top = undoStack.current.pop();
+  // 되돌리기 · 다시 하기 — 한쪽 더미에서 꺼내 적용하고, 그 반대를 다른 더미에 쌓는다
+  const flip = (from: typeof undoStack, to: typeof undoStack) => {
+    const top = from.current.pop();
     if (!top) return false;
+    to.current.push({ inv: inverseOf(blocks, top.inv), at: Date.now() });
     markGone(top.inv);
     repo.patchBlocks(top.inv);
     return true;
   };
+  const undoBlocks = () => flip(undoStack, redoStack);
+  const redoBlocks = () => flip(redoStack, undoStack);
+  const lastUndoAt = () => redoStack.current[redoStack.current.length - 1]?.at ?? 0;
   const lastEditAt = () => undoStack.current[undoStack.current.length - 1]?.at ?? 0;
   /** 체크 — 딸린 할 일까지 함께, 윗줄 진행도는 «고치는 지금» 맞춘다 (LOGIC §6-3 · Q6) */
   const toggleBlock = (b: Block, viewDate: string) => editBlocks(triToggle(blocks, b, viewDate, Date.now()));
@@ -810,7 +821,7 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
     backend, user, now, today, sync, days, day, state,
     unavailable: range.unavailable, setDashSpan, tblWeeks, tblAll, moreWeeks, calMonth, setCalMonth, wpWeek, setWpWeek, toast, timer, say, warn,
     onOn, onOff, onRest, onLeave, dayOf, editDay, pendingDays, resolvePending, canCarry: canCarryFor,
-    blocks, addBlock, patchBlocks, editBlocks, undoBlocks, lastEditAt, toggleBlock, removeBlock, newId,
+    blocks, addBlock, patchBlocks, editBlocks, undoBlocks, redoBlocks, lastUndoAt, lastEditAt, toggleBlock, removeBlock, newId,
     ddays, saveDDay, pinDDay, archiveDDay, deleteDDay,
     saved, savedSort, isSaved, toggleSaved, pinSaved, setSavedSort, trash, deleteDay, restoreTrash, purgeTrash, emptyTrash, teamCfg, v3Preview, v3Import, v3Imported, images, addImages, imageBlob, removeImage, ranks, firstDate, habits, offDay, saveHabit, archiveHabit, deleteHabit, toggleHabit,
     logs, watchAllLogs, saveSpan, deleteSpan, fixConflicts, cats, setCats,

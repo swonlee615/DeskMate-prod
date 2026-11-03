@@ -62,18 +62,18 @@ export function PcWorkspace({ ws }: { ws: Workspace }) {
   const [ddTab, setDdTab] = useState<DDTab>('dday');
   const ddBox = <DDayBox ws={ws} tab={ddTab} setTab={setDdTab} onOpen={openDD(today)} onHabit={openHb} />;
   const [sbOff, setSbOff] = useState(false);
-  // ⌘Z — 글 칸 밖(체크를 누른 뒤 등)에서는 이 기기의 마지막 줄 동작을 되돌린다. 글 칸 안은 NoteEditor 가 맡는다
-  const undoRef = ws.undoBlocks;
+  // ⌘Z · ⌘⇧Z — 글 칸 밖(체크를 누른 뒤 등)에서는 이 기기의 마지막 줄 동작을 되돌리고 다시 한다. 글 칸 안은 NoteEditor 가 맡는다
+  const undoRef = ws.undoBlocks, redoRef = ws.redoBlocks;
   useEffect(() => {
     const on = (e: KeyboardEvent) => {
-      if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.key.toLowerCase() !== 'z') return;
+      if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 'z') return;
       const a = document.activeElement as HTMLElement | null;
       if (a && (a.isContentEditable || a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.tagName === 'SELECT')) return;
-      if (undoRef()) e.preventDefault();
+      if (e.shiftKey ? redoRef() : undoRef()) e.preventDefault();
     };
     window.addEventListener('keydown', on);
     return () => window.removeEventListener('keydown', on);
-  }, [undoRef]);
+  }, [undoRef, redoRef]);
   useEffect(bindTips, []);
   // 레일 — 홈(근태) · 활동. 화면을 바꾸면 열어 둔 일간 상세는 닫는다
   const [view, setView] = useState<'worklog' | 'dash' | 'later' | 'trash'>('worklog');

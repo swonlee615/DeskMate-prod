@@ -10,7 +10,7 @@
  * ★ 키: Enter 새 줄 · Backspace(맨 앞) 지우기/합치기/내어쓰기 · Tab/⇧Tab · ↑↓ · `# ` `## ` `### ` 제목 · `- ` 글머리 · `1. ` 번호(`3. ` 이면 3부터) · `[] ` 할 일
  *   한글 조합 중 Enter 는 무시한다
  * ★ 부분 체크(LOGIC §6-3) — 딸린 할 일이 있는 줄은 `ok/n` 이 항상 서고, 일부만 끝나면 가운데 줄(-)
- * ★ ⠿ 끌어서 옮기기 — 덩어리째, 같은 묶음의 형제 자리로 · ⌘Z — 이 기기의 마지막 동작 (글자 치기는 브라우저 몫)
+ * ★ ⠿ 끌어서 옮기기 — 덩어리째, 같은 묶음의 형제 자리로 · ⌘Z · ⌘⇧Z — 이 기기의 마지막 동작 (글자 치기는 브라우저 몫)
  * ★ 폰 — 키보드 위 도구 줄(`KbBar`): 할 일 · 글머리 · 내어쓰기 · 들여쓰기 · 키보드 내리기. 동작은 위 키와 같은 함수
  * ★ 서식 · 칩 · 링크 — 저장은 v3 와 같은 글자 안 표시 (`domain/todos/inline`), 그리기 · 읽기는 `ui/inlineDom`. ⌘B · ⌘I · ⌘U · ⌘E · ⌘⇧S
  * ★ `@날짜` — 커서 앞 «@말» 로 메뉴(↑↓ · Enter/Tab · Esc), 칩을 누르면 달력(바꾸기 · 지우기 · 그 날로). `Mention.tsx`
@@ -466,6 +466,11 @@ export function NoteEditor({ ws, date, area, title, ph, icon, onDay }: {
     if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === 'z') {
       // 줄 동작이 마지막 글자 치기보다 나중이면 그걸 되돌린다. 아니면 브라우저가 글자를 되돌린다
       if (ws.lastEditAt() > lastTyped.current) { e.preventDefault(); flush(b.id, el); ws.undoBlocks(); focusNext.current = { id: b.id, at: 'end' }; }
+      return;
+    }
+    if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'z') {
+      // 방금 되돌린 게 줄 동작이면 그걸 다시. 아니면 브라우저가 글자를 다시 한다
+      if (ws.lastUndoAt() > lastTyped.current) { e.preventDefault(); flush(b.id, el); ws.redoBlocks(); focusNext.current = { id: b.id, at: 'end' }; }
       return;
     }
 
