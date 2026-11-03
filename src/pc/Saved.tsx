@@ -5,20 +5,14 @@
  * ★ 메시지는 옮기지 않는다 (대화는 웹에 없다 — 2026-10-27 소유자)
  * ★ 가운데 열이 680px 보다 좁으면 한 장씩 — 목록 → 상세. 뒤로는 머리줄의 «저장됨» (v3 svNarrow)
  */
-import { useEffect, useMemo, useRef } from 'react';
+import { useRef } from 'react';
 import type { Workspace } from '../app/useWorkspace';
-import { bySaved, savedMemos, type SavedKind } from '../domain/saved';
 import { ddLabel, type DDay } from '../domain/dday';
 import { hbFreqLabel, type Habit } from '../domain/habits';
-import { plainText } from '../domain/todos/inline';
-import { dateOf, DOW, weekTag } from '../ui/v3fmt';
+import { dayTitle, useSaved } from '../ui/useSaved';
 import { MemoBm, NoteEditor } from './NoteEditor';
 
-const PIN_SVG = <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M12.4 3.2l4.4 4.4-1.9.7-2.8 2.8.4 3.3-1.3 1.3-6.3-6.3 1.3-1.3 3.3.4 2.8-2.8.7-1.9Z" /><path d="M7 13l-3.6 3.6" /></svg>;
-const dayTitle = (k: string) => { const d = dateOf(k); return `${d.getMonth() + 1}/${d.getDate()} (${DOW[d.getDay()]})`; };
-const weekTitle = (k: string) => { const t = weekTag(dateOf(k)); return `${t.month}월 ${t.no}주`; };
-
-interface MemoRow { id: string; kind: SavedKind; key: string; title: string; sub: string; gone: boolean; pinnedAt: number | null }
+const PIN_SVG = <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M12.4 3.2l4.4 4.4-1.9.7-2.8 2.8.4 3.3-1.3 1.3-6.3-6.3 1.3-1.3 3.3.4 2.8-2.8.7-1.9Z" /><path d="M7 13l-3.6 3.6" /></svg>
 
 export function SavedView({ ws, hidden, sel, setSel, open, setOpen, onDay, onWeek, onDD, onHb, onTrash }: {
   ws: Workspace; hidden: boolean;
@@ -26,27 +20,7 @@ export function SavedView({ ws, hidden, sel, setSel, open, setOpen, onDay, onWee
   onDay: (k: string) => void; onWeek: (k: string) => void; onDD: (it: DDay) => void; onHb: (h: Habit) => void; onTrash: () => void;
 }) {
   const host = useRef<HTMLDivElement>(null);
-  const sort = ws.savedSort, by = bySaved(sort);
-  const memoKeys = savedMemos(ws.saved, sort);
-  // 옛 메모의 줄도 받아 둔다 — 보고 있는 동안만 (활동 화면과 같은 손잡이)
-  const oldest = memoKeys.map((x) => x.key).sort()[0];
-  const { setDashSpan, today } = ws;
-  useEffect(() => {
-    if (hidden || !oldest) return;
-    setDashSpan([oldest, today]);
-    return () => setDashSpan(null);
-  }, [hidden, oldest, today, setDashSpan]);
-
-  const memos: MemoRow[] = useMemo(() => memoKeys.map((x) => {
-    const gone = x.kind === 'day' && ws.trash.some((t) => t.date === x.key);
-    const area = x.kind === 'week' ? 'wmemo' : 'memo';
-    const first = ws.blocks.filter((b) => b.date === x.key && b.area === area && !b.deletedAt).sort((a, b) => a.pos - b.pos)
-      .map((b) => plainText(b.text).trim()).find(Boolean) ?? '';
-    return { id: x.id, kind: x.kind, key: x.key, title: x.kind === 'week' ? weekTitle(x.key) : dayTitle(x.key),
-      sub: gone ? '원본 하루가 휴지통에 있어요' : first || '비어 있음', gone, pinnedAt: x.pinnedAt };
-  }), [memoKeys, ws.blocks, ws.trash]); // eslint-disable-line react-hooks/exhaustive-deps
-  const dds = ws.ddays.filter((d) => d.archivedAt).map((it) => ({ it, date: it.date, savedAt: it.archivedAt ?? 0 })).sort(by);
-  const hbs = ws.habits.filter((h) => h.archivedAt).map((h) => ({ h, date: h.start, savedAt: h.archivedAt ?? 0 })).sort(by);
+  const { sort, memos, dds, hbs, empty } = useSaved(ws, hidden);
 
   const cur = memos.find((x) => x.id === sel) ?? memos[0] ?? null;
   const pick = (id: string) => {
@@ -56,7 +30,7 @@ export function SavedView({ ws, hidden, sel, setSel, open, setOpen, onDay, onWee
   };
 
   let body: React.ReactNode;
-  if (!memos.length && !dds.length && !hbs.length) {
+  if (empty) {
     body = <div className="sv-empty"><b>저장한 것이 없어요</b>
       <span>Memo 제목 줄의 북마크를 누르거나, D-Day · 습관을 «아카이브로 이동» 하면 여기에 모여요.</span></div>;
   } else {

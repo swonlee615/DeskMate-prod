@@ -19,6 +19,7 @@ import { MobileWeek } from './MobileWeek';
 import { MToday, STATE_LABEL } from './MToday';
 import { MActivity } from './MActivity';
 import { MDay } from './MDay';
+import { MSaved } from './MSaved';
 import { CloseX, HabitChips } from './parts';
 import { IMG_HINT, imgDay, Thumb, useImageList } from '../ui/ImageList';
 import { fmtMB } from '../domain/images';
@@ -37,9 +38,11 @@ export function MobileWorkspace({ ws }: { ws: Workspace }) {
   const [acctOpen, setAcctOpen] = useState(false);
   // 설정 › 한 칸 (PC 설정 창의 오른쪽 칸을 폰에서는 한 단계 안으로)
   const [setSub, setSetSub] = useState<string | null>(null);
+  // 저장됨 › 메모 하나 (한 장씩 — 뒤로는 머리의 ‹ 저장됨)
+  const [svOpen, setSvOpen] = useState<string | null>(null);
   // 탭 · 보기(전체/주간)를 바꾸면 늘 맨 위에서 — 스크롤 칸 하나를 함께 써서 앞 탭의 위치가 남았다
   const body = useRef<HTMLElement>(null);
-  useLayoutEffect(() => { body.current?.scrollTo(0, 0); }, [tab, view, setSub]);
+  useLayoutEffect(() => { body.current?.scrollTo(0, 0); }, [tab, view, setSub, svOpen]);
   const goDay = (date: string, edit = false) => setDay({ date, edit });
   const t = ws.timer;
   const toTimer = () => {
@@ -52,7 +55,9 @@ export function MobileWorkspace({ ws }: { ws: Workspace }) {
       <header className="m-head">
         {tab === 'set' && setSub
           ? <button className="m-back" onClick={() => setSetSub(null)} aria-label="설정으로"><i aria-hidden="true">‹</i><h1>{SET_NAV.find((n) => n.k === setSub)?.nm}</h1></button>
-          : <h1>{TITLE[tab]}</h1>}
+          : tab === 'later' && svOpen
+            ? <button className="m-back" onClick={() => setSvOpen(null)} aria-label="저장됨으로"><i aria-hidden="true">‹</i><h1>저장됨</h1></button>
+            : <h1>{TITLE[tab]}</h1>}
         <span className="m-sp" />
         <SyncBadge s={ws.sync} />
         <button className={`m-pill timer${t.running ? ' on' : ''}${t.mode === 'focus' ? '' : ' rest'}`} onClick={toTimer} aria-label={`집중 타이머 · ${t.label}${t.running ? ' 중' : ' 대기'}`}>
@@ -73,7 +78,8 @@ export function MobileWorkspace({ ws }: { ws: Workspace }) {
           <HabitChips ws={ws} date={ws.today} />
         </>}
         {tab === 'team' && <TeamTab ws={ws} />}
-        {tab === 'later' && <Soon what="저장됨" items="보관한 D-Day · 습관 · 저장한 메모" />}
+        {tab === 'later' && <MSaved ws={ws} hidden={false} open={svOpen} setOpen={setSvOpen} goDay={goDay}
+          goWeek={(k) => { ws.setWpWeek(k); setTab('att'); setView('week'); }} goTrash={() => { setTab('set'); setSetSub('data'); }} />}
         {tab === 'set' && (setSub ? <SetPanel ws={ws} k={setSub} goDay={goDay} /> : <Settings ws={ws} onAccount={() => setAcctOpen(true)} onOpen={setSetSub} />)}
       </main>
 
@@ -92,7 +98,7 @@ export function MobileWorkspace({ ws }: { ws: Workspace }) {
           icon={<path d="M4 16.2V9.4M10 16.2V3.8M16 16.2v-4.6" />} />
         <TabBtn on={tab === 'team'} onClick={() => { setTab('team'); setDay(null); }} label="팀"
           icon={<><circle cx="8" cy="7.4" r="2.9" /><path d="M2.9 16.2c0-2.6 2.3-4.2 5.1-4.2s5.1 1.6 5.1 4.2" /><path d="M13.6 5.1a2.6 2.6 0 0 1 0 4.9M15.2 12.4c1.4.5 2.4 1.7 2.4 3.4" /></>} />
-        <TabBtn on={tab === 'later'} onClick={() => { setTab('later'); setDay(null); }} label="저장됨"
+        <TabBtn on={tab === 'later'} onClick={() => { setTab('later'); setDay(null); setSvOpen(null); }} label="저장됨"
           icon={<path d="M5.6 3.6h8.8v13.1L10 13.2l-4.4 3.5V3.6Z" />} />
         <TabBtn on={tab === 'set'} onClick={() => { setTab('set'); setDay(null); setSetSub(null); }} label="설정"
           icon={<><path d="M8.6 3.1h2.8l.28 1.72c.46.18.89.43 1.28.73l1.63-.62 1.4 2.42-1.32 1.14c.04.27.06.55.06.84s-.02.57-.06.84l1.32 1.14-1.4 2.42-1.63-.62c-.39.3-.82.55-1.28.73l-.28 1.72H8.6l-.28-1.72a5.3 5.3 0 0 1-1.28-.73l-1.63.62-1.4-2.42 1.32-1.14a5.5 5.5 0 0 1 0-1.68L4.01 7.35l1.4-2.42 1.63.62c.39-.3.82-.55 1.28-.73L8.6 3.1Z" /><circle cx="10" cy="10" r="2.3" /></>} />
@@ -113,16 +119,6 @@ function TabBtn({ on, onClick, label, icon }: { on: boolean; onClick: () => void
     <button className={on ? 'on' : ''} onClick={onClick} aria-current={on ? 'page' : undefined}>
       <svg viewBox="0 0 20 20" aria-hidden="true">{icon}</svg>{label}
     </button>
-  );
-}
-
-/** 아직 PC 에도 안 옮긴 메뉴 — PC 와 같은 자리를 먼저 잡아 둔다 */
-function Soon({ what, items }: { what: string; items: string }) {
-  return (
-    <div className="m-soon">
-      <b>{what}은 준비 중이에요</b>
-      <p>{items}이 여기에 생겨요. PC 와 같은 때 함께 열려요.</p>
-    </div>
   );
 }
 

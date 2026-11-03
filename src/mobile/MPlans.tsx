@@ -53,7 +53,7 @@ export function PlansBox({ ws }: { ws: Workspace }) {
   );
 }
 
-function DDaySheet({ ws, x, onClose }: { ws: Workspace; x: DDay | null; onClose: () => void }) {
+export function DDaySheet({ ws, x, onClose }: { ws: Workspace; x: DDay | null; onClose: () => void }) {
   const [emoji, setEmoji] = useState(x?.emoji ?? '📌');
   const [title, setTitle] = useState(x?.title ?? '');
   const [date, setDate] = useState(x?.date ?? ws.today);
@@ -73,7 +73,7 @@ function DDaySheet({ ws, x, onClose }: { ws: Workspace; x: DDay | null; onClose:
       {x && (
         <div className="m-sheet-f">
           <button className="m-btn" onClick={() => { if (!ws.pinDDay(x.id, !x.pinned)) ws.warn(`고정은 ${DD_PIN_MAX}개까지예요`); else onClose(); }}>{x.pinned ? '고정 풀기' : '오늘 화면에 고정'}</button>
-          <button className="m-btn" onClick={() => { ws.archiveDDay(x.id, true); onClose(); }}>보관</button>
+          <button className="m-btn" onClick={() => { ws.archiveDDay(x.id, !x.archivedAt); onClose(); }}>{x.archivedAt ? '목록으로 되돌리기' : '보관'}</button>
           <button className="m-btn off" onClick={() => { ws.deleteDDay(x.id); onClose(); }}>삭제</button>
         </div>
       )}
@@ -84,7 +84,7 @@ function DDaySheet({ ws, x, onClose }: { ws: Workspace; x: DDay | null; onClose:
 
 const TYPES: [HbType, string][] = [['daily', '매일'], ['days', '요일 지정'], ['perWeek', '주 N회']];
 
-function HabitSheet({ ws, h, onClose }: { ws: Workspace; h: Habit | null; onClose: () => void }) {
+export function HabitSheet({ ws, h, onClose }: { ws: Workspace; h: Habit | null; onClose: () => void }) {
   const [emoji, setEmoji] = useState(h?.emoji ?? '✅');
   const [title, setTitle] = useState(h?.title ?? '');
   const [note, setNote] = useState(h?.note ?? '');
@@ -129,7 +129,7 @@ function HabitSheet({ ws, h, onClose }: { ws: Workspace; h: Habit | null; onClos
       <input className="m-field" value={note} onChange={(e) => setNote(e.target.value)} placeholder="메모 (선택)" />
       {h && (
         <div className="m-sheet-f">
-          <button className="m-btn" onClick={() => { ws.archiveHabit(h.id, true); onClose(); }}>보관</button>
+          <button className="m-btn" onClick={() => { ws.archiveHabit(h.id, !h.archivedAt); onClose(); }}>{h.archivedAt ? '목록으로 되돌리기' : '보관'}</button>
           <button className="m-btn off" onClick={() => { ws.deleteHabit(h.id); onClose(); }}>삭제</button>
         </div>
       )}

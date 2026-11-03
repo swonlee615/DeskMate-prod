@@ -849,3 +849,19 @@ button.m-cat.on { color: var(--text-strong); font-weight: 700; box-shadow: inset
 .m-img-th img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .m-img-del { height: 34px; padding: 0 12px; border-radius: 9px; font-size: 13px; color: var(--text-muted); background: var(--surface-3); flex: none; }
 .m-img-del.on { color: var(--on-accent); background: var(--red-fill); }
+
+/* 저장됨 (MSaved) — 목록은 m-list 그대로, 메모 한 장은 머리줄 + 편집기 */
+.m-sv-kind { display: inline-block; margin-right: 6px; padding: 1px 6px; border-radius: 6px; font-size: 11px; font-weight: 700; vertical-align: 2px;
+  background: var(--blue-a2); color: var(--blue); }
+.m-sv-kind.week { background: var(--green-a2); color: var(--green); }
+.m-sv-pinmark svg, .m-sv-pin svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; }
+.m-sv-pinmark { flex: none; color: var(--blue); display: flex; }
+.m-row-l .m-sv-gone-s { color: var(--red); }
+.m-sv-d { display: flex; flex-direction: column; gap: 12px; }
+.m-sv-dh { display: flex; align-items: center; gap: 6px; }
+.m-sv-tl { font-size: 17px; font-weight: 700; color: var(--text-strong); padding: 6px 0; }
+.m-sv-pin { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: var(--text-muted); }
+.m-sv-pin.on { color: var(--blue); }
+.m-sv-dh .memo-bm { margin-left: 0; width: 36px; height: 36px; }
+.m-sv-gone { padding: 16px; display: flex; flex-direction: column; gap: 12px; font-size: 14px; color: var(--text-muted); }
+.m-sv-sync { padding: 0 4px; }
