@@ -17,6 +17,7 @@ import {
 } from '../domain/attendance/edit';
 import { addDays, dateOf, DOW, dayLabel, fmtDur, hhmm, keyOf, leaveOf, LEAVES, normTime, weekStart } from '../ui/v3fmt';
 import { PendBanner } from './PendBanner';
+import { TimeIn } from './TimeIn';
 import { NoteEditor } from './NoteEditor';
 import { DDayLines, type OpenDDay } from './DDay';
 import { HabitStrip } from './Habits';
@@ -259,27 +260,6 @@ function RestGrade({ d, work, rest }: { d: Day; work: number; rest: number }) {
   return (
     <span className={`dh-rg${g ? ` g-${g.cls}` : ''}`} title={`휴게 비율: 휴게 ÷ (근무 + 휴게)\n${g ? `${g.label} · ${g.tip}` : '1시간이 안 돼 등급은 보류'}`}>
       {pct}%{g ? ` ${g.label}` : ''}
-    </span>
-  );
-}
-
-/** HH:MM 입력 — 엔터 · 칸 벗어나기로 확정, Esc 로 되돌리기 (v3 timeInput) */
-function TimeIn({ value, attrs, onCommit, id }: {
-  value: string; attrs?: Record<string, string | number>; id?: string; onCommit: (v: string, el: HTMLInputElement) => void;
-}) {
-  const ref = useRef<HTMLInputElement>(null);
-  useEffect(() => { if (ref.current && document.activeElement !== ref.current) { ref.current.value = value; ref.current.dataset.last = value; } }, [value]);
-  return (
-    <span className="tin-w">
-      <input ref={ref} id={id} className="tin tin-i" type="text" inputMode="numeric" maxLength={5} autoComplete="off" placeholder="--:--"
-        defaultValue={value} data-last={value} {...attrs}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLInputElement).blur(); }
-          if (e.key === 'Escape') { e.stopPropagation(); const el = e.target as HTMLInputElement; el.value = el.dataset.last ?? ''; el.blur(); }
-        }}
-        onBlur={(e) => onCommit(e.target.value, e.target)} />
-      <button className="tin-c" type="button" tabIndex={-1} title="시각 적기" onClick={() => { ref.current?.focus(); ref.current?.select(); }}>
-        <svg viewBox="0 0 20 20"><path d="m6 8 4 4 4-4" /></svg></button>
     </span>
   );
 }
@@ -737,9 +717,9 @@ function SpanDialog({ ws, date, d, o, onClose }: { ws: Workspace; date: string; 
     <Modal id="slotModal" width={400} onClose={onClose}>
       <h3 className="slot-h" id="slotTime">
         <span className="slot-times" id="slotTimes">
-          <span className="tin-w"><input className="tin tin-i" type="text" inputMode="numeric" maxLength={5} id="slotStart" aria-label="시작 시각" value={s} onChange={(x) => setS(x.target.value)} /></span>
+          <TimeIn id="slotStart" label="시작 시각" value={s} onLive={setS} onCommit={(v) => setS(v)} />
           <em className="slot-dash">~</em>
-          <span className="tin-w"><input className="tin tin-i" type="text" inputMode="numeric" maxLength={5} id="slotEnd" aria-label="끝 시각" value={e} onChange={(x) => setE(x.target.value)} /></span>
+          <TimeIn id="slotEnd" label="끝 시각" value={e} onLive={setE} onCommit={(v) => setE(v)} />
         </span>
         <span className="slot-dur" id="slotDur">{dur != null && dur > 0 ? fmtDur(dur) : '—'}</span>
       </h3>
