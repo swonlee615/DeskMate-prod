@@ -845,7 +845,16 @@ button.m-cat.on { color: var(--text-strong); font-weight: 700; box-shadow: inset
 .m-img-use { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
 .m-img-use > div:first-child { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; color: var(--text-muted); }
 .m-img-use b { font-size: 16px; color: var(--text-strong); font-variant-numeric: tabular-nums; }
-.m-img-th { width: 48px; height: 48px; border-radius: 8px; overflow: hidden; background: var(--tint-3); flex: none; }
+/* 그림 목록 — 2열. 그림이 주인공이고, 날짜 · 크기 · 삭제는 밑 줄에 */
+.m-img-sort { margin: 10px 0 8px; }
+.m-imgg { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.m-imgt { overflow: hidden; display: flex; flex-direction: column; }
+.m-imgt-th { display: block; padding: 0; width: 100%; }
+.m-img-th { display: block; aspect-ratio: 4 / 3; background: var(--tint-3); }
+.m-imgt-cap { display: flex; align-items: center; gap: 6px; padding: 8px 8px 8px 10px; }
+.m-imgt-cap > div { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; font-size: 11.5px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.m-imgt-cap b { font-size: 12.5px; color: var(--text-strong); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.m-imgt-cap .m-img-del { height: 30px; padding: 0 9px; font-size: 12px; }
 .m-img-th img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .m-img-del { height: 34px; padding: 0 12px; border-radius: 9px; font-size: 13px; color: var(--text-muted); background: var(--surface-3); flex: none; }
 .m-img-del.on { color: var(--on-accent); background: var(--red-fill); }

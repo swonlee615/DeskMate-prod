@@ -272,6 +272,8 @@ function TeamTab({ ws }: { ws: Workspace }) {
 function DataImages({ ws, goDay }: { ws: Workspace; goDay: (date: string) => void }) {
   const { list, usedTxt, pct } = useImageList(ws);
   const [ask, setAsk] = useState<string | null>(null);
+  const [big, setBig] = useState(false);
+  const shown = big ? [...list].sort((a, b) => b.size - a.size) : list;
   return <>
     <h3 className="m-set-h">이미지</h3>
     <div className="m-card m-img-use">
@@ -279,18 +281,25 @@ function DataImages({ ws, goDay }: { ws: Workspace; goDay: (date: string) => voi
       <div className="m-an-track"><i style={{ width: `${pct}%` }} /></div>
     </div>
     <p className="m-set-hint">{IMG_HINT}</p>
-    {list.length > 0 && (
-      <ul className="m-card m-list m-imgl">
-        {list.map((m) => (
-          <li key={m.id} className="m-row" onClick={() => goDay(m.date)}>
-            <Thumb ws={ws} id={m.id} className="m-img-th" />
-            <div className="m-row-l"><b>{imgDay(m.date)}</b><span>{m.area === 'memo' || m.area === 'wmemo' ? 'Memo' : 'Today'} · {fmtMB(m.size)}</span></div>
-            <button className={`m-img-del${ask === m.id ? ' on' : ''}`} onClick={(e) => { e.stopPropagation(); if (ask === m.id) { ws.removeImage(m.id); setAsk(null); } else setAsk(m.id); }}>
-              {ask === m.id ? '정말 삭제' : '삭제'}</button>
+    {list.length > 0 && <>
+      <div className="m-seg sm m-img-sort">
+        <button className={big ? '' : 'on'} onClick={() => setBig(false)}>최근 순</button>
+        <button className={big ? 'on' : ''} onClick={() => setBig(true)}>큰 순</button>
+      </div>
+      {/* 폰은 올려 볼 수 없어서 «삭제» 는 그림 밑 줄에 늘 둔다. 그림을 누르면 그 날로 */}
+      <ul className="m-imgg">
+        {shown.map((m) => (
+          <li key={m.id} className="m-card m-imgt">
+            <button className="m-imgt-th" onClick={() => goDay(m.date)} aria-label={`${imgDay(m.date)}로 가기`}><Thumb ws={ws} id={m.id} className="m-img-th" /></button>
+            <div className="m-imgt-cap">
+              <div><b>{imgDay(m.date)}</b><span>{m.area === 'memo' || m.area === 'wmemo' ? 'Memo' : 'Today'} · {fmtMB(m.size)}</span></div>
+              <button className={`m-img-del${ask === m.id ? ' on' : ''}`} onClick={() => { if (ask === m.id) { ws.removeImage(m.id); setAsk(null); } else setAsk(m.id); }}>
+                {ask === m.id ? '정말 삭제' : '삭제'}</button>
+            </div>
           </li>
         ))}
       </ul>
-    )}
+    </>}
     <h3 className="m-set-h">휴지통</h3>
     {!ws.trash.length
       ? <p className="m-set-hint">휴지통이 비어 있어요.</p>
