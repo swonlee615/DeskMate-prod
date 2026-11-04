@@ -3,7 +3,7 @@ import type { DayRow } from './stats';
 import { rankSeries, rankToFix, catSplit, dowRhythm, labelSplit, leaveSummary, weekGoal, period, rankStat, restGrade, streak, yearHeat } from './stats';
 import type { Log } from './attendance/logs';
 
-const row = (key: string, dow: number, work: number): DayRow => ({ key, dow, work, rest: 0, on: null, off: null, leave: '', goal: 480, has: work > 0, segs: [], brks: [], nonwork: 0 });
+const row = (key: string, dow: number, work: number): DayRow => ({ key, dow, work, rest: 0, on: null, off: null, leave: '', goal: 480, goalBase: 480, has: work > 0, segs: [], brks: [], nonwork: 0 });
 
 describe('활동 기간 (v3 periodRange · periodLabel)', () => {
   it('진행 중인 주는 오늘까지 · 지난 주는 일요일까지 · 월요일 시작', () => {

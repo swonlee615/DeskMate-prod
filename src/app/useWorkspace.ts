@@ -10,7 +10,7 @@ import type { Backend, DayEvents, Item, Repo, SyncStatus, User } from '../data';
 import { deviceId, deviceKind, newId } from '../data/device';
 import type { AttEvent, AttEventType, AttState, Day, Leave } from '../domain/attendance/types';
 import { deriveDay } from '../domain/attendance/replay';
-import { dateKey, dayEndMs, dayParts, dayStartMs, sessions, stateOf, type GoalCfg } from '../domain/attendance/rules';
+import { dateKey, dayEndMs, dayParts, dayStartMs, goalPastAfter, sessions, stateOf, type GoalCfg } from '../domain/attendance/rules';
 import { addBreakSpan, canCarry, editBreak, removeBreak, resolveAt, resolveCarry } from '../domain/attendance/edit';
 import { catsOf, cleanCats, type Cat } from '../domain/attendance/cats';
 import { breakConflicts, logsOf, overlapIds, resolveConflicts, splitRest, type Log, type SpanInput, type SpanRef } from '../domain/attendance/logs';
@@ -428,8 +428,12 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
 
   const setDoc = items.find((x) => x.id === SETTINGS_ID) as (Item & Partial<Settings>) | undefined;
   const settings = useMemo<Settings>(() => ({ ...SETTINGS_DEFAULT, ...setDoc }), [setDoc]);
-  const saveSettings: Workspace['saveSettings'] = (x) => repo.mergeItem({ id: SETTINGS_ID, kind: 'settings', ...x } as Item);
-  const goal = useMemo<GoalCfg>(() => ({ hours: settings.goalHours, leave: settings.leaveGoal }), [settings.goalHours, settings.leaveGoal]);
+  const saveSettings: Workspace['saveSettings'] = (x) => {
+    // 하루 목표는 바꾼 날부터 — 어제까지는 이전 값으로 묶는다 (LOGIC v3.2.5)
+    const past = x.goalHours != null ? goalPastAfter(settings.goalPast, settings.goalHours, x.goalHours, today) : settings.goalPast;
+    repo.mergeItem({ id: SETTINGS_ID, kind: 'settings', ...x, ...(past !== settings.goalPast ? { goalPast: past } : {}) } as Item);
+  };
+  const goal = useMemo<GoalCfg>(() => ({ hours: settings.goalHours, leave: settings.leaveGoal, past: settings.goalPast }), [settings.goalHours, settings.leaveGoal, settings.goalPast]);
   // PC 브라우저 자리비움 감지 — 이벤트만 보낸다. 자리비움인지는 재생이 정한다 (여러 PC · 사람이 연 휴게 우선)
   const idle = useIdleAway({
     on: settings.away, min: settings.awayMin, working: state === 'work',

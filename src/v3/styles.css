@@ -2502,6 +2502,12 @@ body:has(.app[data-layout='1']) .huddle-pip { left: 64px; width: 196px; }
   bottom: calc(var(--axh, 16px) + (100% - var(--axh, 16px)) * var(--goal, 0)); height: 1px;
   background: repeating-linear-gradient(90deg, var(--ink-1) 0 4px, transparent 4px 8px); }
 .bars.sm { height: 84px; }
+/* v3.2.5 — 근무시간 추이는 목표선 한 줄 대신 **막대마다 그 날 목표 눈금**이다 (목표가 날짜별로 고정).
+   눈금은 `.bar-col` 안에서 `bottom: %` — 막대(`.bar-fill` 의 height %)와 **같은 상자**를 잰다 (v3.1.46 교훈) */
+.bars.pergoal::before { display: none; }
+.bar-col .bc-goal { position: absolute; left: -3px; right: -3px; max-width: 32px; margin: 0 auto; height: 2px;
+  background: var(--text-strong); border-radius: 1px; pointer-events: none; transform: translateY(1px); }
+
 .bar-col { flex: 0 1 26px; min-width: 4px; display: flex; flex-direction: column; justify-content: flex-end;
   align-items: center; height: 100%; position: relative; }
 .bar-fill { width: 100%; max-width: 26px; background: var(--chart-blue); border-radius: 3px 3px 0 0; min-height: 1px; }
@@ -4390,6 +4396,14 @@ body[data-mode="light"] .dh-sum .dh-rg.g-good { background: var(--green-a1); bor
 body[data-mode="light"] .dh-sum .dh-rg.g-ok   { background: var(--blue-a1);  border-color: var(--blue-a4);  color: var(--blue); }
 body[data-mode="light"] .dh-sum .dh-rg.g-warn { background: var(--yellow-a1);border-color: var(--yellow-a4);color: var(--yellow); }
 body[data-mode="light"] .dh-sum .dh-rg.g-bad  { background: var(--red-a1);   border-color: var(--red-a4);   color: var(--red); }
+/* v3.2.5 — 그 날의 목표 칩 (소유자 시안 C). 목표가 날짜별로 고정되면서 «이 날 목표» 를 읽는 자리.
+   모양은 휴게 등급 뱃지와 같은 알약 — 목표는 색 없이, 퇴근한 날의 차이만 초록(달성)·파랑(부족) */
+.dh-sum .dh-goal, .dh-sum .dh-gap { font-size: 11px; font-weight: 700; line-height: 1; padding: 3px 6px 1px; border-radius: 4px;
+  border: 1px solid var(--border); color: var(--text-muted); font-variant-numeric: tabular-nums; cursor: default; }
+.dh-sum .dh-gap { color: var(--info-ink); background: var(--blue-a2); border-color: var(--tn54); }
+.dh-sum .dh-gap.hit { color: var(--ok-ink); background: var(--green-a1); border-color: var(--tn56); }
+body[data-mode="light"] .dh-sum .dh-gap     { background: var(--blue-a1);  border-color: var(--blue-a4);  color: var(--blue); }
+body[data-mode="light"] .dh-sum .dh-gap.hit { background: var(--green-a1); border-color: var(--green-a4); color: var(--green); }
 .dh-sp { flex: 1 1 0; min-width: 0; }
 .dh-more {
   flex: none; height: 26px; padding: 0 10px; border: 1px solid var(--border); border-radius: 7px;

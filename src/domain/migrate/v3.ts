@@ -31,7 +31,7 @@ export interface V3State {
   days: Record<string, V3Day>;
   ddays?: Partial<DDay>[]; habits?: Partial<Habit>[]; cats?: { color: string; name: string }[];
   weeks?: Record<string, { memo?: V3Block[]; today?: V3Block[] }>;
-  goalHours?: number; leaveGoal?: boolean; theme?: string; mode?: string; workspace?: string; timerColor?: string;
+  goalHours?: number; goalPast?: { to: string; h: number }[]; leaveGoal?: boolean; theme?: string; mode?: string; workspace?: string; timerColor?: string;
   focusMin?: number; shortMin?: number; longMin?: number; longEvery?: number; autoStart?: boolean;
   autoAway?: boolean; autoAwayMin?: number;
   members?: Partial<Member>[];
@@ -168,6 +168,7 @@ export function convertV3(st: V3State, now: number): Converted {
   if (st.theme) settings.theme = st.theme;
   if (st.workspace) settings.wsName = st.workspace;
   if (typeof st.goalHours === 'number') settings.goalHours = st.goalHours;
+  if (Array.isArray(st.goalPast) && st.goalPast.length) settings.goalPast = st.goalPast.filter((e) => e && typeof e.to === 'string' && typeof e.h === 'number');
   if (typeof st.leaveGoal === 'boolean') settings.leaveGoal = st.leaveGoal;
   if (st.timerColor) settings.timerColor = st.timerColor;
   if (typeof st.autoAway === 'boolean') settings.away = st.autoAway;

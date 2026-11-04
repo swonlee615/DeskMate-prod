@@ -12,7 +12,7 @@ import { catVar } from '../domain/attendance/logs';
 import { hbFreqLabel } from '../domain/habits';
 import { LEAVES } from '../ui/v3fmt';
 import {
-  catSplit, dowRhythm, hbTable, labelSplit, leaveSummary, weekGoal, period, rankSeries, rankStat, restGrade, series, summarize, weekHistory, yearHeat,
+  catSplit, dowRhythm, goalBasis, hbTable, labelSplit, leaveSummary, weekGoal, period, rankSeries, rankStat, restGrade, series, summarize, weekHistory, yearHeat,
   type CatRow, type DayRow, type HbTable, type LabelRow, type MIv, type PeriodKind, type RankPt, type WeekRow,
 } from '../domain/stats';
 import { addDays, dateOf, fmtDur, keyOf, weekStart } from '../ui/v3fmt';
@@ -67,7 +67,7 @@ export function MActivity({ ws, onDay }: { ws: Workspace; onDay: (k: string) => 
         <div className="m-an-tiles">
           <div className="m-card"><h4>총 근무</h4><b>{fmtDur(sm.total)}</b><span>{sm.days}일 · 일 평균 {fmtDur(sm.avg)}</span></div>
           <div className="m-card"><h4>근무시간 달성</h4><b>{sm.hit}<small>일</small></b>
-            <span>{sm.goalDays}일 중 {sm.goalDays ? Math.round((sm.hit / sm.goalDays) * 100) : 0}% · {ws.goal.hours}시간 기준</span></div>
+            <span>{sm.goalDays}일 중 {sm.goalDays ? Math.round((sm.hit / sm.goalDays) * 100) : 0}% · {goalBasis(rows.filter((r) => r.has))}</span></div>
           <div className="m-card"><h4>연속 기록</h4><b>{sm.streak}<small>일</small></b><span>주말은 일한 날만 세요</span></div>
           <div className="m-card"><h4>휴게 비율</h4><b className={rg ? '' : 'none'}>{rg ? sm.restPct : '--'}<small>%</small>{rg && <em className={`g-${rg.cls}`}>{rg.label}</em>}</b>
             <span>{rg ? `총 휴게 ${fmtDur(sm.rest)} · ${rg.tip}` : '기록이 짧아 아직 등급을 매기지 않아요'}</span></div>
@@ -75,7 +75,7 @@ export function MActivity({ ws, onDay }: { ws: Workspace; onDay: (k: string) => 
 
         {kind === 'year' ? <Heat year={dateOf(p.from).getFullYear()} rows={rows} today={ws.today} onDay={openIf} /> : (
           <section className="m-card m-an-c">
-            <h4>근무시간 추이 <em>목표 {ws.goal.hours}h</em></h4>
+            <h4>근무시간 추이 <em>막대 위 눈금이 목표</em></h4>
             <Bars rows={rows} goal={goal} today={ws.today} dense={kind === 'month'} onDay={openIf} end={p.end} />
           </section>
         )}
@@ -128,21 +128,20 @@ export function MActivity({ ws, onDay }: { ws: Workspace; onDay: (k: string) => 
   );
 }
 
-/** 근무시간 추이 — 목표선과 막대가 같은 상자를 기준으로 잰다 (v3.1.46) · 오지 않은 날은 빈 칸 */
+/** 근무시간 추이 — 막대마다 그 날 목표 눈금 (v3.2.5 · 목표가 날짜별로 고정) · 눈금과 막대는 같은 상자를 잰다 (v3.1.46) · 오지 않은 날은 빈 칸 */
 function Bars({ rows, goal, today, dense, onDay, end }: { rows: ReturnType<typeof series>; goal: number; today: string; dense: boolean; onDay: (k: string) => void; end: string }) {
-  const max = Math.max(goal, ...rows.map((r) => r.work)) * 1.05;
+  const max = Math.max(goal, ...rows.map((r) => Math.max(r.goal, r.work))) * 1.05;
   // 진행 중인 기간의 남은 날도 자리는 둔다 — 막대 폭이 날마다 바뀌지 않게
   const pad: string[] = [];
   for (let d = addDays(dateOf(rows.at(-1)?.key ?? today), 1); keyOf(d) <= end; d = addDays(d, 1)) pad.push(keyOf(d));
   return (
-    <div className={`m-an-bars${dense ? ' dense' : ''}`} style={{ '--goal': goal / max } as React.CSSProperties}>
-      <i className="m-an-goal" aria-hidden="true" />
+    <div className={`m-an-bars${dense ? ' dense' : ''}`}>
       {rows.map((r) => {
         const d = dateOf(r.key);
         return (
           <button key={r.key} className={`${r.work >= r.goal && r.goal > 0 ? 'hit' : ''}${r.key === today ? ' today' : ''}`} disabled={!r.has}
             onClick={() => onDay(r.key)} aria-label={`${d.getMonth() + 1}월 ${d.getDate()}일 ${fmtDur(r.work)}`}>
-            <span className="m-an-b"><i style={{ height: `${(r.work / max) * 100}%` }} /></span>
+            <span className="m-an-b"><i style={{ height: `${(r.work / max) * 100}%` }} />{r.goal > 0 && <em style={{ bottom: `${(r.goal / max) * 100}%` }} />}</span>
             <small>{dense ? (d.getDate() === 1 || d.getDate() % 5 === 0 ? d.getDate() : '') : `${d.getDate()}`}</small>
             {!dense && <small className="dw">{r.leave ? r.leave.slice(0, 2) : DOW[r.dow]}</small>}
           </button>

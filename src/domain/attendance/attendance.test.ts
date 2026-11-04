@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { AttEvent, AttEventType, DeviceKind } from './types';
 import { deriveDay, replayRaw } from './replay';
-import { effKind, normalizeBreaks, sessions, stateOf, workMinutes, dayGoalMin } from './rules';
+import { effKind, normalizeBreaks, sessions, stateOf, workMinutes, dayGoalMin, baseGoalMin, goalPastAfter } from './rules';
 
 const G8 = { hours: 8, leave: true };
 
@@ -261,6 +261,45 @@ describe('목표 (§4 v3.1.209)', () => {
     expect(dayGoalMin(G8, { leave: '오전 반차' })).toBe(240);
     expect(dayGoalMin(G8, { leave: '연차' })).toBe(0);
     expect(dayGoalMin({ hours: 8, leave: false }, { leave: '연차' })).toBe(480);
+  });
+});
+
+describe('하루 목표는 날짜별로 고정된다 (LOGIC v3.2.5)', () => {
+  const T = '2026-11-04';
+  it('바꾼 적 없으면 모든 날이 지금 값이다 (옛 데이터 그대로)', () => {
+    expect(baseGoalMin({ hours: 7, leave: true }, '2020-01-01')).toBe(420);
+    expect(dayGoalMin({ hours: 7, leave: true }, { leave: '', date: '2026-10-01' })).toBe(420);
+  });
+  it('바꾼 날(오늘)부터 새 값 · 어제까지는 이전 값', () => {
+    const past = goalPastAfter(undefined, 7, 8, T);
+    expect(past).toEqual([{ to: '2026-11-03', h: 7 }]);
+    const g = { hours: 8, leave: true, past };
+    expect(baseGoalMin(g, '2026-11-03')).toBe(420);
+    expect(baseGoalMin(g, T)).toBe(480);
+    expect(baseGoalMin(g, '2026-12-01')).toBe(480);
+  });
+  it('7시간 때 채운 날이 8시간으로 올려도 «미달» 이 되지 않는다', () => {
+    const g = { hours: 8, leave: true, past: goalPastAfter(undefined, 7, 8, T) };
+    expect(450 >= dayGoalMin(g, { leave: '', date: '2026-11-02' })).toBe(true);
+  });
+  it('같은 날 여러 번 바꾸면 어제 묶음은 한 번만 · 오늘은 마지막 값', () => {
+    const p1 = goalPastAfter(undefined, 8, 6, T);
+    const p2 = goalPastAfter(p1, 6, 8, T);
+    expect(p2).toEqual([{ to: '2026-11-03', h: 8 }]);
+  });
+  it('값이 같으면 아무것도 묶지 않는다', () => {
+    expect(goalPastAfter(undefined, 8, 8, T)).toBeUndefined();
+  });
+  it('여러 번 바꾼 이력 — 첫 번째로 맞는 to 의 값', () => {
+    const g = { hours: 9, leave: true, past: [{ to: '2026-01-31', h: 6 }, { to: '2026-06-30', h: 7 }] };
+    expect(baseGoalMin(g, '2026-01-31')).toBe(360);
+    expect(baseGoalMin(g, '2026-02-01')).toBe(420);
+    expect(baseGoalMin(g, '2026-07-01')).toBe(540);
+  });
+  it('지난 날 사후 반차는 그 날 고정 목표 위에서 줄어든다 · 월 경계 어제', () => {
+    const g = { hours: 8, leave: true, past: goalPastAfter(undefined, 6, 8, '2026-11-01') };
+    expect(g.past).toEqual([{ to: '2026-10-31', h: 6 }]);
+    expect(dayGoalMin(g, { leave: '오전 반차', date: '2026-10-31' })).toBe(180);
   });
 });
 

@@ -221,11 +221,29 @@ export function openBreak(day: Day): Span | null {
 
 export const LEAVE_SHARE: Record<string, number> = { '연차': 1, '병가': 1, '오전 반차': 0.5, '오후 반차': 0.5 };
 
-/** 하루 목표 설정 — 시간(1~14) · 근태만큼 줄이기 (v3 goalHours · leaveGoal · v3.1.209) */
-export interface GoalCfg { hours: number; leave: boolean }
+/** 하루 목표 설정 — 시간(1~14) · 근태만큼 줄이기 (v3 goalHours · leaveGoal · v3.1.209)
+ *  past = «이 날까지는 이 값» (v3.2.5 cfg.goalPast · to 오름차순). 바꾼 적 없으면 없다 → 모든 날 hours */
+export interface GoalPast { to: string; h: number }
+export interface GoalCfg { hours: number; leave: boolean; past?: GoalPast[] }
 /** 그 날 근태가 하루의 몇 몫을 빼나 — 끄면 0 (v3 goalFrac) */
 export const goalFrac = (g: GoalCfg, leave: string) => (g.leave ? LEAVE_SHARE[leave] ?? 0 : 0);
-/** 그 날 목표(분) = 하루 목표 × (1 − 근태 몫). 목표를 읽는 곳은 전부 이 함수를 거친다 */
-export function dayGoalMin(g: GoalCfg, day: Pick<Day, 'leave'>): number {
-  return Math.round(g.hours * 60 * (1 - goalFrac(g, day.leave)));
+/** 그 날의 기본 목표(분) — 날짜별로 고정된다 (LOGIC v3.2.5 · v3 baseGoalMin). 날짜를 모르면 지금 값 */
+export function baseGoalMin(g: GoalCfg, key?: string): number {
+  if (key) for (const e of g.past ?? []) if (key <= e.to) return Math.max(1, e.h || 8) * 60;
+  return Math.max(1, g.hours || 8) * 60;
+}
+/** 그 날 목표(분) = 그 날의 기본 목표 × (1 − 근태 몫). 목표를 읽는 곳은 전부 이 함수를 거친다 */
+export function dayGoalMin(g: GoalCfg, day: Pick<Day, 'leave'> & { date?: string }, key = day.date): number {
+  return Math.round(baseGoalMin(g, key) * (1 - goalFrac(g, day.leave)));
+}
+/** 하루 목표를 바꾼다 — 어제까지는 이전 값으로 묶고 오늘부터 새 값 (v3 setGoalHours).
+ *  오늘 이미 묶었으면 다시 묶지 않는다 (같은 날 여러 번 바꾸면 마지막 값만) */
+export function goalPastAfter(past: GoalPast[] | undefined, prev: number, next: number, today: string): GoalPast[] | undefined {
+  if (prev === next) return past;
+  const [y, m, d] = today.split('-').map(Number);
+  const t = new Date(y, m - 1, d - 1);
+  const yk = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+  const list = past ?? [];
+  const last = list[list.length - 1];
+  return last && last.to >= yk ? list : [...list, { to: yk, h: prev }];
 }

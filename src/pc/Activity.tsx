@@ -11,10 +11,10 @@ import type { Workspace } from '../app/useWorkspace';
 import { catVar } from '../domain/attendance/logs';
 import { hbFreqLabel } from '../domain/habits';
 import {
-  catSplit, dowRhythm, hbTable, labelSplit, leaveSummary, period, rankSeries, rankStat, REST_GRADE, restGrade, series, summarize,
+  catSplit, dowRhythm, goalBasis, hbTable, labelSplit, leaveSummary, period, rankSeries, rankStat, REST_GRADE, restGrade, series, summarize,
   weekGoal, weekHistory, yearHeat, type DayRow, type HbTable, type MIv, type PeriodKind, type RankPt,
 } from '../domain/stats';
-import { dateOf, DOW, fmtClock, fmtDur, keyOf, leaveOf, LEAVES, weekStart } from '../ui/v3fmt';
+import { dateOf, DOW, fmtClock, fmtDur, goalGapTxt, goalTxt, keyOf, leaveOf, LEAVES, weekStart } from '../ui/v3fmt';
 import { CHEV } from './Worklog';
 
 const PERIOD_NOW: Record<PeriodKind, string> = { week: '이번 주로', month: '이번 달로', year: '올해로' };
@@ -30,9 +30,6 @@ function DurU({ m: m0 }: { m: number }) {
 const fmtDurU = (m0: number) => { const m = Math.round(m0), h = Math.floor(m / 60); return h > 0 ? (m % 60 ? `${h}시간 ${m % 60}분` : `${h}시간`) : `${m}분`; };
 /** 소수 시간 (v3 fmtDurH) — `.0` 은 뗀다 */
 const fmtDurH = (m: number) => { const t = (Math.round(m) / 60).toFixed(1); return `${t.endsWith('.0') ? t.slice(0, -2) : t}H`; };
-/** 툴팁 한 줄 — 「목표 8h +1시간 12분」 · 목표가 0 이면 「목표 없음 · 초과 +3시간」 (v3.1.209) */
-const goalGapTxt = (v: number, g: number) => (!(g > 0) ? `목표 없음 · 초과 +${fmtDur(v)}`
-  : `목표 ${+(g / 60).toFixed(1)}h ${v - g >= 0 ? `+${fmtDur(v - g)}` : `−${fmtDur(g - v)}`}`);
 const mFmt = (m: number) => { const v = Math.round(Math.min(1440, Math.max(0, m))); return `${pad(Math.floor(v / 60))}:${pad(v % 60)}`; };
 const pct = (m: number) => Math.max(0, Math.min(100, (m / 1440) * 100));
 const bar = (x: MIv) => { const l = pct(x.s); return { left: `${l.toFixed(2)}%`, width: `${Math.max(0.7, pct(Math.max(x.s + 1, x.e)) - l).toFixed(2)}%` }; };
@@ -106,7 +103,7 @@ export function PcActivity({ ws, hidden, onOpenDay }: { ws: Workspace; hidden: b
         <div className="card"><h4>총 근무</h4><div className="big"><DurU m={sm.total} /></div>
           <div className="sub2">{sm.days}일 · 일 평균 {fmtDur(sm.avg)}</div></div>
         <div className="card"><h4>근무시간 달성</h4><div className="big">{sm.hit}<span>일</span></div>
-          <div className="sub2">{sm.goalDays}일 중 {sm.goalDays ? Math.round((sm.hit / sm.goalDays) * 100) : 0}% · {ws.goal.hours}시간 기준
+          <div className="sub2">{sm.goalDays}일 중 {sm.goalDays ? Math.round((sm.hit / sm.goalDays) * 100) : 0}% · {goalBasis(worked)}
             {sm.goalDays < sm.days && <> <i className="gi" aria-label="셈 기준"
               data-tip={`연차·병가인 날 ${sm.days - sm.goalDays}일은 목표가 없어서 뺐어요.\n반차인 날은 목표 절반으로 셉니다.`}>i</i></>}</div></div>
         <div className="card"><h4>연속 기록</h4><div className="big">{sm.streak}<span>일</span></div></div>
@@ -115,15 +112,17 @@ export function PcActivity({ ws, hidden, onOpenDay }: { ws: Workspace; hidden: b
           <div className="sub2">총 휴게 {fmtDur(sm.rest)}{!rg && <em>기록이 짧아 아직 등급을 매기지 않아요</em>}</div></div>
       </div>
 
-      {kind === 'year' ? <YearHeat gh={ws.goal.hours} year={dateOf(p.from).getFullYear()} rows={rows} today={ws.today} od={od} odTip={odTip} /> : (
-        <div className="card" style={{ marginBottom: 12 }}><h4>근무시간 추이 <span className="goalline">목표 {ws.goal.hours}h</span></h4>
-          <div className="bars dow2" style={{ '--goal': goal / (Math.max(goal, ...rows.map((r) => r.work)) * 1.05) } as React.CSSProperties}>
+      {kind === 'year' ? <YearHeat year={dateOf(p.from).getFullYear()} rows={rows} today={ws.today} od={od} odTip={odTip} /> : (
+        <div className="card" style={{ marginBottom: 12 }}><h4>근무시간 추이 <span className="goalline">막대 위 눈금이 목표</span></h4>
+          {/* v3.2.5 — 목표선 한 줄 대신 막대마다 그 날 목표 눈금. 자는 가장 높은 목표 · 가장 긴 막대 중 큰 쪽 */}
+          <div className="bars pergoal dow2">
             {rows.map((r) => {
-              const d = dateOf(r.key), max = Math.max(goal, ...rows.map((x) => x.work)) * 1.05;
+              const d = dateOf(r.key), max = Math.max(goal, ...rows.map((x) => Math.max(x.goal, x.work))) * 1.05;
               const tip = `${d.getMonth() + 1}/${d.getDate()} ${DOW[d.getDay()]}${r.leave ? ` · ${r.leave}` : ''}\n근무 ${r.work ? fmtDur(r.work) : '기록 없음'}${r.work ? `\n${goalGapTxt(r.work, r.goal)}` : ''}${odTip(r.key)}`;
               return (
                 <div key={r.key} className="bar-col" {...od(r.key)} data-tip={tip}>
                   <div className={`bar-fill${r.work > 0 && r.work >= r.goal ? ' hit' : ''}`} style={{ height: `${(r.work / max) * 100}%` }} />
+                  {r.goal > 0 && <i className="bc-goal" style={{ bottom: `${((r.goal / max) * 100).toFixed(2)}%` }} aria-hidden="true" />}
                   <span>{d.getDate()}</span>
                   <i className={`bc-dow${r.dow === 0 || r.dow === 6 ? ' we' : ''}`}>{DOW[r.dow]}</i>
                 </div>
@@ -270,7 +269,7 @@ function DowRhythm({ rows, avg }: { rows: DayRow[]; avg: number }) {
 function WeekHist({ weeks, goal, today, onWeek }: { weeks: ReturnType<typeof weekHistory>; goal: number; today: string; onWeek: (k: string) => void }) {
   const max = Math.max(goal, ...weeks.map((w) => w.work)) || 1;
   const nowWk = keyOf(weekStart(dateOf(today)));
-  const less = weeks.some((w) => w.goal < goal);
+  const less = weeks.some((w) => w.goal < w.base);
   return (
     <div className="card" style={{ marginBottom: 12 }}><h4>주간 히스토리
       <span className="goalline">주 {fmtDurU(goal)} 기준 · 월~일 한 주를 통째로 셉니다</span></h4>
@@ -278,7 +277,7 @@ function WeekHist({ weeks, goal, today, onWeek }: { weeks: ReturnType<typeof wee
         const s0 = dateOf(w.key), e0 = dateOf(w.end);
         const pw = w.goal ? Math.round((w.work / w.goal) * 100) : 0;
         const lab = `${s0.getMonth() + 1}/${s0.getDate()} – ${e0.getMonth() + 1}/${e0.getDate()}`;
-        const tip = `${lab}${w.key === nowWk ? ' · 이번 주' : ''}\n근무 ${w.work ? fmtDur(w.work) : '기록 없음'}${w.work ? ` · 주 목표 ${fmtDurU(w.goal)}${w.goal < goal ? ' (근태만큼 줄어듦)' : ''} 대비 ${w.goal ? `${pw}%` : '—'}` : ''}${w.days ? `\n기록 ${w.days}일 · 목표를 채운 날 ${w.hit}일` : ''}${w.out ? `\n— 다른 달의 날이 ${w.out}일 섞인 주예요. 「주간」 탭과 같은 값이 되도록 주 전체를 셉니다` : ''}\n\n눌러서 이 주의 「주간」 보기`;
+        const tip = `${lab}${w.key === nowWk ? ' · 이번 주' : ''}\n근무 ${w.work ? fmtDur(w.work) : '기록 없음'}${w.work ? ` · 주 목표 ${fmtDurU(w.goal)}${w.goal < w.base ? ' (근태만큼 줄어듦)' : ''} 대비 ${w.goal ? `${pw}%` : '—'}` : ''}${w.days ? `\n기록 ${w.days}일 · 목표를 채운 날 ${w.hit}일` : ''}${w.out ? `\n— 다른 달의 날이 ${w.out}일 섞인 주예요. 「주간」 탭과 같은 값이 되도록 주 전체를 셉니다` : ''}\n\n눌러서 이 주의 「주간」 보기`;
         return (
           <button key={w.key} className={`wh-r${w.key === nowWk ? ' now' : ''}`} data-whk={w.key} data-tip={tip} onClick={() => onWeek(w.key)}>
             <span className="wh-n"><b>{i + 1}주</b><i>{lab}{w.out ? ' *' : ''}</i></span>
@@ -411,13 +410,13 @@ function YhGrid({ year, cells }: { year: number; cells: React.ReactNode[] }) {
 const md = (k: string) => { const d = dateOf(k); return `${d.getMonth() + 1}월 ${d.getDate()}일 (${DOW[d.getDay()]})`; };
 
 /** 근무 히트맵 (연간 · v2.9.101) — 진하기 = 그 해 분위수 · 초록 = 그 날 목표 · 일 안 한 근태 날은 테두리 · 최장 하루 링 */
-function YearHeat({ gh, year, rows, today, od, odTip }: { gh: number; year: number; rows: DayRow[]; today: string; od: (k: string) => object; odTip: (k: string) => string }) {
+function YearHeat({ year, rows, today, od, odTip }: { year: number; rows: DayRow[]; today: string; od: (k: string) => object; odTip: (k: string) => string }) {
   const { weeks, th, max, total, days } = yearHeat(year, rows, today);
   if (!days) return null;
   const lvSeen = LEAVES.filter(([v]) => v && rows.some((r) => r.leave === v));
   const cells = weeks.flat().map((c) => {
     if (c.lv == null) return <i key={c.key} className="yh-c" />;
-    if (c.lv === 'leave') { const l = leaveOf(c.leave); return <i key={c.key} className="yh-c lv" style={{ '--lv': l[2] || '#ecb22e' } as React.CSSProperties} {...od(c.key)} data-tip={`${md(c.key)}\n${l[1] || '휴가'}${odTip(c.key)}`} />; }
+    if (c.lv === 'leave') { const l = leaveOf(c.leave); return <i key={c.key} className="yh-c lv" style={{ '--lv': l[2] || '#ecb22e' } as React.CSSProperties} {...od(c.key)} data-tip={`${md(c.key)}\n${l[1] || '휴가'} · ${goalTxt(c.goal)}${odTip(c.key)}`} />; }
     if (c.lv === 0) return <i key={c.key} className={`yh-c ${c.weekend ? 'we' : 'n0'}`} data-tip={`${md(c.key)}\n기록 없음`} />;
     const lw = c.leave ? leaveOf(c.leave) : null;
     return <i key={c.key} className={`yh-c l${c.lv}${c.hit ? ' hit' : ''}${c.top ? ' top' : ''}${lw ? ' lvw' : ''}`} style={lw ? { '--lv': lw[2] || '#ecb22e' } as React.CSSProperties : undefined} {...od(c.key)}
@@ -426,12 +425,12 @@ function YearHeat({ gh, year, rows, today, od, odTip }: { gh: number; year: numb
   const sw = (c: string) => <i className={`yh-sw ${c}`} />;
   return (
     <div className="card" style={{ marginBottom: 12 }}><h4>근무 히트맵
-      <span className="goalline">진할수록 오래 일했다 · <b className="yh-hitk">초록</b>은 목표 {gh}시간을 채운 날</span></h4>
+      <span className="goalline">진할수록 오래 일했다 · <b className="yh-hitk">초록</b>은 목표를 채운 날</span></h4>
       <YhGrid year={year} cells={cells} />
       <div className="yh-foot">
         <span className="yh-lg scale"><i className="lb">0</i>{sw('z')}{sw('l1')}<i className="lb">{fmtDurH(th[0])}</i>{sw('l2')}<i className="lb">{fmtDurH(th[1])}</i>
           {sw('l3')}<i className="lb">{fmtDurH(th[2])}</i>{sw('l4')}<i className="lb">{fmtDurH(max)}</i></span>
-        <span className="yh-lg">{sw('hit')}목표 {gh}시간 달성<em />
+        <span className="yh-lg">{sw('hit')}목표 달성<em />
           {lvSeen.map(([v, l, c]) => <span key={v}><i className="yh-sw lv" style={{ '--lv': c } as React.CSSProperties} />{l}<em /></span>)}
           {sw('n0')}기록 없음<em /><i className="yh-sw l4 top" />가장 오래</span>
         <span className="yh-sum" data-tip="근태와 상관없이 근무시간이 있는 날이에요. 연차, 반차, 병가에 일한 날도 세요">근무한 날 <b>{days}일</b> · 총 근무 <b>{Math.round(total / 60)}시간</b> · 하루 평균 <b>{fmtDur(Math.round(total / days))}</b></span>

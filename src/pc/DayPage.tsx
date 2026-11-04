@@ -10,12 +10,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Workspace } from '../app/useWorkspace';
 import type { Day, Leave } from '../domain/attendance/types';
-import { dayGoalMin, dayParts, dayStartMs, effKind, openBreak, spanEnd } from '../domain/attendance/rules';
+import { baseGoalMin, dayGoalMin, dayParts, dayStartMs, effKind, openBreak, spanEnd } from '../domain/attendance/rules';
 import {
   addSessionAt, canAddSession, dropSession, mergeSession, sessionRows, sessionSlot,
   sessionWhy, setSessionTime,
 } from '../domain/attendance/edit';
-import { addDays, dateOf, DOW, dayLabel, fmtDur, hhmm, keyOf, leaveOf, LEAVES, normTime, weekStart } from '../ui/v3fmt';
+import { addDays, dateOf, DOW, dayLabel, fmtDur, goalTxt, hhmm, keyOf, leaveOf, LEAVES, normTime, weekStart } from '../ui/v3fmt';
 import { PendBanner } from './PendBanner';
 import { TimeIn } from './TimeIn';
 import { NoteEditor } from './NoteEditor';
@@ -168,6 +168,7 @@ export function DayPage({ ws, date, full, onClose, onFull, onGo, focusOff, onDD 
                 <i className="sl">/</i>
                 <span className="rest" title={`휴게 ${restN}건${openBreak(d) ? ' · 진행 중' : ''}`}>휴게 {fmtDur(rest)}</span>
                 <RestGrade d={d} work={work} rest={rest} />
+                <GoalChip ws={ws} d={d} work={work} />
               </span>
               <span className="dh-sp" />
               <i className="dh-caret" aria-hidden="true">▾</i>
@@ -253,6 +254,17 @@ function LeaveSel({ date, v, empty, onLeave }: { date: string; v: Leave; empty: 
   );
 }
 
+/** 그 날의 목표 (v3.2.5 · 시안 C) — 목표가 날짜별로 고정돼 «이 날 목표» 를 읽는 자리. 퇴근한 날만 차이를 붙인다 */
+function GoalChip({ ws, d, work }: { ws: Workspace; d: Day; work: number }) {
+  const g = dayGoalMin(ws.goal, d);
+  const df = work - g;
+  return <>
+    <span className="dh-goal" title={d.leave && g < baseGoalMin(ws.goal, d.date) ? `${d.leave}만큼 줄어든 목표` : undefined}>{goalTxt(g)}</span>
+    {d.onAt != null && d.offAt != null && work > 0 && <span className={`dh-gap${df >= 0 ? ' hit' : ''}`}>
+      {g > 0 ? (df >= 0 ? `달성 +${fmtDur(df)}` : `${fmtDur(-df)} 부족`) : `초과 +${fmtDur(work)}`}</span>}
+  </>;
+}
+
 function RestGrade({ d, work, rest }: { d: Day; work: number; rest: number }) {
   if (d.onAt == null || !(work + rest > 0)) return null;
   const pct = Math.round((rest / (work + rest)) * 100);
@@ -275,7 +287,7 @@ function WeekStrip({ ws, date, onGo }: { ws: Workspace; date: string; onGo: (k: 
         const d = ws.days[k];
         const has = !!d && (d.onAt != null || !!d.leave);
         const min = has && d.onAt != null ? dayParts(d, ws.now).workMs / 60000 : 0;
-        const goal = dayGoalMin(ws.goal, d ?? { leave: '' });
+        const goal = dayGoalMin(ws.goal, d ?? { leave: '' }, k);
         const pct = Math.max(0, Math.min(100, Math.round((min / scale) * 100)));
         const cls = ['ws-d', k === date ? 'on' : '', k === ws.today ? 'today' : '', has ? '' : 'none',
           dt.getDay() === 0 || dt.getDay() === 6 ? 'wk' : ''].filter(Boolean).join(' ');

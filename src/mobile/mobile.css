@@ -502,6 +502,8 @@ body[data-mode="light"] .m-tm-hub { background: var(--main); box-shadow: 0 0 0 1
 .m-dsum-n b { font-size: 17px; font-weight: 900; color: var(--text-strong); font-variant-numeric: tabular-nums; }
 .m-dsum-n b.hit { color: var(--green); }
 .m-dsum-n small { font-size: 12px; color: var(--text-muted); }
+.m-dsum-g em { font-style: normal; color: var(--blue); }
+.m-dsum-g em.hit { color: var(--green); }
 .m-dsum-r .m-chev { color: var(--text-dim); font-size: 18px; }
 .m-sheet .m-sess { padding: 0; }
 
@@ -655,12 +657,12 @@ button.m-cat.on { color: var(--text-strong); font-weight: 700; box-shadow: inset
 /* 추이 막대 — 목표선은 막대와 같은 상자(.bar 높이)에서 잰다 */
 .m-an-bars { position: relative; display: flex; gap: 6px; height: 150px; padding-bottom: 34px; }
 .m-an-bars.dense { gap: 2px; padding-bottom: 18px; }
-.m-an-goal { position: absolute; left: 0; right: 0; bottom: calc(34px + (100% - 34px) * var(--goal)); border-top: 1px dashed color-mix(in srgb, var(--green) 70%, transparent); pointer-events: none; }
-.m-an-bars.dense .m-an-goal { bottom: calc(18px + (100% - 18px) * var(--goal)); }
 .m-an-bars > button, .m-an-pad { flex: 1; min-width: 0; position: relative; display: flex; flex-direction: column; align-items: center; }
 .m-an-bars .m-an-b { position: absolute; left: 0; right: 0; top: 0; bottom: 0; display: flex; align-items: flex-end; }
 .m-an-bars .m-an-b i { width: 100%; border-radius: 4px 4px 1px 1px; background: color-mix(in srgb, var(--blue) 70%, transparent); min-height: 0; }
 .m-an-bars button.hit .m-an-b i { background: var(--green); }
+/* 그 날 목표 눈금 (v3 .bc-goal) */
+.m-an-bars .m-an-b em { position: absolute; left: 0; right: 0; height: 2px; border-radius: 1px; background: var(--text-strong); transform: translateY(1px); pointer-events: none; }
 .m-an-bars button.today .m-an-b i { box-shadow: 0 0 0 1.5px var(--text-strong); }
 .m-an-bars small { position: absolute; top: 100%; margin-top: 4px; font-size: 11px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
 .m-an-bars small.dw { margin-top: 19px; font-size: 10.5px; color: var(--text-dim); }

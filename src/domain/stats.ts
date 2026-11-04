@@ -6,7 +6,7 @@
  * ▣ 할 일 달성률은 기간 전체의 체크 줄을 한 번씩 (보여주기 이월이라 같은 줄이 날마다 생기지 않는다 · v3.1.216)
  */
 import type { Day, Leave } from './attendance/types';
-import { dayGoalMin, dayParts, dayStartMs, goalFrac, LEAVE_SHARE, type GoalCfg } from './attendance/rules';
+import { baseGoalMin, dayGoalMin, dayParts, dayStartMs, goalFrac, LEAVE_SHARE, type GoalCfg } from './attendance/rules';
 import { timeline, type Log } from './attendance/logs';
 import type { Block } from './todos/tree';
 import { catKey, catName, catsOf, type Cat } from './attendance/cats';
@@ -37,6 +37,8 @@ export function period(kind: PeriodKind, off: number, today: string): Period {
 export interface MIv { s: number; e: number }
 export interface DayRow {
   key: string; dow: number; work: number; rest: number; on: number | null; off: number | null; leave: Leave; goal: number; has: boolean;
+  /** 그 날의 기본 목표 (근태로 줄이기 전 · 날짜별 고정 v3.2.5) */
+  goalBase: number;
   /** 출퇴근 리듬 — 근무 차수 · 근태 휴게(메모 함께) · 비근무 합 (분 · 00:00 기준). 그림이 다시 계산하지 않게 여기서 싣는다 (v2.9.84) */
   segs: MIv[]; brks: (MIv & { note: string; color?: string | null })[]; nonwork: number;
 }
@@ -56,7 +58,7 @@ export function series(days: Record<string, Day>, from: string, to: string, now:
       on: day?.onAt != null ? Math.round((day.onAt - base) / 60000) : null,
       off: day?.offAt != null ? Math.round((day.offAt - base) / 60000) : null,
       leave: day?.leave ?? '',
-      goal: dayGoalMin(g, { leave: day?.leave ?? '' }),
+      goal: dayGoalMin(g, { leave: day?.leave ?? '' }, key), goalBase: baseGoalMin(g, key),
       has: work > 0,
       segs: tl.filter((x) => x.kind === 'work').map(({ s, e }) => ({ s, e })),
       brks: tl.filter((x) => x.kind === 'break').map(({ s, e, text, color }) => ({ s, e, note: text.trim(), color })),
@@ -64,6 +66,12 @@ export function series(days: Record<string, Day>, from: string, to: string, now:
     });
   }
   return out;
+}
+
+/** 기간 안에서 하루 목표를 바꿨으면 「8시간 기준」 이 틀린 말이 된다. 한 값일 때만 숫자를 적는다 (v3.2.5) */
+export function goalBasis(worked: DayRow[]): string {
+  const b = new Set(worked.map((r) => r.goalBase));
+  return b.size === 1 ? `${+([...b][0] / 60).toFixed(1)}시간 기준` : '날짜별 목표 기준';
 }
 
 /** 연속 기록 — 평일에 쉬면 끊기고, 주말은 일했으면 +1 · 쉬었으면 그대로 (v3.1.161) */
@@ -181,7 +189,7 @@ export function weekGoal(days: Record<string, Day>, rows: DayRow[], p: Period, t
   const ks = Array.from({ length: 7 }, (_, i) => keyOf(addDays(dateOf(p.from), i)));
   const lv = (k: string) => days[k]?.leave ?? '';
   const unit = (k: string) => 1 - goalFrac(g, lv(k));
-  const goal = ks.slice(0, 5).reduce((a, k) => a + dayGoalMin(g, { leave: lv(k) }), 0);
+  const goal = ks.slice(0, 5).reduce((a, k) => a + dayGoalMin(g, { leave: lv(k) }, k), 0);
   const restBiz = ks.slice(0, 5).filter((k) => k >= today && unit(k) > 0);
   const units = restBiz.reduce((a, k) => a + unit(k), 0);
   const total = rows.reduce((a, r) => a + (r.has ? r.work : 0), 0);
@@ -234,7 +242,8 @@ export function catSplit(rows: DayRow[], logs: Log[], cats: Cat[]): CatRow[] {
  * 주간 히스토리 (v3.1.194) — 그 달에 걸친 주를 월~일 «통째로» 센다 (주간 탭과 같은 숫자 · v3.1.116).
  * 주 목표 = 그 주 평일 목표의 합 (연차가 낀 주는 줄어든다 · v3.1.209). out = 다른 달의 날 수
  */
-export interface WeekRow { key: string; end: string; work: number; goal: number; days: number; hit: number; out: number }
+/** base = 근태로 줄이기 전 그 주의 고정 목표 — «근태만큼 줄었나» 는 지금 설정값이 아니라 이것과 견준다 (v3.2.5) */
+export interface WeekRow { key: string; end: string; work: number; goal: number; base: number; days: number; hit: number; out: number }
 export function weekHistory(days: Record<string, Day>, p: Period, now: number, g: GoalCfg): WeekRow[] {
   const out: WeekRow[] = [];
   const mon = dateOf(p.from).getMonth();
@@ -246,6 +255,7 @@ export function weekHistory(days: Record<string, Day>, p: Period, now: number, g
       key, end,
       work: rs.reduce((a, r) => a + (r.has ? r.work : 0), 0),
       goal: rs.filter((r) => r.dow >= 1 && r.dow <= 5).reduce((a, r) => a + r.goal, 0),
+      base: rs.filter((r) => r.dow >= 1 && r.dow <= 5).reduce((a, r) => a + r.goalBase, 0),
       days: gd.length, hit: gd.filter((r) => r.work >= r.goal).length,
       out: rs.filter((r) => dateOf(r.key).getMonth() !== mon).length,
     });

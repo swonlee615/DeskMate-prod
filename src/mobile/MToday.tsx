@@ -213,7 +213,7 @@ export function WeekSummary({ ws, onDay }: { ws: Workspace; onDay: (k: string) =
     const d = ws.days[k];
     const m = d?.onAt != null ? dayParts(d, ws.now).workMs / 60000 : 0;
     if (d?.onAt != null) { n++; total += m; const o = new Date(d.onAt); onSum += o.getHours() * 60 + o.getMinutes(); }
-    return { k, m, leave: d?.leave };
+    return { k, m, leave: d?.leave, g: dayGoalMin(ws.goal, d ?? { leave: '' }, k) };
   });
   const tag = weekTag(dateOf(ws.today));
   return (
@@ -221,7 +221,7 @@ export function WeekSummary({ ws, onDay }: { ws: Workspace; onDay: (k: string) =
       <div className="m-sum-t">{tag.month}월 {tag.no}주</div>
       <div className="m-wbars">
         {cols.map((c, i) => (
-          <button key={c.k} className={`${c.k === ws.today ? 'today' : ''}${c.m >= goal ? ' hit' : ''}`} onClick={() => onDay(c.k)}
+          <button key={c.k} className={`${c.k === ws.today ? 'today' : ''}${c.m > 0 && c.m >= c.g ? ' hit' : ''}`} onClick={() => onDay(c.k)}
             aria-label={`${'월화수목금토일'[i]} ${fmtDur(c.m)}`}>
             <span className="bar"><i style={{ height: `${Math.min(100, (c.m / goal) * 100)}%` }} /></span>
             <small>{c.leave ? c.leave.slice(0, 2) : '월화수목금토일'[i]}</small>

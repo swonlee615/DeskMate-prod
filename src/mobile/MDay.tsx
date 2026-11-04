@@ -18,7 +18,7 @@ import {
 } from '../domain/attendance/edit';
 import { catChoices, catKey, labelPicks } from '../domain/attendance/cats';
 import { breakConflicts, logsOf, nextColor, slotOutside, type SpanRef } from '../domain/attendance/logs';
-import { addDays, dateOf, DOW, dayLabel, fmtDur, hhmm, keyOf, leaveOf, LEAVES, normTime, weekStart } from '../ui/v3fmt';
+import { addDays, dateOf, DOW, dayLabel, fmtDur, goalTxt, hhmm, keyOf, leaveOf, LEAVES, normTime, weekStart } from '../ui/v3fmt';
 import { type OpenSpan } from '../pc/DayPage';
 import { MTimeline } from './MTimeline';
 import { NoteEditor } from '../pc/NoteEditor';
@@ -172,6 +172,9 @@ function Summary({ ws, d, date, open, onToggle, children }: {
         <span className="m-dsum-n">
           <b className={work > 0 && work >= goal ? 'hit' : ''}>{fmtDur(work)}</b>
           <small>휴게 {fmtDur(p.breakMs / 60000)}</small>
+          {/* 그 날의 목표 (v3.2.5 · 날짜별 고정) — 퇴근한 날만 차이를 붙인다 */}
+          <small className="m-dsum-g">{goalTxt(goal)}{d.onAt != null && d.offAt != null && work > 0 && (
+            <em className={work >= goal ? 'hit' : ''}> · {goal > 0 ? (work >= goal ? `달성 +${fmtDur(work - goal)}` : `${fmtDur(goal - work)} 부족`) : `초과 +${fmtDur(work)}`}</em>)}</small>
         </span>
         <i className={`m-acc-c${open ? ' on' : ''}`} aria-hidden="true">⌄</i>
       </button>
@@ -274,7 +277,7 @@ function CalSheet({ ws, date, onPick, onClose }: { ws: Workspace; date: string; 
           if (!out) total += w;
           const lv = leaveOf(d?.leave);
           return (
-            <button key={k} className={`${out ? 'out' : ''}${k === ws.today ? ' today' : ''}${k === date ? ' on' : ''}${w >= ws.goal.hours * 60 ? ' hit' : ''}`} onClick={() => onPick(k)}>
+            <button key={k} className={`${out ? 'out' : ''}${k === ws.today ? ' today' : ''}${k === date ? ' on' : ''}${w > 0 && w >= dayGoalMin(ws.goal, d ?? { leave: '' }, k) ? ' hit' : ''}`} onClick={() => onPick(k)}>
               <b>{c.getDate()}</b>
               <em>{w ? `${+(w / 60).toFixed(1)}h` : ''}</em>
               {lv[2] && <i style={{ background: lv[2] }} />}

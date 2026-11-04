@@ -106,3 +106,8 @@ export function normTime(v: string): string | null {
   if (h > 23 || m > 59) return null;
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
+
+/** 툴팁 두 줄 — 「목표 7시간」 / 「달성 +42분」 · 「52분 부족」 (v3.2.5 · 목표가 날마다 고정돼 툴팁이 그 날 목표를 말한다) */
+export const goalTxt = (g: number) => `목표 ${+(Math.max(0, g) / 60).toFixed(1)}시간`;
+export const goalGapTxt = (v: number, g: number) => (!(g > 0) ? `${goalTxt(0)}\n초과 +${fmtDur(v)}`
+  : `${goalTxt(g)}\n${v - g >= 0 ? `달성 +${fmtDur(v - g)}` : `${fmtDur(g - v)} 부족`}`);
