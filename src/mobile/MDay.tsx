@@ -39,9 +39,10 @@ const workOf = (d: Day | undefined, now: number) => (d?.onAt != null ? dayParts(
 const TODO_IC = <svg className="nh-ic" viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="m2.4 10.3 2.1 2.1 3.8-4.5" /><path d="M10.4 8h7.2" /><path d="M10.4 12.6h7.2" /></svg>;
 export const MEMO_IC = <svg className="nh-ic" viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M2.6 5.6h14.8" /><path d="M2.6 10h14.8" /><path d="M2.6 14.4h9.4" /></svg>;
 
-type Pane = 'tg' | 'todo' | 'memo';
+export type Pane = 'tg' | 'todo' | 'memo';
 
-export function MDay({ ws, date, setDate, editOpen }: { ws: Workspace; date: string; setDate: (k: string) => void; editOpen?: boolean }) {
+/** pane0 · hit — 검색에서 왔을 때 그 칸을 열고 그 줄을 잠깐 밝힌다 (PC scFlash 와 같은 .sc-hit) */
+export function MDay({ ws, date, setDate, editOpen, pane0, hit }: { ws: Workspace; date: string; setDate: (k: string) => void; editOpen?: boolean; pane0?: Pane; hit?: string }) {
   const d = ws.dayOf(date);
   const [cal, setCal] = useState(false);
   const [span, setSpan] = useState<OpenSpan | null>(null);
@@ -51,7 +52,18 @@ export function MDay({ ws, date, setDate, editOpen }: { ws: Workspace; date: str
   const [sesOpen, setSesOpen] = useState(!!editOpen);
   useEffect(() => { setSesOpen(!!editOpen); }, [editOpen, date]);
   // 한 번에 한 판만 — 시간 기록이 쌓여도 · 할 일이 길어도 페이지가 아래로 늘어나지 않게
-  const [pane, setPane] = useState<Pane>('tg');
+  const [pane, setPane] = useState<Pane>(pane0 ?? 'tg');
+  useEffect(() => {
+    if (!hit) return;
+    const t = setTimeout(() => {
+      const el = document.querySelector<HTMLElement>(`.m-page [data-id="${CSS.escape(hit)}"]`);
+      if (!el) return;
+      el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      el.classList.add('sc-hit');
+      setTimeout(() => el.classList.remove('sc-hit'), 3200);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [hit]);
   const dt = dateOf(date);
   const isToday = date === ws.today;
 

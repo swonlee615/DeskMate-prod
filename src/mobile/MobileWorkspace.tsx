@@ -18,7 +18,8 @@ import { fmtDur } from '../ui/v3fmt';
 import { MobileWeek } from './MobileWeek';
 import { MToday, STATE_LABEL } from './MToday';
 import { MActivity } from './MActivity';
-import { MDay } from './MDay';
+import { MDay, type Pane } from './MDay';
+import { MSearch } from './MSearch';
 import { MSaved } from './MSaved';
 import { CloseX, HabitChips } from './parts';
 import { IMG_HINT, imgDay, Thumb, useImageList } from '../ui/ImageList';
@@ -34,7 +35,9 @@ const TITLE: Record<Tab, string> = { att: '홈', dash: '활동', team: '팀', la
 export function MobileWorkspace({ ws }: { ws: Workspace }) {
   const [tab, setTab] = useState<Tab>('att');
   const [view, setView] = useState<'all' | 'week'>('all');
-  const [day, setDay] = useState<{ date: string; edit: boolean } | null>(null);
+  const [day, setDay] = useState<{ date: string; edit: boolean; pane?: Pane; hit?: string } | null>(null);
+  // 홈 › 검색 (머리의 돋보기). 결과에서 상세를 닫으면 결과로 돌아온다
+  const [search, setSearch] = useState(false);
   const [acctOpen, setAcctOpen] = useState(false);
   // 설정 › 한 칸 (PC 설정 창의 오른쪽 칸을 폰에서는 한 단계 안으로)
   const [setSub, setSetSub] = useState<string | null>(null);
@@ -42,7 +45,7 @@ export function MobileWorkspace({ ws }: { ws: Workspace }) {
   const [svOpen, setSvOpen] = useState<string | null>(null);
   // 탭 · 보기(전체/주간)를 바꾸면 늘 맨 위에서 — 스크롤 칸 하나를 함께 써서 앞 탭의 위치가 남았다
   const body = useRef<HTMLElement>(null);
-  useLayoutEffect(() => { body.current?.scrollTo(0, 0); }, [tab, view, setSub, svOpen]);
+  useLayoutEffect(() => { body.current?.scrollTo(0, 0); }, [tab, view, setSub, svOpen, search]);
   const goDay = (date: string, edit = false) => setDay({ date, edit });
   const t = ws.timer;
   const toTimer = () => {
@@ -57,8 +60,12 @@ export function MobileWorkspace({ ws }: { ws: Workspace }) {
           ? <button className="m-back" onClick={() => setSetSub(null)} aria-label="설정으로"><i aria-hidden="true">‹</i><h1>{SET_NAV.find((n) => n.k === setSub)?.nm}</h1></button>
           : tab === 'later' && svOpen
             ? <button className="m-back" onClick={() => setSvOpen(null)} aria-label="저장됨으로"><i aria-hidden="true">‹</i><h1>저장됨</h1></button>
-            : <h1>{TITLE[tab]}</h1>}
+            : tab === 'att' && search
+              ? <button className="m-back" onClick={() => setSearch(false)} aria-label="홈으로"><i aria-hidden="true">‹</i><h1>검색</h1></button>
+              : <h1>{TITLE[tab]}</h1>}
         <span className="m-sp" />
+        {tab === 'att' && !search && <button className="m-pill m-sc-open" onClick={() => setSearch(true)} aria-label="검색">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="9" cy="9" r="5.3" /><path d="m13.1 13.1 3.1 3.1" /></svg></button>}
         <SyncBadge s={ws.sync} />
         <button className={`m-pill timer${t.running ? ' on' : ''}${t.mode === 'focus' ? '' : ' rest'}`} onClick={toTimer} aria-label={`집중 타이머 · ${t.label}${t.running ? ' 중' : ' 대기'}`}>
           <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7" /><path d="M10 5.8v4.4l2.9 1.7" /></svg><PomoClock t={t} />
@@ -66,7 +73,12 @@ export function MobileWorkspace({ ws }: { ws: Workspace }) {
       </header>
 
       <main className="m-body" ref={body}>
-        {tab === 'att' && <>
+        {tab === 'att' && search && <MSearch ws={ws} onJump={(r) => {
+          // 주간 메모 · 날짜 미정은 그 주의 홈 › 주간, 나머지는 그 날 상세 (할 일 · 메모 · 시간표 칸을 골라 연다)
+          if (r.k === 'week' || r.undated) { ws.setWpWeek(r.key); setSearch(false); setView('week'); return; }
+          setDay({ date: r.key, edit: false, pane: r.k === 'slot' ? 'tg' : r.k === 'memo' ? 'memo' : 'todo', hit: r.id });
+        }} />}
+        {tab === 'att' && !search && <>
           <div className="m-seg" role="tablist" aria-label="홈 보기">
             <button role="tab" aria-selected={view === 'all'} className={view === 'all' ? 'on' : ''} onClick={() => setView('all')}>전체</button>
             <button role="tab" aria-selected={view === 'week'} className={view === 'week' ? 'on' : ''} onClick={() => setView('week')}>주간</button>
@@ -86,13 +98,13 @@ export function MobileWorkspace({ ws }: { ws: Workspace }) {
       {day && (
         <div className="m-page" role="dialog" aria-label="하루 상세">
           <div className="m-body">
-            <MDay ws={ws} date={day.date} setDate={(k) => setDay({ date: k, edit: false })} editOpen={day.edit} />
+            <MDay ws={ws} date={day.date} setDate={(k) => setDay({ date: k, edit: false })} editOpen={day.edit} pane0={day.pane} hit={day.hit} />
           </div>
         </div>
       )}
 
       <nav className="m-tabs" aria-label="메뉴">
-        <TabBtn on={tab === 'att'} onClick={() => { setTab('att'); setDay(null); }} label="홈"
+        <TabBtn on={tab === 'att'} onClick={() => { if (!day || tab !== 'att') setSearch(false); setTab('att'); setDay(null); }} label="홈"
           icon={<path d="M3.2 8.6 10 3.2l6.8 5.4V16a1.2 1.2 0 0 1-1.2 1.2h-3.3v-4.8H7.7v4.8H4.4A1.2 1.2 0 0 1 3.2 16V8.6Z" />} />
         <TabBtn on={tab === 'dash'} onClick={() => { setTab('dash'); setDay(null); }} label="활동"
           icon={<path d="M4 16.2V9.4M10 16.2V3.8M16 16.2v-4.6" />} />
