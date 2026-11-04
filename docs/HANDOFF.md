@@ -42,6 +42,8 @@
    - **동료 대화 · 채널 · DM · 허들은 옮기지 않는다** (2026-10-27 소유자). 동료는 상태 · 랭킹만
    - **노션 연동은 옮기지 않는다** (2026-10-29 소유자). v3 의 노션 변경 기록은 «해당 없음»
 3. **배포** — Firebase Hosting (`firebase.json` 있음) · 승인된 도메인 · `authDomain` 교체 (`docs/RELEASE.md` §1)
+   - 2026-11-04 00:51 첫 배포 확인: 사이트 · Google 로그인은 됨. **서버 규칙이 모든 구독을 막아 «연결 중…» 에 멈춤** → `firestore.rules` 고침(c1c7c51, dry-run 컴파일 확인). 다시 배포해야 풀린다
+   - 규칙을 바꾸면 에뮬레이터가 없어서(자바 없음) `npx firebase-tools@14 deploy --only firestore:rules --dry-run` 으로 컴파일만 본다. 배포 뒤 콘솔에 permission-denied 가 없는지 꼭 본다
 4. PC 앱 — 같은 리포에 `src-tauri/` 추가 (리포를 나누지 않는다)
    - 배포는 앱스토어가 아니라 **랜딩 페이지에서 .dmg(맥) · .exe(윈도우) 내려받기** (2026-10-29 소유자 구상).
      맥은 Developer ID 서명 + 공증, 윈도우는 코드 서명이 있어야 «확인되지 않은 개발자» 경고가 안 뜬다. 자동 업데이트는 Tauri updater
