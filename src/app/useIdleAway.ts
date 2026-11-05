@@ -10,6 +10,7 @@
  *   10초마다 본다. 그 사이가 기준 시간보다 길게 비었으면(맥이 잠들었다 깸) 마지막으로 본 시각부터 자리비움
  * ★ 업무 앱 기준(PC 앱): 같은 틱에 맨 앞 앱을 표본으로 쌓고, 딴짓 앱만 기준 시간 넘게 쓰면 자리비움(by 'app') — domain/workApps
  *   ponytail: v3 의 «손으로 켠 휴게를 업무 앱으로 닫기» 는 아직 없다
+ * ★ 출근 감지(PC 앱 · v3.2.0): 출근 전 · 퇴근 뒤에도 같은 10초 틱이 돈다. 맨 앞 앱이 업무 앱인지만 넘기고 판정은 domain/arrival
  */
 import { useEffect, useRef, useState } from 'react';
 import { deviceKind } from '../data/device';
@@ -41,6 +42,9 @@ export function useIdleAway(o: {
   onAway: (at: number, by: 'idle' | 'power' | 'app', mins: number) => void; onBack: (at: number) => void;
   /** 근무 중 표본 하나 — 앱 사용 기록 (domain/appUse) */
   onSample?: (f: FrontApp, self: boolean, kind: Sample['k'], at: number) => void;
+  /** 출근 감지 — 근무 중이 아닐 때도 돈다. arrive 가 false 면 맨 앞 앱을 안 읽는다 */
+  arrOn?: boolean; arrive?: () => boolean;
+  onArrTick?: (i: { sec: number; kind: 'work' | 'other' | null; name: string | null; at: number }) => void;
 }) {
   const [live, setLive] = useState<AppsLive | null>(null);
   const [perm, setPerm] = useState<IdlePerm>('prompt');
@@ -49,30 +53,32 @@ export function useIdleAway(o: {
   cb.current = o;
   const sent = useRef(false);
   useEffect(() => {
-    if (!o.on || perm !== 'app') return;
+    if (!(o.on || o.arrOn) || perm !== 'app') return;
     const th = Math.max(3, o.min) * 60_000;
     let last = Date.now(), backAt: number | null = null, samples: Sample[] = [], seen: FrontApp[] = [], by: 'idle' | 'power' | 'app' = 'idle';
     const win = winMs(o.min);
     const tick = async () => {
       const { invoke } = await import('@tauri-apps/api/core');
       const sec = await invoke<number | null>('system_idle_secs');
-      const c = cb.current, appMode = c.apps.on;
-      // 표본 한 개 — 맨 앞에 있고 90초 안에 손댄 앱만
-      let kind: Sample['k'] = null;
-      if (appMode && sec != null && sec <= ACTIVE_SEC) {
-        const f = await invoke<FrontApp | null>('front_app_now').catch(() => null);
-        if (f) {
-          seen = rememberApp(seen, f); const b = appBucket(f, c.apps); kind = b === 'away' ? 'distract' : b;
-          if (c.working && !sent.current) c.onSample?.(f, isSelf(f), kind, Date.now());
+      const c = cb.current, appMode = c.apps.on, arr = !c.working && !!c.arrive?.();
+      // 표본 한 개 — 맨 앞에 있고 90초 안에 손댄 앱만. 출근 감지는 자리비움 기준 안이면 읽는다 (v3 arrivalTick)
+      let kind: Sample['k'] = null, af: FrontApp | null = null;
+      if (appMode && sec != null && (sec <= ACTIVE_SEC || (arr && sec * 1000 < th))) {
+        af = await invoke<FrontApp | null>('front_app_now').catch(() => null);
+        if (af) {
+          seen = rememberApp(seen, af); const b = appBucket(af, c.apps);
+          if (sec <= ACTIVE_SEC) kind = b === 'away' ? 'distract' : b;
+          if (c.working && !sent.current) c.onSample?.(af, isSelf(af), kind, Date.now());
         }
       }
+      if (arr && sec != null) c.onArrTick?.({ sec, kind: af ? (appBucket(af, c.apps) === 'work' ? 'work' : 'other') : null, name: af ? af.name || af.id || null : null, at: Date.now() });
       samples = pushSample(samples, { t: Date.now(), k: kind }, win);
       const st = windowStats(samples);
       setLive(appMode ? { on: true, seen, distractMs: st.distractMs, workMs: st.workMs, winMs: win } : null);
       // ponytail: 10초 틱이 기준 시간보다 늦으면 «잠들었다» 로 본다. 맥 App Nap 이 틱을 그만큼 미루면 오탐 — 그때는 Rust 쪽 잠자기 알림으로
       const now = Date.now(), slept = now - last > th, from = last;
       last = now;
-      if (sec == null) return;
+      if (sec == null || !c.on) return;
       if (!c.working) samples = [];
       const byApp = appMode && distracted(st, o.min);
       if (!sent.current && c.working && (slept || sec * 1000 >= th || byApp)) {
@@ -92,7 +98,7 @@ export function useIdleAway(o: {
     };
     const t = setInterval(() => void tick().catch(() => {}), 10_000);
     return () => clearInterval(t);
-  }, [o.on, o.min, perm]);
+  }, [o.on, o.arrOn, o.min, perm]);
   useEffect(() => { if (!o.on || !o.apps.on) setLive(null); }, [o.on, o.apps.on]);
   useEffect(() => {
     const D = Detector();

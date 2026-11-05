@@ -5,6 +5,7 @@
  * ★ 모양의 원본은 v3 다. v3 styles.css 를 그대로 쓰고 마크업 · 클래스 · id 를 v3 와 같게 둔다.
  *   PC 창을 아무리 좁혀도 모바일 화면으로 바뀌지 않는다 — v3 의 3단 · 2단 · 1단(서랍) 으로만 바뀐다.
  */
+import { ArrivalAsk } from './ArrivalAsk';
 import { PomoClock } from '../ui/Live';
 import { avStyle, avText } from '../ui/avatar';
 import { useEffect, useState } from 'react';
@@ -234,6 +235,7 @@ export function PcWorkspace({ ws }: { ws: Workspace }) {
       {dd && <DDayModal ws={ws} it={dd.it} date={dd.date} onClose={() => setDd(null)} />}
       {hb && <HabitModal ws={ws} h={hb.h} onClose={() => setHb(null)} onSaved={() => setDdTab('habit')} />}
 
+      <ArrivalAsk ws={ws} />
       <div className={`toast${ws.toast ? ' show' : ''}${ws.toast?.action ? ' has-undo' : ''}${ws.toast?.bad ? ' bad' : ''}`} id="toast" role="status">
         <span className="tm">{ws.toast?.text}</span>
         {ws.toast?.action && <button className="tu" onClick={ws.toast.action.run}>{ws.toast.action.label}</button>}

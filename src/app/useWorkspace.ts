@@ -11,7 +11,7 @@ import { deviceId, deviceKind, newId } from '../data/device';
 import type { AttEvent, AttEventType, AttState, Day, Leave } from '../domain/attendance/types';
 import { deriveDay } from '../domain/attendance/replay';
 import { dateKey, dayEndMs, dayParts, dayStartMs, goalPastAfter, sessions, stateOf, type GoalCfg } from '../domain/attendance/rules';
-import { addBreakSpan, canCarry, editBreak, removeBreak, resolveAt, resolveCarry } from '../domain/attendance/edit';
+import { addBreakSpan, addWorkSpan, canCarry, editBreak, removeBreak, resolveAt, resolveCarry } from '../domain/attendance/edit';
 import { catsOf, cleanCats, type Cat } from '../domain/attendance/cats';
 import { breakConflicts, logsOf, overlapIds, resolveConflicts, splitRest, type Log, type SpanInput, type SpanRef } from '../domain/attendance/logs';
 import { addDays, dateOf, fmtDur, keyOf, weekStart } from '../ui/v3fmt';
@@ -19,6 +19,8 @@ import { buildTeam, leaderboard, ROSTER, STATUS_ORDER, statusAt, TEAM_DEFAULT, t
 import { useMinute } from './clock';
 import { useIdleAway, type AppsLive, type IdlePerm } from './useIdleAway';
 import { addAppSample, appSlotOf, type AppCell, type AppDoc } from '../domain/appUse';
+import { arrCancel, arrClear, arrCool, arrCreate, arrSnooze, arrTick, type ArrHit, type ArrMode, type Missed } from '../domain/arrival';
+import { LONG_BREAK_MS, MIN_BREAK_MS } from '../domain/attendance/types';
 import { applyLook, SETTINGS_DEFAULT, type Settings } from '../ui/settingsNav';
 import { rankToFix, type RankFix } from '../domain/stats';
 import { POMO_DEFAULT, usePomodoro, type Pomodoro, type PomoDoc } from './usePomodoro';
@@ -81,6 +83,8 @@ export interface Workspace {
   teamCfg: Team;
   /** 이 브라우저의 자리비움 감지 권한 · 묻기 (PC 브라우저 · Chrome/Edge) */
   idle: { perm: IdlePerm; ask: () => Promise<void>; live: AppsLive | null };
+  /** 출근 감지 물음 · 놓친 업무 기록 (v3.2.0 · v3.2.1 — PC 앱) */
+  arrival: { hit: ArrHit | null; missed: Missed | null; act: (a: 'go' | 'cancel' | 'snooze') => void; missedAct: (a: 'add' | 'drop') => void };
   /** 설정 (items/settings) — 계정에 하나 */
   settings: Settings;
   /** 바뀐 칸만 저장 (합치기) */
@@ -451,6 +455,17 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
     return () => { flushApps(); document.removeEventListener('visibilitychange', off); window.removeEventListener('pagehide', flushApps); };
   }, [flushApps]);
   const watchApps = useCallback((date: string, cb: (d: AppDoc[]) => void) => repo.watchApps(date, date, cb), [repo]);
+  // 출근 감지 (v3.2.0 · LOGIC §2-1) — 판정은 domain/arrival, 여기는 물음과 기록. 메모리에만 산다
+  const arr = useRef(arrCreate());
+  const arrApps = useRef<string[]>([]);
+  const missedShow = useRef(false);
+  const [, bumpArr] = useState(0);
+  const arrCoolMin = () => Math.max(1, Math.min(240, Math.round(settings.arrivalCooldownMin || 30)));
+  const arrLive = deviceKind() === 'desktop' && settings.arrivalDetect && settings.workAppsOn;
+  const arrMode = (): ArrMode => {
+    if (!arrLive || Object.keys(days).some((k) => k < today && days[k].pending)) return 'none';   // 「확인 필요」 가 먼저다
+    return day.onAt == null ? 'pre' : day.offAt != null ? 'resume' : 'none';
+  };
   // PC 브라우저 자리비움 감지 — 이벤트만 보낸다. 자리비움인지는 재생이 정한다 (여러 PC · 사람이 연 휴게 우선)
   const idle = useIdleAway({
     on: settings.away, min: settings.awayMin, working: state === 'work',
@@ -461,6 +476,18 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
       if (by === 'app') say(`${mins}분째 업무 앱 사용이 없어서 휴게로 기록하고 있어요`);
     },
     onBack: (at) => { push('awayEnd', dateKey(at), { at }); },
+    arrOn: arrLive, arrive: () => arrMode() !== 'none',
+    onArrTick: ({ sec, kind, name, at }) => {
+      const st = arr.current;
+      const ev = arrTick(st, { now: at, mode: arrMode(), kind, idleSec: sec, awaySec: Math.max(3, settings.awayMin) * 60, longMs: LONG_BREAK_MS, dayKey: dateKey(at) });
+      if (kind === 'work' && name && !arrApps.current.includes(name)) arrApps.current = [...arrApps.current, name].slice(-3);
+      if (!st.run && !st.hit) arrApps.current = [];
+      if (!ev) return;
+      if (ev.type === 'hit' && st.hit) { st.hit.apps = arrApps.current; missedShow.current = true; }
+      // 놓친 기록이 막 생긴 때는 사람이 자리에 없다 — 다음 출근 순간까지 숨겨 둔다
+      if (ev.type === 'withdrawn' && ev.missed) missedShow.current = false;
+      bumpArr((n) => n + 1);
+    },
     onSample: (f, self, kind, at) => {
       const date = dateKey(at), g = appSlotOf(Math.floor((at - dayStartMs(date)) / 60_000));
       let a = appAcc.current;
@@ -496,9 +523,12 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
   // On · Off 가 같은 칸이라 두 번 누르면 출근하자마자 퇴근이 찍힌다 — 칸이 바뀐 뒤 0.6초는 다시 안 받는다 (v3.1.265)
   const punchAt = useRef(0);
   const tooSoon = () => { const n = Date.now(); if (n - punchAt.current < 600) return true; punchAt.current = n; return false; };
-  const onOn = () => { if (!tooSoon()) push('clockIn'); };
+  /** 출근이 찍힌 뒤 — 출근 단추 · 감지 물음이 같은 길을 지난다 (v3 afterPunchOn). 출근하는 순간이 놓친 기록을 알리는 때다 */
+  const afterPunchOn = () => { arrClear(arr.current); arrApps.current = []; missedShow.current = true; bumpArr((n) => n + 1); };
+  const onOn = () => { if (tooSoon()) return; push('clockIn'); afterPunchOn(); };
   const onOff = () => {
     if (tooSoon()) return;
+    arrCool(arr.current, Date.now(), arrCoolMin() * 60_000);   // 퇴근 직후엔 «재개» 를 바로 묻지 않는다
     timer.pause();                       // v3 — 퇴근하면 집중도 멈춘다
     const before = sessions(day).length;
     const d = after(push('clockOut'));
@@ -535,6 +565,43 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
     return true;
   };
 
+  const korClock = (ms: number) => { const t = new Date(ms), h = t.getHours(); return `${h < 12 ? '오전' : '오후'} ${h % 12 || 12}:${String(t.getMinutes()).padStart(2, '0')}`; };
+  const arrAct = (a: 'go' | 'cancel' | 'snooze') => {
+    const st = arr.current, h = st.hit;
+    if (!h) return;
+    if (a === 'cancel') { arrCancel(st, Date.now(), arrCoolMin() * 60_000); say(`감지를 취소했어요. ${arrCoolMin()}분 뒤부터 다시 확인해요`); }
+    else if (a === 'snooze') { arrSnooze(st, today); say('오늘은 출근 여부를 묻지 않을게요'); }
+    else {
+      // 감지 시각으로 출근 · 재개. 감지 뒤 대답 전에 비운 구간은 자리비움 휴게로 (v3 arrivalAccept)
+      if (day.onAt != null && day.offAt == null) { afterPunchOn(); return; }   // 그 사이 다른 길로 이미 출근했다
+      const at = day.offAt != null ? Math.max(h.at, day.offAt + 1) : h.at;
+      const evs = [push('clockIn', today, { at })];
+      const spans = [...h.aways, ...(h.awaySince != null ? [{ s: h.awaySince, e: Date.now() }] : [])];
+      for (const x of spans) {
+        if (x.s < at || x.e - x.s < MIN_BREAK_MS) continue;
+        evs.push(push('awayStart', today, { at: x.s, by: 'idle' }), push('awayEnd', today, { at: x.e }));
+      }
+      afterPunchOn();
+      say(`${korClock(h.at)}부터 ${h.mode === 'resume' ? '업무 재개' : '출근'}으로 기록했어요`,
+        { label: '되돌리기', run: () => { evs.forEach((e) => repo.deleteEvent(e)); setToast(null); } });
+      return;
+    }
+    arrApps.current = [];
+    bumpArr((n) => n + 1);
+  };
+  const missedNow = missedShow.current ? arr.current.missed[0] ?? null : null;
+  const missedAct = (a: 'add' | 'drop') => {
+    const m = arr.current.missed[0];
+    if (!m) return;
+    if (a === 'add') {
+      const range = `${korClock(m.s)}~${korClock(m.e)}`;
+      if (!editDay(dateKey(m.s), (d) => addWorkSpan(d, m.s, m.e), `${range}을 근무로 추가했어요`)) {
+        say('이 구간은 근무로 넣을 수 없어요. 근무 상세에서 차수를 직접 추가해 주세요'); return;
+      }
+    }
+    arr.current.missed.shift();
+    bumpArr((n) => n + 1);
+  };
   const pendingDays = Object.keys(days).filter((k) => k < today && days[k].pending).sort();
   const nextKey = (k: string) => dateKey(dayEndMs(k));
   const canCarryFor = (k: string) => canCarry(days[nextKey(k)], k);
@@ -852,7 +919,7 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
   const mateStatus = (id: string) => mates.find((x) => x.m.id === id)?.st ?? null;
 
   return {
-    settings, saveSettings, goal, idle,
+    settings, saveSettings, goal, idle, arrival: { hit: arr.current.hit, missed: missedNow, act: arrAct, missedAct },
     backend, user, now, today, sync, days, day, state,
     unavailable: range.unavailable, setDashSpan, tblWeeks, tblAll, moreWeeks, calMonth, setCalMonth, wpWeek, setWpWeek, toast, timer, say, warn,
     onOn, onOff, onRest, onLeave, dayOf, editDay, pendingDays, resolvePending, canCarry: canCarryFor,

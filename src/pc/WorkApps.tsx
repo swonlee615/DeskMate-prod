@@ -1,7 +1,7 @@
 /**
  * 설정 › 자리비움 › 업무 앱 기준 (v3 appsCardHtml · bindAppsCard) — PC 앱에서만 보인다
  * ★ v3 처럼 바꾸는 즉시 저장한다 (설정 창의 «취소» 로 되돌리지 않는다 · v3.1.216 SNAP_SKIP)
- * ★ 출근 감지 줄 · 오늘 휴게 요약은 다음 단계 (출근 감지와 함께)
+ * ★ 출근 감지 줄은 여기 (v3.2.0). 오늘 휴게 요약은 아직
  */
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import type { Workspace } from '../app/useWorkspace';
@@ -51,6 +51,19 @@ export function WorkAppsCard({ ws }: { ws: Workspace }) {
       <p className="ap-why"><b>업무 앱 기준</b>은 한 걸음 더 가요. PC는 쓰고 있는데 아래 <b>딴짓 앱</b>만 {min}분 넘게 쓰고 있으면
         (같은 시간 업무 앱은 {tol}분 이하) 그것도 휴게로 봐요. <b>맨 앞에 띄워 놓고 실제로 손대는 앱</b>만 세고,
         {ACTIVE_SEC}초 넘게 입력이 없으면 표본에서 빼서 띄워만 둔 앱은 잡히지 않아요.</p>
+      <div className="ap-row">
+        <label>출근 감지</label>
+        <select data-tgl aria-label="출근 감지" value={s.arrivalDetect ? '1' : '0'} onChange={(e) => ws.saveSettings({ arrivalDetect: e.target.value === '1' })}>
+          <option value="1">켜기</option><option value="0">끄기</option></select>
+        <label style={{ marginLeft: 8 }}>취소 후 다시 묻기</label>
+        <input className="n" type="number" min={1} max={240} step={1} aria-label="취소 후 다시 묻기까지 분" defaultValue={s.arrivalCooldownMin} key={s.arrivalCooldownMin}
+          onBlur={(e) => { const v = Math.max(1, Math.min(240, Math.round(+e.target.value || 30))); if (v !== s.arrivalCooldownMin) ws.saveSettings({ arrivalCooldownMin: v }); else e.target.value = String(v); }} />
+        <label>분 뒤</label>
+      </div>
+      <p className="ap-why"><b>출근 감지</b>는 출근을 누르지 않은 채 <b>업무 앱을 3분 연속</b> 쓰면 출근했는지 물어요.
+        기록되는 출근 시각은 <b>처음 감지된 시각</b>이에요. 퇴근한 뒤 다시 업무 앱을 잡아도 같은 방식으로 «업무 재개»를 물어요.<br />
+        <b>취소</b>는 지금까지의 감지를 버리고 위 시간 뒤부터 다시 세고, <b>오늘은 묻지 않기</b>는 자정까지 멈춰요.
+        {!s.workAppsOn && <><br />⚠️ 출근 감지는 업무 앱 목록으로 판단해요. <b>업무 앱 기준</b>이 꺼져 있어 지금은 동작하지 않아요.</>}</p>
       {s.workAppsOn && live && (
         <div className="ap-meter">
           <span>최근 {Math.round(win / 60000)}분 실사용</span>

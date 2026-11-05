@@ -35,6 +35,8 @@ export interface Settings {
   away: boolean; awayMin: number;
   /** 업무 앱 기준 (v3 workAppsOn · workApps · nonWorkApps · unknownApp — PC 앱만 동작) */
   workAppsOn: boolean; workApps: AppEntry[]; nonWorkApps: AppEntry[]; unknownApp: UnknownApp;
+  /** 출근 감지 · 취소 후 다시 묻기까지 분 (v3.2.0 arrivalDetect · arrivalCooldownMin — 1~240, 기본 켬 · 30분) */
+  arrivalDetect: boolean; arrivalCooldownMin: number;
   /** 내 프로필 (v3 userNick · userName · userRank · userColor · userAvatar) — 비어 있으면 로그인 계정 이름 */
   nick: string; name: string; rank: string; color: string; avatar: string | null;
   /** 워크스페이스 로고 · 배지 색 · 팀 근무 시작(분) (v3 wsLogo · wsColor · teamStart) */
@@ -43,7 +45,7 @@ export interface Settings {
   goalPast?: GoalPast[];
 }
 export const SETTINGS_DEFAULT: Settings = { mode: 'system', theme: 'navy', wsName: 'DeskMate', goalHours: 8, leaveGoal: true, timerColor: '#2b8fd8', away: true, awayMin: 10,
-  workAppsOn: false, workApps: [], nonWorkApps: [], unknownApp: 'away',
+  workAppsOn: false, workApps: [], nonWorkApps: [], unknownApp: 'away', arrivalDetect: true, arrivalCooldownMin: 30,
   nick: '', name: '', rank: '', color: '#1264a3', avatar: null, wsLogo: null, wsColor: '#1264a3', teamStart: null };   // color-ok: v3 기본 프로필 · 배지 색 (데이터 값)
 
 /** v3 화면 모드 (v3.1.37) — 기본은 시스템 설정 */

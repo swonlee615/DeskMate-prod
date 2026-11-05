@@ -273,3 +273,26 @@ export function resolveCarry(d0: Day): Day | null {
   d.autoClosed = 'confirmed';
   return d;
 }
+
+/**
+ * 놓친 업무 기록을 그 날의 차수 하나로 넣는다 (v3 addMissedSpan · LOGIC §2-1 v3.2.1). 사이는 비근무로 남는다
+ * ★ 출근 전 → 그 구간만으로 닫힌 하루 · 첫 출근보다 앞 → 새 첫 차수 · 비근무 안 → 그 비근무를 둘로 가른다
+ *   퇴근 뒤 → 차수 추가와 같은 길 (addSessionAt)
+ * ★ v3 는 비근무 «안» 도 차수 추가로 보냈다. 지금 근무 중인 날이면 그 길이 지금 차수를 닫아 버려서, 가르는 것으로 했다
+ */
+export function addWorkSpan(d0: Day, s: number, e: number): Day | null {
+  if (!(e > s)) return null;
+  const d = clone(d0);
+  if (d.onAt == null) return { ...d, onAt: s, offAt: e, breaks: [], autoClosed: 'confirmed' };
+  if (s < d.onAt) {
+    const cut = Math.min(e, d.onAt);
+    if (d.onAt - cut >= MIN_MS) d.breaks.push({ s: cut, e: d.onAt, kind: 'off' });
+    d.onAt = s;
+    return normalizeBreaks(d);
+  }
+  if (d.offAt != null && s >= d.offAt) return addSessionAt(d0, s, e);
+  const b = d.breaks.find((x) => isOffSpan(x) && x.e != null && x.s <= s && e <= x.e);
+  if (!b) return null;
+  d.breaks = [...d.breaks.filter((x) => x !== b), { ...b, e: s }, { ...b, s: e }].sort((a, c) => a.s - c.s);
+  return normalizeBreaks(d);
+}
