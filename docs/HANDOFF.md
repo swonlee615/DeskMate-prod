@@ -51,7 +51,12 @@
      창은 v3 Electron 과 같게 (900×730 · 최소 380×480 · 맥 신호등 13,15 · 위치 · 크기 기억). 웹 쪽은 `src/pc/desktop.ts` (위 띠 · 창 끌기) · PC 앱에서는 서비스 워커를 안 쓴다
      실행 `npm run desktop` · 설치 파일 `npm run desktop:build`. Rust 는 brew `rustup` — 터미널 PATH 에 `/opt/homebrew/opt/rustup/bin` 이 있어야 한다
      서명 · 공증은 **출시 직전에** (2026-11-05 소유자). 자동 업데이트 키는 첫 배포 전에 만들어 리포 밖에 둔다
-   - 다음: **Google · Apple 로그인** — 앱 창(WKWebView)에서는 팝업 · 리디렉트가 막힌다. 기본 브라우저에서 로그인하고 자격을 앱에 넘기는 방식으로. 이메일 로그인은 그대로 된다
+   - 로그인은 **로그인 먼저** (노션처럼 · 2026-11-05 소유자). 로그인 없이 쓰는 모드는 만들지 않는다 (개발 모드만)
+   - Google · Apple 로그인 됨 (2026-11-05, `src/data/desktopLogin.ts` · `src/ui/DesktopHandoff.tsx`). 앱 창에서는 Google 이 막으므로
+     기본 브라우저로 `사이트/?desktop-login=state` 를 열고 → 팝업 로그인 → `deskmate://auth?state&c=자격` 으로 앱에 돌아와 signInWithCredential.
+     맥의 deskmate:// 는 **설치한(묶은) 앱만** 받는다 → 시험은 `npx tauri build --debug --bundles app` 로 만든 .app 으로. 브라우저 쪽 페이지는 배포해야 생긴다
+     PC 앱의 계정 삭제는 «웹에서 해 주세요» (브라우저 왕복 중에 최근 로그인 시간이 지나기 쉽다)
+   - **아직 실제로 끝까지 못 해 봤다** (사람이 Google 로그인을 해야 한다). 배포 뒤 소유자가 한 번
    - 그다음: 맨 앞 앱 · 자리비움 (Rust 명령) → 트레이 → 자동 업데이트
    - 배포는 앱스토어가 아니라 **랜딩 페이지에서 .dmg(맥) · .exe(윈도우) 내려받기** (2026-10-29 소유자 구상).
      맥은 Developer ID 서명 + 공증, 윈도우는 코드 서명이 있어야 «확인되지 않은 개발자» 경고가 안 뜬다. 자동 업데이트는 Tauri updater

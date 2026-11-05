@@ -27,7 +27,7 @@
 .w-btn {
   height: 38px; padding: 0 16px; border-radius: 8px;
   border: 1px solid var(--border); background: var(--main); color: var(--text-strong);
-  font-weight: 700; cursor: pointer;
+  font-weight: 700; cursor: pointer; text-decoration: none;
 }
 .w-btn:hover { background: var(--surface-3); }
 .w-btn:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }

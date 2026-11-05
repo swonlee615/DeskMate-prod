@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { MIN_PASSWORD, toAuthError, type AuthService } from '../data';
+import { deviceKind } from '../data/device';
 
 type Mode = 'login' | 'signup' | 'reset';
 
@@ -41,6 +42,12 @@ export function AuthScreen({ auth, initialError }: { auth: AuthService; initialE
     });
   };
 
+  // PC 앱은 기본 브라우저에서 로그인한다 (data/desktopLogin.ts). 열린 뒤에 어디로 갔는지 알려 준다
+  const browserNote = async (p: Promise<void>) => {
+    await p;
+    if (deviceKind() === 'desktop') setInfo('브라우저에서 로그인을 마치면 앱으로 돌아와요.');
+  };
+
   const go = (m: Mode) => { setMode(m); setError(null); setInfo(null); };
 
   return (
@@ -57,12 +64,12 @@ export function AuthScreen({ auth, initialError }: { auth: AuthService; initialE
         {mode !== 'reset' && <>
           <div className="auth-providers">
             {PROVIDERS.has('apple') && (
-              <button type="button" className="w-btn w-provider w-apple" disabled={busy} onClick={() => run(() => auth.apple())}>
+              <button type="button" className="w-btn w-provider w-apple" disabled={busy} onClick={() => run(() => browserNote(auth.apple()))}>
                 Apple로 계속하기
               </button>
             )}
             {PROVIDERS.has('google') && (
-              <button type="button" className="w-btn w-provider w-google" disabled={busy} onClick={() => run(() => auth.google())}>
+              <button type="button" className="w-btn w-provider w-google" disabled={busy} onClick={() => run(() => browserNote(auth.google()))}>
                 Google로 계속하기
               </button>
             )}
@@ -70,6 +77,7 @@ export function AuthScreen({ auth, initialError }: { auth: AuthService; initialE
           {SHOW_EMAIL && <div className="auth-or"><span>또는 이메일로</span></div>}
         </>}
         {!SHOW_EMAIL && error && <p className="auth-msg err" role="alert">{error}</p>}
+        {!SHOW_EMAIL && info && <p className="auth-msg ok" role="status">{info}</p>}
         {SHOW_EMAIL && <>
 
         <form onSubmit={submit} noValidate>

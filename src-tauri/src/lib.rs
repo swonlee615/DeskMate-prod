@@ -1,6 +1,18 @@
+use tauri::Manager;
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
+    // 두 번째 실행(윈도우에서 deskmate:// 를 열 때 등)은 이미 떠 있는 창으로 넘긴다. 반드시 맨 앞에 둔다
+    .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+      if let Some(w) = app.get_webview_window("main") {
+        let _ = w.unminimize();
+        let _ = w.set_focus();
+      }
+    }))
+    // 브라우저 로그인에서 돌아오는 길 (deskmate://auth?…) — src/data/desktopLogin.ts
+    .plugin(tauri_plugin_deep_link::init())
+    .plugin(tauri_plugin_opener::init())
     // 창 위치 · 크기를 기억한다 (v3 winBounds 와 같은 동작)
     .plugin(tauri_plugin_window_state::Builder::default().build())
     .setup(|app| {
@@ -10,6 +22,12 @@ pub fn run() {
             .level(log::LevelFilter::Info)
             .build(),
         )?;
+      }
+      // 윈도우 · 리눅스 개발 실행에서는 설치 없이도 주소를 등록해 둔다 (맥은 설치한 앱만)
+      #[cfg(any(windows, target_os = "linux"))]
+      {
+        use tauri_plugin_deep_link::DeepLinkExt;
+        let _ = app.deep_link().register_all();
       }
       Ok(())
     })

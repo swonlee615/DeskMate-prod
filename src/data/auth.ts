@@ -26,6 +26,8 @@ export interface AuthService {
 
   google(): Promise<void>;
   apple(): Promise<void>;
+  /** 브라우저 쪽: PC 앱 대신 로그인하고, 앱으로 돌아갈 deskmate:// 주소를 준다 (desktopLogin.ts) */
+  desktopHandoff?(p: 'google' | 'apple', state: string): Promise<string | undefined>;
   emailSignUp(name: string, email: string, password: string): Promise<void>;
   emailSignIn(email: string, password: string): Promise<void>;
   resetPassword(email: string): Promise<void>;

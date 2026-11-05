@@ -13,6 +13,8 @@ import { lazy, Suspense, useEffect, useState } from 'react';
 import { createBackend, needsVerification, type Backend, type User } from './data';
 import { AuthScreen } from './ui/AuthScreen';
 import { VerifyScreen } from './ui/VerifyScreen';
+import { DesktopHandoff } from './ui/DesktopHandoff';
+import { handoffRequest } from './data/desktopLogin';
 import { useWorkspace } from './app/useWorkspace';
 import { pickPlatform } from './app/platform';
 
@@ -21,6 +23,8 @@ const PcWorkspace = lazy(() => import('./pc/PcWorkspace').then((m) => ({ default
 const MobileWorkspace = lazy(() => import('./mobile/MobileWorkspace').then((m) => ({ default: m.MobileWorkspace })));
 
 const PLATFORM = pickPlatform();
+/** PC 앱이 «브라우저에서 로그인» 으로 연 페이지인가 */
+const HANDOFF = handoffRequest();
 
 /** v3 화면 모드 — 시스템 설정을 따라간다 (body[data-mode] 하나만 칠한다) */
 function useBodyMode() {
@@ -49,6 +53,7 @@ export default function App() {
   }, [backend]);
 
   if (!backend || user === undefined) return <div className="boot" aria-busy="true" />;
+  if (HANDOFF && backend.mode === 'cloud') return <DesktopHandoff auth={backend.auth} {...HANDOFF} />;
   if (user === null) return <AuthScreen auth={backend.auth} initialError={redirectError} />;
   if (needsVerification(user)) return <VerifyScreen auth={backend.auth} user={user} />;
   return <Workspace key={user.uid} backend={backend} user={user} />;

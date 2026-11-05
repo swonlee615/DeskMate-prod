@@ -2,6 +2,7 @@
  * Firebase 로그인
  *
  * - 팝업이 기본. 홈 화면 PWA(iOS)는 팝업이 막히는 경우가 있어 리디렉트로 연다
+ * - PC 앱은 기본 브라우저에서 로그인하고 돌아온다 (desktopLogin.ts)
  * - 이메일 가입 → 인증 메일 발송. 인증 전에는 앱을 못 쓴다 (서버 규칙도 같이 막는다 — firestore.rules)
  * - 계정 삭제는 서버 데이터를 먼저 지우고 계정을 지운다
  */
@@ -10,14 +11,15 @@ import {
   signInWithPopup, signInWithRedirect, getRedirectResult,
   createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile,
   sendEmailVerification, sendPasswordResetEmail,
-  reauthenticateWithCredential, reauthenticateWithPopup, reauthenticateWithRedirect,
+  reauthenticateWithCredential, signInWithCredential, reauthenticateWithPopup, reauthenticateWithRedirect,
   onAuthStateChanged, deleteUser, signOut as fbSignOut,
   type AuthProvider, type User as FbUser,
 } from 'firebase/auth';
 import { clearIndexedDbPersistence, collection, getDocs, terminate, writeBatch } from 'firebase/firestore';
 import type { Fb } from './firebase';
 import { AuthError, toAuthError, validateSignUp, type AuthService, type ProviderId, type User } from './auth';
-import { isStandalone } from './device';
+import { deviceKind, isStandalone } from './device';
+import { handoffUrl, listenBrowserLogin, openBrowserLogin, type BrowserProvider } from './desktopLogin';
 
 function toUser(u: FbUser): User {
   return {
@@ -65,6 +67,10 @@ export function createFirebaseAuth({ auth, db }: Fb): AuthService {
   // 리디렉트로 돌아온 경우의 오류를 놓치지 않는다 (iOS 홈 화면 PWA)
   const redirectP = getRedirectResult(auth).then(() => null, (err) => toAuthError(err));
 
+  const desktop = deviceKind() === 'desktop';
+  if (desktop) void listenBrowserLogin((c) => signInWithCredential(auth, c));
+  const viaBrowser = (p: BrowserProvider) => wrap(() => openBrowserLogin(p, auth.config.authDomain ?? ''));
+
   const viaProvider = (provider: AuthProvider) => wrap(async () => {
     if (isStandalone()) { await signInWithRedirect(auth, provider); return; }
     try {
@@ -90,8 +96,14 @@ export function createFirebaseAuth({ auth, db }: Fb): AuthService {
 
     redirectError: () => redirectP,
 
-    async google() { await viaProvider(google()); },
-    async apple() { await viaProvider(apple()); },
+    async google() { await (desktop ? viaBrowser('google') : viaProvider(google())); },
+    async apple() { await (desktop ? viaBrowser('apple') : viaProvider(apple())); },
+
+    async desktopHandoff(p, state) {
+      const r = await wrap(() => signInWithPopup(auth, p === 'apple' ? apple() : google()));
+      const c = r && (p === 'apple' ? OAuthProvider.credentialFromResult(r) : GoogleAuthProvider.credentialFromResult(r));
+      return c ? handoffUrl(state, c) : undefined;
+    },
 
     async emailSignUp(name, email, password) {
       const msg = validateSignUp(name, email, password);
@@ -141,6 +153,8 @@ export function createFirebaseAuth({ auth, db }: Fb): AuthService {
           await reauthenticateWithCredential(u, EmailAuthProvider.credential(u.email ?? '', password));
           return;
         }
+        // ponytail: PC 앱은 브라우저 왕복 중에 «최근 로그인» 시간이 지나기 쉽다. 계정 삭제는 웹에서
+        if (desktop) throw new AuthError('auth/desktop', '계정 삭제는 웹 사이트에서 해 주세요.');
         const p = providers.includes('apple.com') ? apple() : google();
         if (isStandalone()) await reauthenticateWithRedirect(u, p);
         else await reauthenticateWithPopup(u, p);
