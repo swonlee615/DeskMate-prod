@@ -191,11 +191,11 @@ export function replayRaw(date: string, events: AttEvent[], leave: Leave = ''): 
  * 화면·합계가 읽는 하루. 재생 → 정리(§3) → 2시간 넘긴 열린 구간 퇴근 확정(§3 v3.1.8)
  * 저장하지 않고 매번 계산한다 — 같은 이벤트면 어느 기기에서든 같은 하루가 나온다.
  */
-export function deriveDay(date: string, events: AttEvent[], now: number, leave: Leave = ''): Day {
+export function deriveDay(date: string, events: AttEvent[], now: number, leave: Leave = '', o: { closeAtMidnight?: boolean } = {}): Day {
   const raw = replayRaw(date, events, leave);
   const until = Math.min(now, dayEndMs(date));
   const day = normalizeBreaks(closeIfLongAway(normalizeBreaks(raw), until));
-  return now >= dayEndMs(date) ? settlePast(day) : day;
+  return now >= dayEndMs(date) ? settlePast(day, !!o.closeAtMidnight) : day;
 }
 
 /**
@@ -203,15 +203,20 @@ export function deriveDay(date: string, events: AttEvent[], now: number, leave: 
  *  · 휴게(2시간 미만)가 열린 채 넘겼다 → 묻지 않는다. 휴게를 시작한 시각이 그 날의 끝 (v3.1.49)
  *    (2시간 이상은 위 closeIfLongAway 가 이미 퇴근으로 닫았다 — v3.1.8)
  *  · 일하던 채 넘겼다 → 물어본다 (`pending`). 근무시간은 23:59 까지로 센다 (v3 effectiveOff)
+ *  · 출근 감지가 돌면(closeAtMidnight) 묻지 않고 23:59 로 마감 (v3.2.0). 이어 일했으면 다음 날을 출근 감지가 묻는다
+ *    ★ v3 는 그 PC 의 arrivalLive() 로 정한다. 웹은 기기 상태를 못 쓰니 계정 설정(출근 감지 · 업무 앱 기준)으로 정한다 (SYNC §6)
+ *    ponytail: 설정을 바꾸면 아직 확정 안 한 지난 날도 따라 바뀐다. 문제가 되면 마감을 override 로 남기기
  * 저장하지 않고 계산만 한다 — 사람이 고르면 그때 override 로 남는다.
  * ★ v3 의 «앱이 켜진 채 넘겼으면 묻지 않고 이어붙인다» (v2.9.97) 는 옮기지 않았다.
  *   기기가 여럿이라 «앱이 켜져 있었다» 를 한 기기의 흔적으로 정할 수 없다 → 늘 묻는다 (docs/SYNC.md §6)
  */
-function settlePast(day: Day): Day {
+function settlePast(day: Day, closeAtMidnight: boolean): Day {
   if (day.onAt == null || day.offAt != null) return day;
   const open = day.breaks.find((b) => b.e == null && b.s > (day.onAt as number));
   if (open) {
     return { ...day, offAt: open.s, autoClosed: 'break', breaks: day.breaks.filter((b) => b !== open) };
   }
-  return { ...day, pending: { reason: 'open', guessOff: dayEndMs(day.date) - MIN_MS } };
+  const off = dayEndMs(day.date) - MIN_MS;
+  if (closeAtMidnight) return { ...day, offAt: off, autoClosed: 'midnight' };
+  return { ...day, pending: { reason: 'open', guessOff: off } };
 }

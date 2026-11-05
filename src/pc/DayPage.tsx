@@ -141,10 +141,12 @@ export function DayPage({ ws, date, full, onClose, onFull, onGo, focusOff, onDD 
             {d.carriedFrom && (
               <div className="autonote">전날({d.carriedFrom}) 근무가 자정을 넘겨 00:00 출근으로 이어졌어요.</div>
             )}
-            {(d.autoClosed === 'away' || d.autoClosed === 'break') && (
+            {(d.autoClosed === 'away' || d.autoClosed === 'break' || d.autoClosed === 'midnight') && (
               <div className="autonote">{d.autoClosed === 'away'
                 ? `${d.offAt != null ? hhmm(d.offAt) : '그 시각'}부터 자리를 비우셔서, 그때 퇴근한 것으로 기록했어요.`
-                : `휴식 중 자정을 넘겨서, 휴식을 누른 ${d.offAt != null ? hhmm(d.offAt) : '시각'}을 퇴근으로 기록했어요.`} 시각이 다르면 <b>상세</b>에서 고쳐주세요.
+                : d.autoClosed === 'break'
+                  ? `휴식 중 자정을 넘겨서, 휴식을 누른 ${d.offAt != null ? hhmm(d.offAt) : '시각'}을 퇴근으로 기록했어요.`
+                  : '퇴근을 누르지 않고 자정을 넘겨서 23:59로 자동 마감했어요.'} 시각이 다르면 <b>상세</b>에서 고쳐주세요.
                 <button className="note-x" id="autoNoteX" title="확인했어요. 다시 띄우지 않아요"
                   onClick={() => ws.editDay(date, (day) => ({ ...day, autoClosed: 'confirmed' }), '확인했어요')}>✕</button></div>
             )}

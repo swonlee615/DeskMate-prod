@@ -60,13 +60,13 @@ const DEV = 'v3';
 const at12 = (k: string) => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d, 12).getTime(); };
 const TYPE: Record<string, BlockType> = { check: 'check', bullet: 'bullet', num: 'num', h1: 'h1', h2: 'h2', h3: 'h3', image: 'image', divider: 'divider' };
 
-/** 근태 — v3 하루 → 손으로 고친 하루. «midnight»(v3.2.0 자정 마감)은 웹에 없어 «확정» 으로 */
+/** 근태 — v3 하루 → 손으로 고친 하루. 자동 마감 이유(away · break · midnight)는 그대로, 그 밖은 «확정» */
 function snapshot(d: V3Day): DaySnapshot {
   const breaks: Span[] = d.breaks.map((b) => ({
     s: b.s, e: b.e ?? null, kind: b.kind === 'off' ? 'off' : 'break',
     ...(b.auto ? { auto: true } : {}), ...(b.by ? { by: b.by as Span['by'] } : {}), ...(b.note ? { note: b.note } : {}),
   }));
-  const ac = d.autoClosed === 'away' || d.autoClosed === 'break' ? d.autoClosed : d.autoClosed ? 'confirmed' : undefined;
+  const ac = d.autoClosed === 'away' || d.autoClosed === 'break' || d.autoClosed === 'midnight' ? d.autoClosed : d.autoClosed ? 'confirmed' : undefined;
   return { onAt: d.onAt ?? null, offAt: d.offAt ?? null, breaks, leave: (d.leave || '') as Leave, ...(ac ? { autoClosed: ac } : {}), ...(d.carriedFrom ? { carriedFrom: d.carriedFrom } : {}) };
 }
 

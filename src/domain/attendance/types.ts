@@ -82,7 +82,7 @@ export interface Day {
    * away  2시간 넘게 비워 그 시작을 퇴근으로 · break  휴게 중 자정을 넘겨 휴게 시작을 퇴근으로
    * confirmed  사람이 확정했다 (안내를 안 띄운다)
    */
-  autoClosed?: 'away' | 'break' | 'confirmed';
+  autoClosed?: 'away' | 'break' | 'midnight' | 'confirmed';
   /** 퇴근을 안 누르고 자정을 넘겨 «물어봐야 하는» 지난 날 (LOGIC §7). 저장하지 않고 계산한다 */
   pending?: { reason: 'open'; guessOff: number };
   /** 전날에서 이어받은 날 (00:00 출근) */

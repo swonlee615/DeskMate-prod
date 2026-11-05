@@ -32,7 +32,7 @@ describe('v3 → 웹 옮기기', () => {
       breaks: [{ s: 2, e: 3, kind: 'off' }, { s: 4, e: 5, auto: true, by: 'idle', note: '점심' }],
     }) } }, 100);
     const ov = c.events.find((e) => e.type === 'override')!;
-    expect(ov.day).toEqual({ onAt: 1, offAt: 9, leave: '', autoClosed: 'confirmed', carriedFrom: '2026-09-30',
+    expect(ov.day).toEqual({ onAt: 1, offAt: 9, leave: '', autoClosed: 'midnight', carriedFrom: '2026-09-30',
       breaks: [{ s: 2, e: 3, kind: 'off' }, { s: 4, e: 5, kind: 'break', auto: true, by: 'idle', note: '점심' }] });
     expect(c.events.filter((e) => e.type === 'pomoDone')).toHaveLength(2);   // 세션 수 2 — 표 1 + 채움 1
   });

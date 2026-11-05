@@ -482,6 +482,16 @@ describe('자정을 넘긴 날 — LOGIC §7', () => {
     expect(resolveCarry(d)!.autoClosed).toBe('confirmed');
   });
 
+  it('출근 감지가 돌면 묻지 않고 23:59 마감 — 휴게 중이면 예전대로 (v3.2.0)', () => {
+    const d = deriveDay(D, [ev('clockIn', '20:00')], NEXT, '', { closeAtMidnight: true });
+    expect(d.pending).toBeUndefined();
+    expect(d.offAt).toBe(t('23:59'));
+    expect(d.autoClosed).toBe('midnight');
+    const b = deriveDay(D, [ev('clockIn', '20:00'), ev('breakStart', '23:00')], NEXT, '', { closeAtMidnight: true });
+    expect(b.offAt).toBe(t('23:00'));
+    expect(b.autoClosed).toBe('break');
+  });
+
   it('확정을 override 로 남기면 더는 묻지 않는다', () => {
     const evs = [ev('clockIn', '20:00')];
     const d0 = deriveDay(D, evs, NEXT);

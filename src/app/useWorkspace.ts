@@ -279,14 +279,24 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
     return m;
   }, [range.events]);
 
+  // D-Day · 습관 · 타이머 — 정의 하나 = 문서 하나 (items)
+  const [items, setItems] = useState<Item[]>([]);
+  // 첫 수신 전에는 «없다» 와 «아직 모른다» 가 구분되지 않는다 — 고정값처럼 한 번만 써야 하는 것은 이걸 기다린다
+  const [itemsIn, setItemsIn] = useState(false);
+  useEffect(() => repo.watchItems((xs) => { setItems(xs); setItemsIn(true); }), [repo]);
+  const setDoc = items.find((x) => x.id === SETTINGS_ID) as (Item & Partial<Settings>) | undefined;
+  const settings = useMemo<Settings>(() => ({ ...SETTINGS_DEFAULT, ...setDoc }), [setDoc]);
+
+  // 출근 감지가 돌면 자정을 넘긴 날은 묻지 않고 23:59 마감 (LOGIC §7 v3.2.0) — 기기 상태 대신 계정 설정으로 (SYNC §6)
+  const closeAtMidnight = settings.arrivalDetect && settings.workAppsOn;
   const days = useMemo(() => {
     const out: Record<string, Day> = {};
     for (const [k, evs] of Object.entries(byDate)) {
       const slots = logsOf(logs, k, 'slot');
-      out[k] = { ...deriveDay(k, evs, now), ...(slots.length ? { slots } : {}) };
+      out[k] = { ...deriveDay(k, evs, now, '', { closeAtMidnight }), ...(slots.length ? { slots } : {}) };
     }
     return out;
-  }, [byDate, logs, now]);
+  }, [byDate, logs, now, closeAtMidnight]);
   const day: Day = days[today] ?? { date: today, onAt: null, offAt: null, breaks: [], leave: '' };
   const state = stateOf(day);
 
@@ -321,11 +331,6 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
     return e;
   }, [repo, today]);
 
-  // D-Day · 습관 · 타이머 — 정의 하나 = 문서 하나 (items)
-  const [items, setItems] = useState<Item[]>([]);
-  // 첫 수신 전에는 «없다» 와 «아직 모른다» 가 구분되지 않는다 — 고정값처럼 한 번만 써야 하는 것은 이걸 기다린다
-  const [itemsIn, setItemsIn] = useState(false);
-  useEffect(() => repo.watchItems((xs) => { setItems(xs); setItemsIn(true); }), [repo]);
 
   // 집중 타이머 — 사람 하나에 하나 (items/pomo · SYNC §9). 집중을 끝까지 채우면 횟수를 «끝난 날» 에 남긴다 (v3 onComplete)
   const pomoDoc = useMemo(() => (items.find((x) => x.id === POMO_ID) as (PomoDoc & Item) | undefined) ?? null, [items]);
@@ -433,8 +438,6 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
     onStep('끝');
   };
 
-  const setDoc = items.find((x) => x.id === SETTINGS_ID) as (Item & Partial<Settings>) | undefined;
-  const settings = useMemo<Settings>(() => ({ ...SETTINGS_DEFAULT, ...setDoc }), [setDoc]);
   const saveSettings: Workspace['saveSettings'] = (x) => {
     // 하루 목표는 바꾼 날부터 — 어제까지는 이전 값으로 묶는다 (LOGIC v3.2.5)
     const past = x.goalHours != null ? goalPastAfter(settings.goalPast, settings.goalHours, x.goalHours, today) : settings.goalPast;
