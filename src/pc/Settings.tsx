@@ -147,7 +147,7 @@ export function SettingsModal({ ws, onClose, onDay }: { ws: Workspace; onClose: 
                   <div><label>자리비움 자동 감지</label>{tgl(d.away, (b) => put({ away: b }), '자리비움 자동 감지')}</div>
                   <div><label htmlFor="set-awayMin">기준 (분)</label>{num('awayMin', 3, 60)}</div>
                 </div>
-                <div className="sec-t">이 브라우저</div>
+                <div className="sec-t">{ws.idle.perm === 'app' ? '이 PC 앱' : '이 브라우저'}</div>
                 <p className="hint">{idleText(ws.idle.perm)}</p>
                 {ws.idle.perm === 'prompt' && <button className="btn primary sm" onClick={() => void ws.idle.ask()}>이 브라우저에서 감지 허용</button>}
                 <div className="sec-t">업무 앱 기준</div>

@@ -71,7 +71,8 @@ export const LEAVE_GOAL_HINT = '켜 두면 연차 · 병가인 날은 목표 0, 
 
 export const AWAY_HINT = '근무 중에 키보드와 마우스가 기준 시간 넘게 멈추거나 화면이 잠기면, 그때부터 휴게로 자동 기록하고 돌아오면 닫아요.';
 /** 이 브라우저의 감지 상태를 사람 말로 */
-export function idleText(perm: 'unsupported' | 'granted' | 'denied' | 'prompt'): string {
+export function idleText(perm: 'unsupported' | 'granted' | 'denied' | 'prompt' | 'app'): string {
+  if (perm === 'app') return '이 PC 앱에서 감지하고 있어요. 다른 앱을 쓰고 있어도 이 PC의 키보드와 마우스 입력을 기준으로 봐요.';
   if (perm === 'granted') return '이 브라우저에서 감지하고 있어요. 다른 앱이나 탭을 보고 있어도 이 맥의 입력을 기준으로 봐요.';
   if (perm === 'denied') return '이 브라우저에서 감지 권한이 꺼져 있어요. 주소창 왼쪽의 사이트 설정에서 «유휴 감지»를 허용해 주세요.';
   if (perm === 'prompt') return '이 브라우저에서 감지하려면 한 번 허용해 주세요.';

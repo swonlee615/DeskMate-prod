@@ -1,5 +1,7 @@
 use tauri::Manager;
 
+mod idle;
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
@@ -15,6 +17,7 @@ pub fn run() {
     .plugin(tauri_plugin_opener::init())
     // 창 위치 · 크기를 기억한다 (v3 winBounds 와 같은 동작)
     .plugin(tauri_plugin_window_state::Builder::default().build())
+    .invoke_handler(tauri::generate_handler![idle::system_idle_secs])
     .setup(|app| {
       if cfg!(debug_assertions) {
         app.handle().plugin(
