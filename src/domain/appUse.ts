@@ -52,3 +52,42 @@ export function cellKind(c: AppCell): 'work' | 'distract' | null {
   const w = c.k.work ?? 0, d = c.k.distract ?? 0;
   return w > 0 && w >= d ? 'work' : d > w ? 'distract' : null;
 }
+
+/** 구간 [m0, m1) 분에 걸친 칸들에서 쓴 앱 이름 — 많이 쓴 순서 (v3 appsInGrid · appsInRange) */
+export function appsIn(cells: AppCells, m0: number, m1: number): string[] {
+  const tally: Record<string, { n: number; label: string }> = {};
+  for (const [gs, c] of Object.entries(cells)) {
+    const g = +gs;
+    if (g + APP_SLOT_MIN <= m0 || g >= m1) continue;
+    for (const [k, v] of Object.entries(c.n)) (tally[k] ??= { n: 0, label: c.l[k] || k }).n += v;
+  }
+  return Object.values(tally).sort((a, b) => b.n - a.n).map((x) => x.label);
+}
+
+export interface AppTerm { s: number; e: number; apps: string[] }
+
+/**
+ * 앱 사용 → 시간 기록 초안 (v3 appTerms · v2.9.25) — 화면에서만 그리는 줄이다. 누르면 시간 기록 만들기로 열린다
+ * ★ 같은 대표 앱이 20분(두 칸) 이상 이어지면 한 텀. 10분 조각은 바로 앞 텀에 흡수해 이름을 나열한다
+ * ★ 시간 기록 · 휴게가 덮은 칸은 뺀다 (covered = [시작분, 끝분) 목록). 오늘이면 cap(지금 분)에서 자른다
+ */
+export function appTerms(cells: AppCells, o: { covered: [number, number][]; cap?: number }): AppTerm[] {
+  const top = (c: AppCell) => Object.entries(c.n).sort((a, b) => b[1] - a[1])[0]?.[0];
+  const runs: { id: string; s: number; e: number }[] = [];
+  for (const g of Object.keys(cells).map(Number).sort((a, b) => a - b)) {
+    if (o.covered.some(([a, b]) => a < g + APP_SLOT_MIN && g < b)) continue;
+    const id = top(cells[g]);
+    if (!id) continue;
+    const last = runs[runs.length - 1];
+    if (last && last.id === id && last.e === g) last.e += APP_SLOT_MIN;
+    else runs.push({ id, s: g, e: g + APP_SLOT_MIN });
+  }
+  const terms: { s: number; e: number }[] = [];
+  for (const r of runs) {
+    const last = terms[terms.length - 1];
+    if (r.e - r.s < APP_SLOT_MIN * 2 && last && last.e === r.s) last.e = r.e;
+    else terms.push({ s: r.s, e: r.e });
+  }
+  const cap = o.cap ?? Infinity;
+  return terms.map((t) => ({ s: t.s, e: Math.min(t.e, cap), apps: appsIn(cells, t.s, t.e) })).filter((t) => t.e > t.s);
+}

@@ -22,7 +22,8 @@ import { NoteEditor } from './NoteEditor';
 import { DDayLines, type OpenDDay } from './DDay';
 import { HabitStrip } from './Habits';
 import { catChoices, catKey, catName, labelPicks, type Cat, type LabelPick } from '../domain/attendance/cats';
-import { cellApps, mergeAppDocs, type AppCells } from '../domain/appUse';
+import { appsIn, appTerms, cellApps, mergeAppDocs, type AppCells } from '../domain/appUse';
+import { appBucket, type WorkAppsCfg } from '../domain/workApps';
 import { breakConflicts, catVar, logsOf, nextColor, slotOutside, type Log, type SpanRef } from '../domain/attendance/logs';
 
 const GSTEP = 5;        // 격자 한 칸 = 5분
@@ -68,6 +69,9 @@ export function DayPage({ ws, date, full, onClose, onFull, onGo, focusOff, onDD 
   const [sesDlg, setSesDlg] = useState<number | null>(null);
   const [addDlg, setAddDlg] = useState(false);
   const [brkDlg, setBrkDlg] = useState<OpenSpan | null>(null);
+  // 앱 사용 기록 (v3 day.apps) — 격자 바탕 · 초안 줄 · 기록 줄의 앱 칩이 같이 읽는다
+  const [apps, setApps] = useState<AppCells>({});
+  useEffect(() => { setApps({}); return ws.watchApps(date, (docs) => setApps(mergeAppDocs(docs))); }, [ws.watchApps, date]);
   const pageRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { setOpen(!!focusOff); }, [date, focusOff]);
@@ -217,9 +221,9 @@ export function DayPage({ ws, date, full, onClose, onFull, onGo, focusOff, onDD 
             </div>
             <div className="day-right">
               <div className="tg-wrap">
-                <Grid d={d} logs={ws.logs} now={now} isToday={isToday} onOpen={setBrkDlg} watchApps={ws.watchApps} />
+                <Grid d={d} logs={ws.logs} now={now} isToday={isToday} onOpen={setBrkDlg} apps={apps} />
                 <div className="tg-list" id="tgList">
-                  <SlotList d={d} logs={ws.logs} cats={ws.cats} now={now} rows={rows} onOpen={setBrkDlg} onGoto={() => setOpen(true)} />
+                  <SlotList d={d} logs={ws.logs} cats={ws.cats} now={now} rows={rows} apps={apps} wa={ws.settings} onOpen={setBrkDlg} onGoto={() => setOpen(true)} />
                 </div>
               </div>
               <div className="tg-foot"><div className="tg-legend">
@@ -322,12 +326,10 @@ export function openBrk(d: Day, idx: number, now: number): OpenSpan {
 const openLog = (l: Log): OpenSpan => ({ ref: { type: l.kind, id: l.id }, s: l.s, e: l.e, kind: l.kind === 'slot' ? 'slot' : 'break' });
 
 /** 시간표 (v3 gridHtml · bindGrid) — 근태 · 시간 기록 · 근무 밖 휴게를 칠하고, 끌어서 새 구간을 연다 */
-export function Grid({ d, logs, now, isToday, onOpen, watchApps }: {
-  d: Day; logs: Log[]; now: number; isToday: boolean; onOpen: (o: OpenSpan) => void; watchApps?: Workspace['watchApps'];
+export function Grid({ d, logs, now, isToday, onOpen, apps = {} }: {
+  d: Day; logs: Log[]; now: number; isToday: boolean; onOpen: (o: OpenSpan) => void; apps?: AppCells;
 }) {
   // 앱 사용 바탕 (v3 appCells) — 아직 기록이 아니라는 게 보이도록 아주 옅게, 아무 뜻도 안 붙은 칸에만
-  const [apps, setApps] = useState<AppCells>({});
-  useEffect(() => (watchApps ? watchApps(d.date, (docs) => setApps(mergeAppDocs(docs))) : undefined), [watchApps, d.date]);
   const slots = logsOf(logs, d.date, 'slot');
   const rests = logsOf(logs, d.date, 'rest');
   const cells = useMemo(() => {
@@ -486,13 +488,19 @@ function Conflicts({ ws, date, d }: { ws: Workspace; date: string; d: Day }) {
 const fmtM = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 
 /** 오른쪽 아래 목록 — 시간 기록 · 휴게 · 근무 밖 휴게 · 출근 · 퇴근 (v3 slotListHtml) */
-export function SlotList({ d, logs, cats, now, rows, onOpen, onGoto }: {
-  cats: Cat[];
+export function SlotList({ d, logs, cats, now, rows, apps = {}, wa, onOpen, onGoto }: {
+  cats: Cat[]; apps?: AppCells; wa?: WorkAppsCfg;
   d: Day; logs: Log[]; now: number; rows: ReturnType<typeof sessionRows>; onOpen: (o: OpenSpan) => void; onGoto: () => void;
 }) {
   type It = { at: number; el: React.ReactNode };
   const items: It[] = [];
   const base = dayStartMs(d.date);
+  const minOf = (ms: number) => Math.max(0, Math.min(1440, Math.round((ms - base) / 60000)));
+  // 기록 줄 밑 앱 칩 (v3 slotApps · brkApps) — 초안이 기록이 되어도 그때 쓴 앱은 사라지지 않는다
+  const appChips = (list: string[], cls: string) => list.length > 0 && (
+    <div className={cls}>{list.slice(0, 4).map((x) => <span key={x}>{x}</span>)}{list.length > 4 && <em>외 {list.length - 4}</em>}</div>);
+  // 휴게 줄에는 딴짓 앱만 (v2.9.39 — 쉬는 줄에 업무 앱이 있으면 «쉬는 중인데 왜»)
+  const awayOnly = (list: string[]) => (wa ? list.filter((x) => appBucket({ name: x }, wa) === 'away') : []);
   const restBar = (c: string | null | undefined) => (c ? <i className="tagged" style={{ '--hc': c } as React.CSSProperties} /> : <i style={{ background: 'rgba(236,178,46,.6)' }} />);
   rows.forEach((r, i) => {
     if (r.on != null) items.push({ at: r.on, el: (
@@ -507,15 +515,31 @@ export function SlotList({ d, logs, cats, now, rows, onOpen, onGoto }: {
           <i /><span className="lb">퇴근</span><span className="bk-r"><span className="mark-t">{hhmm(off)}{d.pending && r.off == null ? ' ?' : ''}</span></span></div>) });
     }
   });
-  for (const s of logsOf(logs, d.date, 'slot')) {
-    const out = slotOutside(d, s.s);
+  const slotLogs = logsOf(logs, d.date, 'slot');
+  for (const s of slotLogs) {
+    const out = slotOutside(d, s.s), ap = appsIn(apps, s.s, s.e);
     items.push({ at: base + s.s * 60000 + 0.1, el: (
-      <div key={s.id} className={`tg-item r2${out ? ' outside' : ''}`} data-slot={s.id} onClick={() => onOpen(openLog(s))}
-        title={`${fmtM(s.s)} ~ ${fmtM(s.e)} · ${fmtDur(s.e - s.s)}${catName(cats, s.color) ? `\n[${catName(cats, s.color)}]` : ''}${s.text ? `\n${s.text}` : ''}${out ? '\n\n출퇴근 기록 밖에 적은 기록이에요. 근무시간에는 들어가요' : ''}`}>
+      <div key={s.id} className={`tg-item r2${ap.length ? ' has-apps' : ''}${out ? ' outside' : ''}`} data-slot={s.id} onClick={() => onOpen(openLog(s))}
+        title={`${fmtM(s.s)} ~ ${fmtM(s.e)} · ${fmtDur(s.e - s.s)}${catName(cats, s.color) ? `\n[${catName(cats, s.color)}]` : ''}${s.text ? `\n${s.text}` : ''}${ap.length ? `\n💻 ${ap.join(' · ')}` : ''}${out ? '\n\n출퇴근 기록 밖에 적은 기록이에요. 근무시간에는 들어가요' : ''}`}>
         <i style={{ background: s.color ?? undefined }} />
         <span className="rg">{fmtM(s.s)} ~ {fmtM(s.e)}</span>
         <span className="du">{fmtDur(s.e - s.s)}</span>
         <div className="tg-mid">{catName(cats, s.color) && <span className="cat-tag" style={{ '--c': catVar(s.color ?? '') } as React.CSSProperties}>{catName(cats, s.color)}</span>}{s.text && <span className="lb">{s.text}</span>}</div>
+        {appChips(ap, 'bk-apps sl-apps')}
+      </div>) });
+  }
+  // 앱 사용 초안 (v3 appTerms) — 아직 기록이 아니라 점선 · 흐리게. 누르면 그 구간으로 시간 기록 만들기가 열린다
+  const covered: [number, number][] = [...slotLogs.map((x): [number, number] => [x.s, x.e]),
+    ...d.breaks.map((b): [number, number] => [minOf(b.s), minOf(spanEnd(d, b, now))])];
+  const nowMin = keyOf(new Date(now)) === d.date ? minOf(now) : undefined;
+  for (const t of appTerms(apps, { covered, cap: nowMin })) {
+    items.push({ at: base + t.s * 60000 + 0.1, el: (
+      <div key={`dr${t.s}`} className="tg-item r2 draft" data-draft={`${t.s}:${t.e}`} onClick={() => onOpen({ ref: null, s: t.s, e: t.e, kind: 'slot' })}
+        title={`${fmtM(t.s)} ~ ${fmtM(t.e)} · ${fmtDur(t.e - t.s)}\n💻 ${t.apps.join(' · ')}\n\n눌러서 시간 기록으로 만들어요`}>
+        <i className="dr-bar" />
+        <span className="rg">{fmtM(t.s)} ~ {fmtM(t.e)}</span>
+        <span className="du">{fmtDur(t.e - t.s)}</span>
+        <div className="tg-mid"><span className="lb"><b>{t.apps[0]}</b>{t.apps.length > 1 && <em> · {t.apps.slice(1, 4).join(' · ')}{t.apps.length > 4 ? ` 외 ${t.apps.length - 4}` : ''}</em>}</span></div>
       </div>) });
   }
   d.breaks.forEach((b, idx) => {
@@ -532,6 +556,7 @@ export function SlotList({ d, logs, cats, now, rows, onOpen, onGoto }: {
         <div className="tg-mid">{b.color
           ? <span className="cat-tag" style={{ '--c': catKey(b.color) } as React.CSSProperties}>☕️ {catName(cats, b.color) || '휴게'}</span>
           : <span className="cat-tag kind-brk">☕️ 휴게</span>}{b.auto && !b.note && <span className="lb">자리비움</span>}{b.note && <span className="lb">{b.note}</span>}</div>
+        {appChips(awayOnly(appsIn(apps, minOf(b.s), Math.max(minOf(b.s) + 1, minOf(e)))), 'bk-apps')}
       </div>) });
   });
   for (const r of logsOf(logs, d.date, 'rest')) {
