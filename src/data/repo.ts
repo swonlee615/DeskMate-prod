@@ -4,6 +4,7 @@
  * cloud : Firestore. 노션 방식 — 열어 본 것만 기기에 남고, 오프라인 편집은 쌓였다가 온라인이 되면 올라간다
  * local : Firebase 설정이 없을 때. 이 기기에만 저장한다 (개발용)
  */
+import type { AppCells, AppDoc } from '../domain/appUse';
 import type { AttEvent } from '../domain/attendance/types';
 import type { Block, Patch } from '../domain/todos/tree';
 import type { Log } from '../domain/attendance/logs';
@@ -60,6 +61,11 @@ export interface Repo {
   addLog(l: Log): void;
   /** 바뀐 필드만 */
   patchLog(id: string, fields: Partial<Log>): void;
+
+  // ── 앱 사용 기록 — 하루 × PC 마다 문서 하나 (users/{uid}/apps/{date}_{device}) · domain/appUse
+  watchApps(from: string, to: string, cb: (docs: AppDoc[]) => void): () => void;
+  /** 이 PC 의 그날 문서에 칸 몇 개를 덮어쓴다 (다른 칸 · 다른 PC 는 그대로) */
+  putAppCells(date: string, device: string, cells: AppCells): void;
 
   // ── D-Day · 습관 — 몇십 개뿐이라 날짜로 나누지 않고 통째로 구독한다
   watchItems(cb: (items: Item[]) => void): () => void;

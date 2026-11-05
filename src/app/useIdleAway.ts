@@ -13,7 +13,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { deviceKind } from '../data/device';
-import { ACTIVE_SEC, appBucket, distracted, pushSample, rememberApp, windowStats, winMs, type FrontApp, type Sample, type WorkAppsCfg } from '../domain/workApps';
+import { ACTIVE_SEC, appBucket, isSelf, distracted, pushSample, rememberApp, windowStats, winMs, type FrontApp, type Sample, type WorkAppsCfg } from '../domain/workApps';
 
 /** 업무 앱 기준 — 설정 화면이 보여 줄 지금 상태 (저장하지 않는다) */
 export interface AppsLive { on: boolean; seen: FrontApp[]; distractMs: number; workMs: number; winMs: number }
@@ -39,6 +39,8 @@ const TOUCH_SEC = 20, RESUME_MS = 30_000;
 export function useIdleAway(o: {
   on: boolean; min: number; working: boolean; apps: WorkAppsCfg & { on: boolean };
   onAway: (at: number, by: 'idle' | 'power' | 'app', mins: number) => void; onBack: (at: number) => void;
+  /** 근무 중 표본 하나 — 앱 사용 기록 (domain/appUse) */
+  onSample?: (f: FrontApp, self: boolean, kind: Sample['k'], at: number) => void;
 }) {
   const [live, setLive] = useState<AppsLive | null>(null);
   const [perm, setPerm] = useState<IdlePerm>('prompt');
@@ -59,7 +61,10 @@ export function useIdleAway(o: {
       let kind: Sample['k'] = null;
       if (appMode && sec != null && sec <= ACTIVE_SEC) {
         const f = await invoke<FrontApp | null>('front_app_now').catch(() => null);
-        if (f) { seen = rememberApp(seen, f); const b = appBucket(f, c.apps); kind = b === 'away' ? 'distract' : b; }
+        if (f) {
+          seen = rememberApp(seen, f); const b = appBucket(f, c.apps); kind = b === 'away' ? 'distract' : b;
+          if (c.working && !sent.current) c.onSample?.(f, isSelf(f), kind, Date.now());
+        }
       }
       samples = pushSample(samples, { t: Date.now(), k: kind }, win);
       const st = windowStats(samples);

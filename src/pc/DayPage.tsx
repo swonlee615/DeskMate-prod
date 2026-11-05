@@ -22,6 +22,7 @@ import { NoteEditor } from './NoteEditor';
 import { DDayLines, type OpenDDay } from './DDay';
 import { HabitStrip } from './Habits';
 import { catChoices, catKey, catName, labelPicks, type Cat, type LabelPick } from '../domain/attendance/cats';
+import { cellApps, mergeAppDocs, type AppCells } from '../domain/appUse';
 import { breakConflicts, catVar, logsOf, nextColor, slotOutside, type Log, type SpanRef } from '../domain/attendance/logs';
 
 const GSTEP = 5;        // 격자 한 칸 = 5분
@@ -216,7 +217,7 @@ export function DayPage({ ws, date, full, onClose, onFull, onGo, focusOff, onDD 
             </div>
             <div className="day-right">
               <div className="tg-wrap">
-                <Grid d={d} logs={ws.logs} now={now} isToday={isToday} onOpen={setBrkDlg} />
+                <Grid d={d} logs={ws.logs} now={now} isToday={isToday} onOpen={setBrkDlg} watchApps={ws.watchApps} />
                 <div className="tg-list" id="tgList">
                   <SlotList d={d} logs={ws.logs} cats={ws.cats} now={now} rows={rows} onOpen={setBrkDlg} onGoto={() => setOpen(true)} />
                 </div>
@@ -321,7 +322,12 @@ export function openBrk(d: Day, idx: number, now: number): OpenSpan {
 const openLog = (l: Log): OpenSpan => ({ ref: { type: l.kind, id: l.id }, s: l.s, e: l.e, kind: l.kind === 'slot' ? 'slot' : 'break' });
 
 /** 시간표 (v3 gridHtml · bindGrid) — 근태 · 시간 기록 · 근무 밖 휴게를 칠하고, 끌어서 새 구간을 연다 */
-export function Grid({ d, logs, now, isToday, onOpen }: { d: Day; logs: Log[]; now: number; isToday: boolean; onOpen: (o: OpenSpan) => void }) {
+export function Grid({ d, logs, now, isToday, onOpen, watchApps }: {
+  d: Day; logs: Log[]; now: number; isToday: boolean; onOpen: (o: OpenSpan) => void; watchApps?: Workspace['watchApps'];
+}) {
+  // 앱 사용 바탕 (v3 appCells) — 아직 기록이 아니라는 게 보이도록 아주 옅게, 아무 뜻도 안 붙은 칸에만
+  const [apps, setApps] = useState<AppCells>({});
+  useEffect(() => (watchApps ? watchApps(d.date, (docs) => setApps(mergeAppDocs(docs))) : undefined), [watchApps, d.date]);
   const slots = logsOf(logs, d.date, 'slot');
   const rests = logsOf(logs, d.date, 'rest');
   const cells = useMemo(() => {
@@ -422,9 +428,11 @@ export function Grid({ d, logs, now, isToday, onOpen }: { d: Day; logs: Log[]; n
             const sl = cells.slot[g];
             const mk = cells.marks[g] ?? [];
             const isNow = g <= nowG && nowG < g + GSTEP;
+            // 관찰은 10분 칸, 격자는 5분 — 한 관찰이 두 칸에 깔린다 (v3.1.92)
+            const au = !sl && !bk ? apps[Math.floor(g / 10) * 10] : undefined;
             const cls = ['tg-c', c % 2 ? 'fine' : '', isNow ? 'now' : '', bk ? (bk.off ? 'nonwork' : bk.note ? 'brk memo' : 'brk') : '',
-              sl ? 'slot' : '', !bk && !sl && cells.work[g] ? 'work' : '', cells.clash[g] != null ? 'clash' : '', g >= lo && g <= hi ? 'sel' : ''].filter(Boolean).join(' ');
-            const tip = [sl ? `${fmtM(sl.s)} ~ ${fmtM(sl.e)} · ${fmtDur(sl.e - sl.s)}\n${sl.text}` : '', bk?.t, ...mk.map((x) => x.tip)].filter(Boolean).join('\n');
+              au ? 'appuse' : '', sl ? 'slot' : '', !bk && !sl && cells.work[g] ? 'work' : '', cells.clash[g] != null ? 'clash' : '', g >= lo && g <= hi ? 'sel' : ''].filter(Boolean).join(' ');
+            const tip = [sl ? `${fmtM(sl.s)} ~ ${fmtM(sl.e)} · ${fmtDur(sl.e - sl.s)}\n${sl.text}` : '', bk?.t, ...mk.map((x) => x.tip), au ? `💻 ${cellApps(au).join(' · ')}` : ''].filter(Boolean).join('\n');
             const st: Record<string, string> = {};
             if (sl) st['--c'] = catVar(sl.color ?? nextColor(0));
             else if (bk && !bk.off && bk.color) st['--hc'] = bk.color;

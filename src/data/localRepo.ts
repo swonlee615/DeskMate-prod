@@ -6,11 +6,13 @@ import type { AttEvent } from '../domain/attendance/types';
 import type { Block } from '../domain/todos/tree';
 import type { Log } from '../domain/attendance/logs';
 import type { DayEvents, Item, Repo, SyncStatus } from './repo';
+import { appDocId, type AppDoc } from '../domain/appUse';
 
 const KEY = 'dm.local.events.v1';
 const BKEY = 'dm.local.blocks.v1';
 const IKEY = 'dm.local.items.v1';
 const LKEY = 'dm.local.logs.v1';
+const PKEY = 'dm.local.apps.v1';
 
 function load(): AttEvent[] {
   try {
@@ -57,6 +59,9 @@ export function createLocalRepo(): Repo {
   let logs = loadL();
   const imgs = new Map<string, Blob>();
   const lw = new Set<{ from: string; to: string; cb: (l: Log[]) => void }>();
+  let apps: AppDoc[] = (() => { try { return JSON.parse(localStorage.getItem(PKEY) ?? '[]') as AppDoc[]; } catch { return []; } })();
+  const pw = new Set<{ from: string; to: string; cb: (d: AppDoc[]) => void }>();
+  const emitP = () => { for (const w of pw) w.cb(apps.filter((a) => a.date >= w.from && a.date <= w.to)); };
   const emitL = () => { for (const w of lw) w.cb(logs.filter((l) => l.date >= w.from && l.date <= w.to)); };
   const iw = new Set<(items: Item[]) => void>();
   const emitI = () => { for (const cb of iw) cb(items); };
@@ -137,6 +142,19 @@ export function createLocalRepo(): Repo {
     },
     addLog(l) { logs = [...logs.filter((x) => x.id !== l.id), l]; saveL(logs); emitL(); },
     patchLog(id, f) { logs = logs.map((x) => (x.id === id ? { ...x, ...f, updatedAt: Date.now() } : x)); saveL(logs); emitL(); },
+
+    watchApps(from, to, cb) {
+      const w = { from, to, cb };
+      pw.add(w);
+      cb(apps.filter((a) => a.date >= from && a.date <= to));
+      return () => { pw.delete(w); };
+    },
+    putAppCells(date, device, cells) {
+      const id = appDocId(date, device), old = apps.find((a) => a.id === id);
+      apps = [...apps.filter((a) => a.id !== id), { id, date, device, cells: { ...old?.cells, ...cells }, updatedAt: Date.now() }];
+      try { localStorage.setItem(PKEY, JSON.stringify(apps)); } catch { /* 이번 세션만 */ }
+      emitP();
+    },
 
     watchItems(cb) { iw.add(cb); cb(items); return () => { iw.delete(cb); }; },
     addItem(it) { items = [...items.filter((x) => x.id !== it.id), it]; saveI(items); emitI(); },

@@ -18,6 +18,7 @@ import { addDays, dateOf, fmtDur, keyOf, weekStart } from '../ui/v3fmt';
 import { buildTeam, leaderboard, ROSTER, STATUS_ORDER, statusAt, TEAM_DEFAULT, teamHours, type LbRow, type Member, type MateStatus, type Team } from '../domain/sim/team';
 import { useMinute } from './clock';
 import { useIdleAway, type AppsLive, type IdlePerm } from './useIdleAway';
+import { addAppSample, appSlotOf, type AppCell, type AppDoc } from '../domain/appUse';
 import { applyLook, SETTINGS_DEFAULT, type Settings } from '../ui/settingsNav';
 import { rankToFix, type RankFix } from '../domain/stats';
 import { POMO_DEFAULT, usePomodoro, type Pomodoro, type PomoDoc } from './usePomodoro';
@@ -194,6 +195,8 @@ export interface Workspace {
   logs: Log[];
   /** 모든 날의 기록 구독 — 설정 › 시간 기록의 «N건 · 시간» 만 쓴다 (보는 기간 손잡이와 따로) */
   watchAllLogs: (cb: (logs: Log[]) => void) => () => void;
+  /** 그날 앱 사용 기록 (PC 마다 문서 하나 · domain/appUse) */
+  watchApps: (date: string, cb: (d: AppDoc[]) => void) => () => void;
   /** 모든 날의 할 일 · 메모 줄 구독 — 검색만 쓴다 (보는 기간 손잡이와 따로) */
   watchAllBlocks: (cb: (blocks: Block[]) => void) => () => void;
   /**
@@ -434,6 +437,20 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
     repo.mergeItem({ id: SETTINGS_ID, kind: 'settings', ...x, ...(past !== settings.goalPast ? { goalPast: past } : {}) } as Item);
   };
   const goal = useMemo<GoalCfg>(() => ({ hours: settings.goalHours, leave: settings.leaveGoal, past: settings.goalPast }), [settings.goalHours, settings.leaveGoal, settings.goalPast]);
+  // 앱 사용 기록 — 10분 칸을 메모리에 모았다가 칸이 바뀌거나 창을 떠날 때 한 번 쓴다 (쓰기 횟수를 줄인다)
+  // ponytail: 같은 칸 도중에 앱을 껐다 켜면 그 칸의 앞쪽 표본은 덮인다
+  const appAcc = useRef<{ date: string; g: number; cell: AppCell } | null>(null);
+  const flushApps = useCallback(() => {
+    const a = appAcc.current;
+    if (a) repo.putAppCells(a.date, deviceId(), { [a.g]: a.cell });
+  }, [repo]);
+  useEffect(() => {
+    const off = () => { if (document.visibilityState === 'hidden') flushApps(); };
+    document.addEventListener('visibilitychange', off);
+    window.addEventListener('pagehide', flushApps);
+    return () => { flushApps(); document.removeEventListener('visibilitychange', off); window.removeEventListener('pagehide', flushApps); };
+  }, [flushApps]);
+  const watchApps = useCallback((date: string, cb: (d: AppDoc[]) => void) => repo.watchApps(date, date, cb), [repo]);
   // PC 브라우저 자리비움 감지 — 이벤트만 보낸다. 자리비움인지는 재생이 정한다 (여러 PC · 사람이 연 휴게 우선)
   const idle = useIdleAway({
     on: settings.away, min: settings.awayMin, working: state === 'work',
@@ -444,6 +461,12 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
       if (by === 'app') say(`${mins}분째 업무 앱 사용이 없어서 휴게로 기록하고 있어요`);
     },
     onBack: (at) => { push('awayEnd', dateKey(at), { at }); },
+    onSample: (f, self, kind, at) => {
+      const date = dateKey(at), g = appSlotOf(Math.floor((at - dayStartMs(date)) / 60_000));
+      let a = appAcc.current;
+      if (!a || a.date !== date || a.g !== g) { flushApps(); a = appAcc.current = { date, g, cell: addAppSample(undefined, f, self, kind) }; }
+      else a.cell = addAppSample(a.cell, f, self, kind);
+    },
   });
   // 화면 모드 · 테마 — 시스템 설정이면 기기가 밤 모드로 넘어갈 때 따라간다
   useEffect(() => {
@@ -836,7 +859,7 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
     blocks, addBlock, patchBlocks, editBlocks, undoBlocks, redoBlocks, lastUndoAt, lastEditAt, toggleBlock, removeBlock, newId,
     ddays, saveDDay, pinDDay, archiveDDay, deleteDDay,
     saved, savedSort, isSaved, toggleSaved, pinSaved, setSavedSort, trash, deleteDay, restoreTrash, purgeTrash, emptyTrash, teamCfg, v3Preview, v3Import, v3Imported, images, addImages, imageBlob, removeImage, ranks, firstDate, habits, offDay, saveHabit, archiveHabit, deleteHabit, toggleHabit,
-    logs, watchAllLogs, watchAllBlocks, saveSpan, deleteSpan, fixConflicts, cats, setCats,
+    logs, watchAllLogs, watchApps, watchAllBlocks, saveSpan, deleteSpan, fixConflicts, cats, setCats,
     mates, ranking, mateStatus,
     nick, initial: nick.slice(0, 1).toUpperCase(),
     presence: state === 'break' ? 'break' : state === 'work' ? 'active' : 'offline',

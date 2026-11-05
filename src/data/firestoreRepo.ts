@@ -12,6 +12,7 @@
  */
 import { Bytes, collection, deleteDoc, deleteField, doc, getDoc, getDocFromCache, setDoc, updateDoc, query, where, onSnapshot, writeBatch, orderBy, limit, getDocs, type Firestore } from 'firebase/firestore';
 import type { Repo, SyncStatus } from './repo';
+import { appDocId } from '../domain/appUse';
 import type { AttEvent } from '../domain/attendance/types';
 
 export function createFirestoreRepo(db: Firestore, uid: string): Repo {
@@ -37,6 +38,7 @@ export function createFirestoreRepo(db: Firestore, uid: string): Repo {
   const bcol = collection(db, 'users', uid, 'blocks');
   const icol = collection(db, 'users', uid, 'items');
   const lcol = collection(db, 'users', uid, 'logs');
+  const pcol = collection(db, 'users', uid, 'apps');
   const gcol = collection(db, 'users', uid, 'images');
   const acol = collection(db, 'users', uid, 'archive');
 
@@ -126,6 +128,16 @@ export function createFirestoreRepo(db: Firestore, uid: string): Repo {
     },
     addLog(l) { track(setDoc(doc(lcol, l.id), l)); },
     patchLog(id, f) { track(updateDoc(doc(lcol, id), { ...f, updatedAt: Date.now() })); },
+
+    watchApps(from, to, cb) {
+      const q = query(pcol, where('date', '>=', from), where('date', '<=', to));
+      return onSnapshot(q, (snap) => cb(snap.docs.map((d) => d.data() as never)));
+    },
+    putAppCells(date, device, cells) {
+      // merge — 칸 열쇠만 덮어쓴다. 다른 칸은 그대로
+      const id = appDocId(date, device);
+      track(setDoc(doc(pcol, id), { id, date, device, cells, updatedAt: Date.now() }, { merge: true }));
+    },
 
     watchItems(cb) {
       const key = `i${nextSub++}`;
