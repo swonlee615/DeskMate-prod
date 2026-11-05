@@ -47,6 +47,12 @@
    - 2026-11-04 다시 배포 확인: 새 번들 · `/` no-cache 적용. 콘솔 오류 없음 · «동기화됨» · 클라우드 데이터가 화면에 뜬다
    - 규칙을 바꾸면 에뮬레이터가 없어서(자바 없음) `npx firebase-tools@14 deploy --only firestore:rules --dry-run` 으로 컴파일만 본다. 배포 뒤 콘솔에 permission-denied 가 없는지 꼭 본다
 4. PC 앱 — 같은 리포에 `src-tauri/` 추가 (리포를 나누지 않는다)
+   - 뼈대 됨 (2026-11-05). 번들 ID `io.github.swonlee615.deskmate` (**바꾸지 않는다** · 소유자 결정). 버전은 `package.json` 을 따른다
+     창은 v3 Electron 과 같게 (900×730 · 최소 380×480 · 맥 신호등 13,15 · 위치 · 크기 기억). 웹 쪽은 `src/pc/desktop.ts` (위 띠 · 창 끌기) · PC 앱에서는 서비스 워커를 안 쓴다
+     실행 `npm run desktop` · 설치 파일 `npm run desktop:build`. Rust 는 brew `rustup` — 터미널 PATH 에 `/opt/homebrew/opt/rustup/bin` 이 있어야 한다
+     서명 · 공증은 **출시 직전에** (2026-11-05 소유자). 자동 업데이트 키는 첫 배포 전에 만들어 리포 밖에 둔다
+   - 다음: **Google · Apple 로그인** — 앱 창(WKWebView)에서는 팝업 · 리디렉트가 막힌다. 기본 브라우저에서 로그인하고 자격을 앱에 넘기는 방식으로. 이메일 로그인은 그대로 된다
+   - 그다음: 맨 앞 앱 · 자리비움 (Rust 명령) → 트레이 → 자동 업데이트
    - 배포는 앱스토어가 아니라 **랜딩 페이지에서 .dmg(맥) · .exe(윈도우) 내려받기** (2026-10-29 소유자 구상).
      맥은 Developer ID 서명 + 공증, 윈도우는 코드 서명이 있어야 «확인되지 않은 개발자» 경고가 안 뜬다. 자동 업데이트는 Tauri updater
    - 앱 사용 기록(지금 어느 앱 창인가)은 PC 앱에서만 — 브라우저는 못 본다

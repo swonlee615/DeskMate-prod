@@ -10,15 +10,19 @@
     "preview": "vite preview --host",
     "test": "vitest run",
     "typecheck": "tsc -b --noEmit",
-    "v3": "node scripts/v3-status.mjs"
+    "v3": "node scripts/v3-status.mjs",
+    "desktop": "tauri dev",
+    "desktop:build": "tauri build"
   },
   "dependencies": {
+    "@tauri-apps/api": "^2.12.4",
     "firebase": "^12.19.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "sql.js": "^1.13.0"
   },
   "devDependencies": {
+    "@tauri-apps/cli": "^2.12.4",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@types/sql.js": "^1.4.11",

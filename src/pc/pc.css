@@ -6,6 +6,8 @@
 /* 브라우저에는 맥 신호등 자리가 없다. 데스크톱 앱(Tauri)에서는 다시 켠다 */
 :root { --top-strip: 0px; }
 .top-strip { display: none; }
+:root[data-mac] { --top-strip: 38px; }   /* PC 앱(맥) — src/pc/desktop.ts */
+[data-mac] .top-strip { display: block; }
 /* 오픈 전 레일 메뉴 — 자리는 v3 그대로, 흐리게 */
 .rail-btn.soon { opacity: .45; }
 .rail-btn.soon:hover { opacity: .7; }
