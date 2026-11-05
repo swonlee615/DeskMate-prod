@@ -17,7 +17,7 @@ import { breakConflicts, logsOf, overlapIds, resolveConflicts, splitRest, type L
 import { addDays, dateOf, fmtDur, keyOf, weekStart } from '../ui/v3fmt';
 import { buildTeam, leaderboard, ROSTER, STATUS_ORDER, statusAt, TEAM_DEFAULT, teamHours, type LbRow, type Member, type MateStatus, type Team } from '../domain/sim/team';
 import { useMinute } from './clock';
-import { useIdleAway, type IdlePerm } from './useIdleAway';
+import { useIdleAway, type AppsLive, type IdlePerm } from './useIdleAway';
 import { applyLook, SETTINGS_DEFAULT, type Settings } from '../ui/settingsNav';
 import { rankToFix, type RankFix } from '../domain/stats';
 import { POMO_DEFAULT, usePomodoro, type Pomodoro, type PomoDoc } from './usePomodoro';
@@ -79,7 +79,7 @@ export interface Workspace {
   /** 팀 — 멤버 · 근무시간대 (랭킹 · 순위 이력 · 사이드바가 같이 쓴다) */
   teamCfg: Team;
   /** 이 브라우저의 자리비움 감지 권한 · 묻기 (PC 브라우저 · Chrome/Edge) */
-  idle: { perm: IdlePerm; ask: () => Promise<void> };
+  idle: { perm: IdlePerm; ask: () => Promise<void>; live: AppsLive | null };
   /** 설정 (items/settings) — 계정에 하나 */
   settings: Settings;
   /** 바뀐 칸만 저장 (합치기) */
@@ -437,7 +437,12 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
   // PC 브라우저 자리비움 감지 — 이벤트만 보낸다. 자리비움인지는 재생이 정한다 (여러 PC · 사람이 연 휴게 우선)
   const idle = useIdleAway({
     on: settings.away, min: settings.awayMin, working: state === 'work',
-    onAway: (at, by) => { push('awayStart', dateKey(at), { at, by }); },
+    apps: { on: settings.workAppsOn, workApps: settings.workApps, nonWorkApps: settings.nonWorkApps, unknownApp: settings.unknownApp },
+    onAway: (at, by, mins) => {
+      push('awayStart', dateKey(at), { at, by });
+      if (by === 'idle') say(`${mins}분째 움직임이 없어 휴게로 기록하고 있어요`);
+      if (by === 'app') say(`${mins}분째 업무 앱 사용이 없어서 휴게로 기록하고 있어요`);
+    },
     onBack: (at) => { push('awayEnd', dateKey(at), { at }); },
   });
   // 화면 모드 · 테마 — 시스템 설정이면 기기가 밤 모드로 넘어갈 때 따라간다

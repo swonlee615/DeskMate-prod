@@ -16,6 +16,7 @@ import { IMG_HINT, imgDay, Thumb, useImageList } from '../ui/ImageList';
 import { AWAY_HINT, idleText, useCatSum } from '../ui/settingsNav';
 import { fmtMB } from '../domain/images';
 import type { V3Pick } from '../app/useWorkspace';
+import { WorkAppsCard } from './WorkApps';
 
 type Draft = Settings & PomoCfg;
 const clamp = (v: number, a: number, b: number, d: number) => (Number.isFinite(v) ? Math.max(a, Math.min(b, Math.round(v))) : d);
@@ -151,7 +152,8 @@ export function SettingsModal({ ws, onClose, onDay }: { ws: Workspace; onClose: 
                 <p className="hint">{idleText(ws.idle.perm)}</p>
                 {ws.idle.perm === 'prompt' && <button className="btn primary sm" onClick={() => void ws.idle.ask()}>이 브라우저에서 감지 허용</button>}
                 <div className="sec-t">업무 앱 기준</div>
-                <p className="hint">어떤 앱을 쓰고 있는지는 브라우저가 볼 수 없어요. 업무 앱 기준 감지와 출근 감지는 PC 앱에서 쓸 수 있어요.</p>
+                {ws.idle.perm === 'app' ? <WorkAppsCard ws={ws} />
+                  : <p className="hint">어떤 앱을 쓰고 있는지는 브라우저가 볼 수 없어요. 업무 앱 기준 감지와 출근 감지는 PC 앱에서 쓸 수 있어요.</p>}
               </section>
             )}
             {pane === 'data' && <DataPane ws={ws} onDay={(k) => { cancel(); onDay(k); }} />}

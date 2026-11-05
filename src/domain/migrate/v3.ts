@@ -17,6 +17,7 @@ import type { Log } from '../attendance/logs';
 import type { DDay } from '../dday';
 import type { Habit } from '../habits';
 import type { Member } from '../sim/team';
+import { appList } from '../workApps';
 
 // ── v3 모양 (db.js load) — 쓰는 칸만
 export interface V3Block { id: string; type: string; text?: string; done?: boolean; doneAt?: number | null; indent?: number; src?: string; movedId?: string; movedTo?: string; bornAt?: string; someday?: boolean; w?: number; nw?: number; name?: string }
@@ -34,6 +35,7 @@ export interface V3State {
   goalHours?: number; goalPast?: { to: string; h: number }[]; leaveGoal?: boolean; theme?: string; mode?: string; workspace?: string; timerColor?: string;
   focusMin?: number; shortMin?: number; longMin?: number; longEvery?: number; autoStart?: boolean;
   autoAway?: boolean; autoAwayMin?: number;
+  workAppsOn?: boolean; workApps?: unknown; nonWorkApps?: unknown; unknownApp?: string;
   members?: Partial<Member>[];
   userNick?: string; userName?: string; userRank?: string; userColor?: string; userAvatar?: string | null;
   wsLogo?: string | null; wsColor?: string; teamStart?: number;
@@ -173,6 +175,10 @@ export function convertV3(st: V3State, now: number): Converted {
   if (st.timerColor) settings.timerColor = st.timerColor;
   if (typeof st.autoAway === 'boolean') settings.away = st.autoAway;
   if (typeof st.autoAwayMin === 'number') settings.awayMin = Math.max(3, Math.min(60, st.autoAwayMin));
+  if (typeof st.workAppsOn === 'boolean') settings.workAppsOn = st.workAppsOn;
+  if (st.workApps != null) settings.workApps = appList(st.workApps);
+  if (st.nonWorkApps != null) settings.nonWorkApps = appList(st.nonWorkApps);
+  if (st.unknownApp) settings.unknownApp = st.unknownApp === 'work' ? 'work' : 'away';
   // 내 프로필 · 워크스페이스 꾸밈 · 팀 근무 시작
   if (st.userNick) settings.nick = st.userNick;
   if (st.userName) settings.name = st.userName;
