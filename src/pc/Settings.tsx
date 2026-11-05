@@ -17,6 +17,8 @@ import { AWAY_HINT, idleText, useCatSum } from '../ui/settingsNav';
 import { fmtMB } from '../domain/images';
 import type { V3Pick } from '../app/useWorkspace';
 import { WorkAppsCard } from './WorkApps';
+import { deviceKind } from '../data/device';
+import { notify } from '../app/notify';
 
 type Draft = Settings & PomoCfg;
 const clamp = (v: number, a: number, b: number, d: number) => (Number.isFinite(v) ? Math.max(a, Math.min(b, Math.round(v))) : d);
@@ -36,7 +38,7 @@ export function SettingsModal({ ws, onClose, onDay }: { ws: Workspace; onClose: 
   };
   const save = () => {
     const goalHours = clamp(d.goalHours, 1, 14, orig.current.goalHours);
-    ws.saveSettings({ mode: d.mode, theme: d.theme, wsName: d.wsName.trim() || 'DeskMate', goalHours, leaveGoal: d.leaveGoal, timerColor: d.timerColor, away: d.away, awayMin: clamp(d.awayMin, 3, 60, orig.current.awayMin) });
+    ws.saveSettings({ mode: d.mode, theme: d.theme, wsName: d.wsName.trim() || 'DeskMate', goalHours, leaveGoal: d.leaveGoal, timerColor: d.timerColor, notify: d.notify, away: d.away, awayMin: clamp(d.awayMin, 3, 60, orig.current.awayMin) });
     const c = ws.timer.cfg;
     const pomo: PomoCfg = { ...c, focusMin: clamp(d.focusMin, 5, 90, c.focusMin), shortMin: clamp(d.shortMin, 1, 30, c.shortMin), longMin: clamp(d.longMin, 5, 60, c.longMin), autoStart: d.autoStart };
     if ((Object.keys(pomo) as (keyof PomoCfg)[]).some((k) => pomo[k] !== c[k])) ws.timer.setCfg(pomo);
@@ -128,6 +130,19 @@ export function SettingsModal({ ws, onClose, onDay }: { ws: Workspace; onClose: 
                   <div><label htmlFor="set-longMin">긴 휴식 (분)</label>{num('longMin', 5, 60)}</div>
                   <div><label>자동 다음 세션</label>{tgl(d.autoStart, (b) => put({ autoStart: b }), '자동 다음 세션')}</div>
                 </div>
+                {deviceKind() === 'desktop' && (
+                  <div className="field">
+                    <label>시스템 알림</label>
+                    <span className="nt-test">{tgl(d.notify, (b) => put({ notify: b }), '시스템 알림')}
+                      <button className="mini-btn" id="btnNotifyTest" type="button" onClick={async () => {
+                        if (!d.notify) { ws.say('위 «시스템 알림»이 꺼져 있어요'); return; }
+                        ws.say(await notify('DeskMate 알림 테스트', '이 알림이 보이면 정상이에요.')
+                          ? '보냈어요. 안 보이면 macOS 시스템 설정 › 알림에서 DeskMate를 확인해 주세요'
+                          : '알림을 보내지 못했어요. macOS 시스템 설정 › 알림에서 DeskMate를 켜 주세요');
+                      }}>테스트</button></span>
+                    <p className="hint">집중 · 휴식이 끝날 때와 출근 감지가 물을 때 알려요. 알림을 누르면 DeskMate가 열려요.</p>
+                  </div>
+                )}
                 <div className="field">
                   <label>타이머 색</label>
                   <div className="tc-row" id="tcPick" role="radiogroup" aria-label="타이머 색">

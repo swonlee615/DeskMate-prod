@@ -14,7 +14,8 @@ import { dateKey, dayEndMs, dayParts, dayStartMs, goalPastAfter, sessions, state
 import { addBreakSpan, addWorkSpan, canCarry, editBreak, removeBreak, resolveAt, resolveCarry } from '../domain/attendance/edit';
 import { catsOf, cleanCats, type Cat } from '../domain/attendance/cats';
 import { breakConflicts, logsOf, overlapIds, resolveConflicts, splitRest, type Log, type SpanInput, type SpanRef } from '../domain/attendance/logs';
-import { addDays, dateOf, fmtDur, keyOf, weekStart } from '../ui/v3fmt';
+import { addDays, dateOf, fmtDur, keyOf, korClock, weekStart } from '../ui/v3fmt';
+import { notify } from './notify';
 import { buildTeam, leaderboard, ROSTER, STATUS_ORDER, statusAt, TEAM_DEFAULT, teamHours, type LbRow, type Member, type MateStatus, type Team } from '../domain/sim/team';
 import { useMinute } from './clock';
 import { useIdleAway, type AppsLive, type IdlePerm } from './useIdleAway';
@@ -286,6 +287,8 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
   useEffect(() => repo.watchItems((xs) => { setItems(xs); setItemsIn(true); }), [repo]);
   const setDoc = items.find((x) => x.id === SETTINGS_ID) as (Item & Partial<Settings>) | undefined;
   const settings = useMemo<Settings>(() => ({ ...SETTINGS_DEFAULT, ...setDoc }), [setDoc]);
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
 
   // 출근 감지가 돌면 자정을 넘긴 날은 묻지 않고 23:59 마감 (LOGIC §7 v3.2.0) — 기기 상태 대신 계정 설정으로 (SYNC §6)
   const closeAtMidnight = settings.arrivalDetect && settings.workAppsOn;
@@ -340,9 +343,13 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
   const timer = usePomodoro(
     pomoDoc,
     (fields, full) => (pomoDoc ? repo.patchItem(POMO_ID, fields) : repo.addItem({ id: POMO_ID, kind: 'pomo', ...full } as Item)),
-    (endedAt, min) => {
+    (mode, endedAt, min) => {
+      // 꺼져 있던 사이에 끝난 세션은 알림을 안 띄운다 — 다시 켰을 때 지난 일로 울리지 않게
+      const fresh = settingsRef.current.notify && Date.now() - endedAt < 60_000;
+      if (mode !== 'focus') { if (fresh) void notify('휴식 끝', '다시 집중해볼까요?'); return; }
       push('pomoDone', dateKey(endedAt), { id: `pomo-${endedAt}`, at: endedAt, min });
       say(`세션 완료! 오늘 ${pomoCount.current + 1}회`);
+      if (fresh) void notify('집중 세션 완료 🍅', `${min}분 집중했어요.`);
     },
     (mode) => say(mode === 'focus' ? '다음 집중을 자동으로 시작했어요' : '휴식을 자동으로 시작했어요',
       { label: '그만두기', run: () => { timerRef.current?.pause(); setToast(null); } }, true),
@@ -486,7 +493,10 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
       if (kind === 'work' && name && !arrApps.current.includes(name)) arrApps.current = [...arrApps.current, name].slice(-3);
       if (!st.run && !st.hit) arrApps.current = [];
       if (!ev) return;
-      if (ev.type === 'hit' && st.hit) { st.hit.apps = arrApps.current; missedShow.current = true; }
+      if (ev.type === 'hit' && st.hit) {
+        st.hit.apps = arrApps.current; missedShow.current = true;
+        if (settingsRef.current.notify) void notify(st.hit.mode === 'resume' ? '업무를 다시 시작하셨나요?' : '업무를 시작하셨나요?', `${korClock(st.hit.at)}부터 근무 중이에요.`);
+      }
       // 놓친 기록이 막 생긴 때는 사람이 자리에 없다 — 다음 출근 순간까지 숨겨 둔다
       if (ev.type === 'withdrawn' && ev.missed) missedShow.current = false;
       bumpArr((n) => n + 1);
@@ -568,7 +578,6 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
     return true;
   };
 
-  const korClock = (ms: number) => { const t = new Date(ms), h = t.getHours(); return `${h < 12 ? '오전' : '오후'} ${h % 12 || 12}:${String(t.getMinutes()).padStart(2, '0')}`; };
   const arrAct = (a: 'go' | 'cancel' | 'snooze') => {
     const st = arr.current, h = st.hit;
     if (!h) return;

@@ -73,20 +73,20 @@ export interface Pomodoro {
 /**
  * @param doc 저장된 타이머 (아직 없으면 null)
  * @param write 바뀐 필드만 저장
- * @param onFocusDone 집중 한 번을 끝까지 채웠을 때 — 끝난 시각 · 분
+ * @param onDone 세션 하나를 끝까지 채웠을 때 — 끝난 판 · 끝난 시각 · 집중 분
  * @param onAutoStart 앱이 스스로 다음 세션을 시작했을 때 — v3 는 «켜 두되 말을 한다» (v3.1.127)
  */
 export function usePomodoro(
   doc: PomoDoc | null,
   write: (fields: Partial<PomoDoc>, full: PomoDoc) => void,
-  onFocusDone: (endedAt: number, min: number) => void,
+  onDone: (mode: PomoMode, endedAt: number, min: number) => void,
   onAutoStart: (mode: PomoMode) => void,
 ): Pomodoro {
   const s = doc ?? POMO_DEFAULT;
-  const cb = useRef({ onFocusDone, onAutoStart, write });
+  const cb = useRef({ onDone, onAutoStart, write });
   /** 이 기기가 이미 넘긴 세션 (끝나는 시각) — 저장이 화면에 돌아오기 전에 또 넘기지 않게 */
   const done = useRef<number | null>(null);
-  cb.current = { onFocusDone, onAutoStart, write };
+  cb.current = { onDone, onAutoStart, write };
 
   const save = useCallback((n: PomoDoc) => {
     const f: Partial<PomoDoc> = {};
@@ -103,7 +103,7 @@ export function usePomodoro(
       if (s.endsAt == null || done.current === s.endsAt) return;
       done.current = s.endsAt;
       const n = nextPomo(s, true, false, Date.now());
-      if (s.mode === 'focus') cb.current.onFocusDone(s.endsAt, s.focusMin);
+      cb.current.onDone(s.mode, s.endsAt, s.focusMin);
       save(n);
       if (n.endsAt != null) cb.current.onAutoStart(n.mode);
     };

@@ -35,7 +35,7 @@ export interface V3State {
   goalHours?: number; goalPast?: { to: string; h: number }[]; leaveGoal?: boolean; theme?: string; mode?: string; workspace?: string; timerColor?: string;
   focusMin?: number; shortMin?: number; longMin?: number; longEvery?: number; autoStart?: boolean;
   autoAway?: boolean; autoAwayMin?: number;
-  workAppsOn?: boolean; workApps?: unknown; nonWorkApps?: unknown; unknownApp?: string; arrivalDetect?: boolean; arrivalCooldownMin?: number;
+  workAppsOn?: boolean; workApps?: unknown; nonWorkApps?: unknown; unknownApp?: string; arrivalDetect?: boolean; arrivalCooldownMin?: number; notify?: boolean;
   members?: Partial<Member>[];
   userNick?: string; userName?: string; userRank?: string; userColor?: string; userAvatar?: string | null;
   wsLogo?: string | null; wsColor?: string; teamStart?: number;
@@ -180,6 +180,7 @@ export function convertV3(st: V3State, now: number): Converted {
   if (st.nonWorkApps != null) settings.nonWorkApps = appList(st.nonWorkApps);
   if (st.unknownApp) settings.unknownApp = st.unknownApp === 'work' ? 'work' : 'away';
   if (typeof st.arrivalDetect === 'boolean') settings.arrivalDetect = st.arrivalDetect;
+  if (typeof st.notify === 'boolean') settings.notify = st.notify;
   if (typeof st.arrivalCooldownMin === 'number') settings.arrivalCooldownMin = Math.max(1, Math.min(240, Math.round(st.arrivalCooldownMin)));
   // 내 프로필 · 워크스페이스 꾸밈 · 팀 근무 시작
   if (st.userNick) settings.nick = st.userNick;
