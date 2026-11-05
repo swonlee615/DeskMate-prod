@@ -158,7 +158,8 @@ export function PcWorkspace({ ws }: { ws: Workspace }) {
           <div className="sb-foot">
             <button className="sb-row" id="rowMe" onClick={openAccount} title={user.email ?? nick}>
               <span className="av haspd"><span className="avi" style={avStyle(ws.settings.color, ws.settings.avatar)}>{avText(initial, ws.settings.avatar)}</span><span className="pdot" data-p={presence} /></span>
-              <span className="nm"><span className="sb-me-nick">{nick}</span></span>
+              <span className="nm"><span className="sb-me-nick">{nick}</span>
+                {user.name && user.name !== nick && <> <span className="tag">({user.name})</span></>}</span>
               <span className="tag">나</span>
             </button>
             <button className={`sb-row${view === 'trash' ? ' sel' : ''}`} id="rowTrash" onClick={() => go('trash')}>
