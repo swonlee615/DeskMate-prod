@@ -3,15 +3,7 @@
  * ★ 놓친 업무 기록(v3.2.1)이 있으면 같은 카드 위쪽에 한 칸 더 선다
  */
 import type { Workspace } from '../app/useWorkspace';
-import { fmtDur } from '../ui/v3fmt';
-
-const korClock = (ms: number) => { const t = new Date(ms), h = t.getHours(); return `${h < 12 ? '오전' : '오후'} ${h % 12 || 12}:${String(t.getMinutes()).padStart(2, '0')}`; };
-/** 오전 9:00–9:30 (30분) — 오전/오후가 같으면 뒤에서는 뗀다 (v3 missedRange) */
-function range(s: number, e: number) {
-  const a = new Date(s), b = new Date(e);
-  const tail = (a.getHours() < 12) === (b.getHours() < 12) ? `${b.getHours() % 12 || 12}:${String(b.getMinutes()).padStart(2, '0')}` : korClock(e);
-  return `${korClock(s)}–${tail} (${fmtDur((e - s) / 60000)})`;
-}
+import { korClock, missedRange as range } from '../ui/v3fmt';
 
 export function ArrivalAsk({ ws }: { ws: Workspace }) {
   const { hit: h, missed: m, act, missedAct } = ws.arrival;

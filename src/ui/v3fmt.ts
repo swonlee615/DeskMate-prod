@@ -19,6 +19,14 @@ export function fmtClock(mins: number): string {
 }
 
 export const hhmm = (ms: number) => { const d = new Date(ms); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+/** 오전 9:05 (v3 korClock — 출근 감지 문구) */
+export const korClock = (ms: number) => { const t = new Date(ms), h = t.getHours(); return `${h < 12 ? '오전' : '오후'} ${h % 12 || 12}:${pad(t.getMinutes())}`; };
+/** 오전 9:00–9:30 (30분) — 오전/오후가 같으면 뒤에서는 뗀다 (v3 missedRange) */
+export function missedRange(s: number, e: number) {
+  const a = new Date(s), b = new Date(e);
+  const tail = (a.getHours() < 12) === (b.getHours() < 12) ? `${b.getHours() % 12 || 12}:${pad(b.getMinutes())}` : korClock(e);
+  return `${korClock(s)}–${tail} (${fmtDur((e - s) / 60000)})`;
+}
 export const mmss = (sec: number) => `${pad(Math.floor(sec / 60))}:${pad(Math.floor(sec % 60))}`;
 
 export const DOW = ['일', '월', '화', '수', '목', '금', '토'];

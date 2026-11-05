@@ -6,6 +6,7 @@
  *   PC 창을 아무리 좁혀도 모바일 화면으로 바뀌지 않는다 — v3 의 3단 · 2단 · 1단(서랍) 으로만 바뀐다.
  */
 import { ArrivalAsk } from './ArrivalAsk';
+import { useTray } from '../app/useTray';
 import { PomoClock } from '../ui/Live';
 import { avStyle, avText } from '../ui/avatar';
 import { useEffect, useState } from 'react';
@@ -102,6 +103,7 @@ export function PcWorkspace({ ws }: { ws: Workspace }) {
   const [dayFull, setDayFull] = useState(false);
   const [focusOff, setFocusOff] = useState(false);
   const openDay = (k: string, off = false) => { setDayKey(k); setFocusOff(off); };
+  useTray(ws, { openSettings: () => { setDrawer(false); setSetOpen(true); }, openDay: (k) => { setView('worklog'); openDay(k, true); } });
   const [rowMenu, setRowMenu] = useState<{ k: string; x: number; y: number } | null>(null);
   const noteDates = new Set(ws.blocks.filter((b) => !b.deletedAt && b.text.trim() && (b.area === 'today' || b.area === 'memo')).map((b) => b.date));
   const closeDay = () => { setDayKey(null); setDayFull(false); setFocusOff(false); };
