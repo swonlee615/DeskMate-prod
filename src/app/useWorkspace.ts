@@ -19,7 +19,7 @@ import { notify } from './notify';
 import { buildTeam, leaderboard, ROSTER, STATUS_ORDER, statusAt, TEAM_DEFAULT, teamHours, type LbRow, type Member, type MateStatus, type Team } from '../domain/sim/team';
 import { useMinute } from './clock';
 import { useIdleAway, type AppsLive, type IdlePerm } from './useIdleAway';
-import { addAppSample, appSlotOf, type AppCell, type AppDoc } from '../domain/appUse';
+import { addAppSample, appSlotOf, APP_SLOT_MIN, type AppCell, type AppCells, type AppDoc } from '../domain/appUse';
 import { arrCancel, arrClear, arrCool, arrCreate, arrSnooze, arrTick, type ArrHit, type ArrMode, type Missed } from '../domain/arrival';
 import { LONG_BREAK_MS, MIN_BREAK_MS } from '../domain/attendance/types';
 import { applyLook, SETTINGS_DEFAULT, type Settings } from '../ui/settingsNav';
@@ -210,6 +210,8 @@ export interface Workspace {
    */
   saveSpan: (date: string, orig: SpanRef | null, v: SpanInput) => string | null;
   deleteSpan: (date: string, orig: SpanRef) => void;
+  /** 앱 사용 초안 줄 지우기 (v3 · 잘못 잡힌 앱 사용 기록) — 그 구간의 칸만 비운다. 시간 기록 · 휴게는 그대로 */
+  dropApps: (date: string, docs: AppDoc[], s: number, e: number) => void;
   /** 「겹친 휴게 정리」 — 사람이 누른 정리라 비근무까지 자른다 (v3.1.64) */
   fixConflicts: (date: string) => void;
   /** 카테고리 = 이름 붙인 색 (v3 cfg.cats) — 저장한 적 없으면 12색 · 이름 없음 */
@@ -826,6 +828,19 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
       { label: '되돌리기', run: () => { repo.patchLog(orig.id, { deletedAt: null }); setToast(null); } });
   };
 
+  const dropApps: Workspace['dropApps'] = (date, docs, s, e) => {
+    const undo: (() => void)[] = [];
+    for (const doc of docs) {
+      const keys = Object.keys(doc.cells ?? {}).filter((g) => +g + APP_SLOT_MIN > s && +g < e);
+      if (!keys.length) continue;
+      const empty: AppCells = {}, old: AppCells = {};
+      for (const g of keys) { empty[g] = { n: {}, k: {}, l: {} }; old[g] = doc.cells[g]; }
+      repo.putAppCells(date, doc.device, empty);
+      undo.push(() => repo.putAppCells(date, doc.device, old));
+    }
+    say('앱 사용 기록을 지웠어요', { label: '되돌리기', run: () => { undo.forEach((f) => f()); setToast(null); } });
+  };
+
   const fixConflicts = (date: string) => {
     const d = dayOf(date);
     const back = breakConflicts(d).reduce((a, c) => a + c.min, 0);
@@ -943,7 +958,7 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
     blocks, addBlock, patchBlocks, editBlocks, undoBlocks, redoBlocks, lastUndoAt, lastEditAt, toggleBlock, removeBlock, newId,
     ddays, saveDDay, pinDDay, archiveDDay, deleteDDay,
     saved, savedSort, isSaved, toggleSaved, pinSaved, setSavedSort, trash, deleteDay, restoreTrash, purgeTrash, emptyTrash, teamCfg, v3Preview, v3Import, v3Imported, images, addImages, imageBlob, removeImage, ranks, firstDate, habits, offDay, saveHabit, archiveHabit, deleteHabit, toggleHabit,
-    logs, watchAllLogs, watchApps, watchAllBlocks, saveSpan, deleteSpan, fixConflicts, cats, setCats,
+    logs, watchAllLogs, watchApps, watchAllBlocks, saveSpan, deleteSpan, dropApps, fixConflicts, cats, setCats,
     mates, ranking, mateStatus,
     nick, initial: nick.slice(0, 1).toUpperCase(),
     presence: state === 'break' ? 'break' : state === 'work' ? 'active' : 'offline',

@@ -22,7 +22,7 @@ import { NoteEditor } from './NoteEditor';
 import { DDayLines, type OpenDDay } from './DDay';
 import { HabitStrip } from './Habits';
 import { catChoices, catKey, catName, labelPicks, type Cat, type LabelPick } from '../domain/attendance/cats';
-import { appsIn, appTerms, cellApps, mergeAppDocs, type AppCells } from '../domain/appUse';
+import { appsIn, appTerms, cellApps, mergeAppDocs, type AppCells, type AppDoc } from '../domain/appUse';
 import { appBucket, type WorkAppsCfg } from '../domain/workApps';
 import { breakConflicts, catVar, logsOf, nextColor, slotOutside, type Log, type SpanRef } from '../domain/attendance/logs';
 
@@ -70,8 +70,9 @@ export function DayPage({ ws, date, full, onClose, onFull, onGo, focusOff, onDD 
   const [addDlg, setAddDlg] = useState(false);
   const [brkDlg, setBrkDlg] = useState<OpenSpan | null>(null);
   // 앱 사용 기록 (v3 day.apps) — 격자 바탕 · 초안 줄 · 기록 줄의 앱 칩이 같이 읽는다
-  const [apps, setApps] = useState<AppCells>({});
-  useEffect(() => { setApps({}); return ws.watchApps(date, (docs) => setApps(mergeAppDocs(docs))); }, [ws.watchApps, date]);
+  const [appDocs, setAppDocs] = useState<AppDoc[]>([]);
+  const apps = useMemo(() => mergeAppDocs(appDocs), [appDocs]);
+  useEffect(() => { setAppDocs([]); return ws.watchApps(date, setAppDocs); }, [ws.watchApps, date]);
   const pageRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { setOpen(!!focusOff); }, [date, focusOff]);
@@ -242,7 +243,7 @@ export function DayPage({ ws, date, full, onClose, onFull, onGo, focusOff, onDD 
 
       {sesDlg != null && <SesDialog ws={ws} date={date} d={d} i={sesDlg} onClose={() => setSesDlg(null)} />}
       {addDlg && <AddDialog ws={ws} date={date} d={d} onClose={() => setAddDlg(false)} />}
-      {brkDlg && <SpanDialog ws={ws} date={date} d={d} o={brkDlg} onClose={() => setBrkDlg(null)} />}
+      {brkDlg && <SpanDialog ws={ws} date={date} d={d} o={brkDlg} appDocs={appDocs} onClose={() => setBrkDlg(null)} />}
     </div>
   );
 }
@@ -315,7 +316,7 @@ function WeekStrip({ ws, date, onGo }: { ws: Workspace; date: string; onGo: (k: 
 }
 
 /** 상자를 여는 값 — 이미 있는 것(ref)이거나 새로 끈 구간 */
-export interface OpenSpan { ref: SpanRef | null; s: number; e: number; kind: 'slot' | 'break' }
+export interface OpenSpan { ref: SpanRef | null; s: number; e: number; kind: 'slot' | 'break'; /** 앱 사용 초안 줄에서 열었다 */ draft?: boolean }
 const gFloor = (m: number) => Math.floor(Math.max(0, m) / GSTEP) * GSTEP;
 
 /** 휴게 상자로 열기 — 진행 중이라 길이가 0 이면 최소 한 칸 (v3 openSlot) */
@@ -536,7 +537,7 @@ export function SlotList({ d, logs, cats, now, rows, apps = {}, wa, onOpen, onGo
   const nowMin = keyOf(new Date(now)) === d.date ? minOf(now) : undefined;
   for (const t of appTerms(apps, { covered, cap: nowMin })) {
     items.push({ at: base + t.s * 60000 + 0.1, el: (
-      <div key={`dr${t.s}`} className="tg-item r2 draft" data-draft={`${t.s}:${t.e}`} onClick={() => onOpen({ ref: null, s: t.s, e: t.e, kind: 'slot' })}
+      <div key={`dr${t.s}`} className="tg-item r2 draft" data-draft={`${t.s}:${t.e}`} onClick={() => onOpen({ ref: null, s: t.s, e: t.e, kind: 'slot', draft: true })}
         title={`${fmtM(t.s)} ~ ${fmtM(t.e)} · ${fmtDur(t.e - t.s)}\n💻 ${t.apps.join(' · ')}\n\n눌러서 시간 기록으로 만들어요`}>
         <i className="dr-bar" />
         <span className="rg">{fmtM(t.s)} ~ {fmtM(t.e)}</span>
@@ -738,7 +739,7 @@ function LabelCombo({ picks, value, placeholder, onChange, onEnter }: { picks: L
 }
 
 /** 시간 기록 · 휴게 상자 (v3 slotModal) — 종류 고르기 · 이름(메모) · 카테고리 · 삭제 */
-function SpanDialog({ ws, date, d, o, onClose }: { ws: Workspace; date: string; d: Day; o: OpenSpan; onClose: () => void }) {
+function SpanDialog({ ws, date, d, o, appDocs = [], onClose }: { ws: Workspace; date: string; d: Day; o: OpenSpan; appDocs?: AppDoc[]; onClose: () => void }) {
   const orig = o.ref?.type === 'brk' ? d.breaks[o.ref.idx] : null;
   const log = o.ref && o.ref.type !== 'brk' ? ws.logs.find((x) => x.id === (o.ref as { id: string }).id) ?? null : null;
   const [kind, setKind] = useState(o.kind);
@@ -812,10 +813,11 @@ function SpanDialog({ ws, date, d, o, onClose }: { ws: Workspace; date: string; 
         )}
       </div>
       <div className="modal-foot">
-        {o.ref && (
-          <button className="btn ghost" id="slotDelete" style={{ marginRight: 'auto' }} onClick={() => { ws.deleteSpan(date, o.ref as SpanRef); onClose(); }}>삭제</button>
+        {(o.ref || o.draft) && (
+          <button className="btn ghost" id="slotDelete" style={{ marginRight: 'auto' }} title={o.draft ? '이 구간의 앱 사용 기록만 지워요' : undefined}
+            onClick={() => { if (o.ref) ws.deleteSpan(date, o.ref); else ws.dropApps(date, appDocs, o.s, o.e); onClose(); }}>삭제</button>
         )}
-        <button className="btn ghost" id="slotCancel" style={o.ref ? undefined : { marginLeft: 'auto' }} onClick={onClose}>취소</button>
+        <button className="btn ghost" id="slotCancel" style={o.ref || o.draft ? undefined : { marginLeft: 'auto' }} onClick={onClose}>취소</button>
         <button className="btn primary" id="slotSave" disabled={locked} title={locked ? '무엇을 했는지 적어 주세요' : ''} onClick={save}>저장</button>
       </div>
     </Modal>

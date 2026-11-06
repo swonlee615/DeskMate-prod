@@ -39,6 +39,8 @@ export function mergeAppDocs(docs: Pick<AppDoc, 'cells'>[]): AppCells {
       Object.assign(o.l, c.l);
     }
   }
+  // 지운 칸(초안 줄 지우기)은 빈 칸으로 남는다. 없는 것으로 본다
+  for (const g of Object.keys(out)) if (!Object.keys(out[g].n).length) delete out[g];
   return out;
 }
 

@@ -21,6 +21,7 @@ describe('앱 사용 기록 (v3 day.apps)', () => {
     expect(m[600].k).toEqual({ work: 3, distract: 3 });
     expect(cellKind(m[600])).toBe('work');
     expect(cellKind({ n: {}, k: {}, l: {} })).toBeNull();
+    expect(mergeAppDocs([{ cells: { 610: { n: {}, k: {}, l: {} } } }])).toEqual({});
   });
 });
 
