@@ -62,7 +62,7 @@ struct Ctx {
   hid: Mutex<Option<Instant>>,
 }
 
-fn open<R: Runtime>(app: &AppHandle<R>) {
+pub fn open<R: Runtime>(app: &AppHandle<R>) {
   if let Some(w) = app.get_webview_window("main") {
     let _ = w.unminimize();
     let _ = w.show();

@@ -1,5 +1,3 @@
-use tauri::Manager;
-
 mod front;
 mod idle;
 mod tray;
@@ -15,12 +13,7 @@ fn notify(app: tauri::AppHandle, title: String, body: String) -> Result<(), Stri
 pub fn run() {
   tauri::Builder::default()
     // 두 번째 실행(윈도우에서 deskmate:// 를 열 때 등)은 이미 떠 있는 창으로 넘긴다. 반드시 맨 앞에 둔다
-    .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-      if let Some(w) = app.get_webview_window("main") {
-        let _ = w.unminimize();
-        let _ = w.set_focus();
-      }
-    }))
+    .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| tray::open(app)))
     // 브라우저 로그인에서 돌아오는 길 (deskmate://auth?…) — src/data/desktopLogin.ts
     .plugin(tauri_plugin_deep_link::init())
     .plugin(tauri_plugin_opener::init())
@@ -45,6 +38,23 @@ pub fn run() {
       tray::setup(app.handle())?;
       Ok(())
     })
-    .run(tauri::generate_context!())
-    .expect("error while building tauri application");
+    // 맥은 창을 닫아도 앱이 남는다 (v3 window-all-closed). 창은 숨기기만 한다.
+    // 화면이 살아 있어야 메뉴바 · 알림 · 출근 감지가 계속 돈다 (v3 는 창을 없애서 메뉴바가 멈췄다)
+    .on_window_event(|w, e| {
+      if let tauri::WindowEvent::CloseRequested { api, .. } = e {
+        if cfg!(target_os = "macos") && w.label() == "main" {
+          api.prevent_close();
+          let _ = w.hide();
+        }
+      }
+    })
+    .build(tauri::generate_context!())
+    .expect("error while building tauri application")
+    .run(|_app, _e| {
+      // 독 아이콘을 누르면 숨긴 창을 다시 띄운다
+      #[cfg(target_os = "macos")]
+      if let tauri::RunEvent::Reopen { has_visible_windows: false, .. } = _e {
+        tray::open(_app);
+      }
+    });
 }
