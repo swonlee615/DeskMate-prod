@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { appBucket, appList, appMatches, distracted, pushSample, putApp, rememberApp, windowStats, winMs, SAMPLE_MS, type Sample, type WorkAppsCfg } from './workApps';
+import { appBucket, manualBack, appList, appMatches, distracted, pushSample, putApp, rememberApp, windowStats, winMs, SAMPLE_MS, type Sample, type WorkAppsCfg } from './workApps';
 
 const cfg = (x: Partial<WorkAppsCfg> = {}): WorkAppsCfg => ({ workApps: [], nonWorkApps: [], unknownApp: 'away', ...x });
 const code = { id: 'com.microsoft.VSCode', name: 'Visual Studio Code', exec: 'Electron' };
@@ -50,5 +50,20 @@ describe('업무 앱 기준 (v3 appBucket · windowStats)', () => {
     const seen = rememberApp(rememberApp([], { name: 'A' }), { name: 'B' });
     expect(rememberApp(seen, { name: 'a' }).map((x) => x.name)).toEqual(['a', 'B']);
     expect(rememberApp(seen, { name: 'DeskMate' })).toBe(seen);
+  });
+});
+
+describe('손으로 켠 휴게를 업무 앱으로 닫기 (v3 MANUAL_BACK_SAMPLES · v3.1.227)', () => {
+  const s = (t: number, k: Sample['k']): Sample => ({ t, k });
+  const T = 1_000_000_000, open = T - 600_000;
+  it('업무 앱 표본 셋이 연달아 → 첫 표본 시각. 휴게 1분은 남긴다', () => {
+    expect(manualBack([s(T - 20_000, 'work'), s(T - 10_000, 'work'), s(T, 'work')], T, open)).toBe(T - 20_000);
+    expect(manualBack([s(T - 20_000, 'work'), s(T - 10_000, 'work'), s(T, 'work')], T, T - 70_000)).toBe(T - 10_000);
+  });
+  it('딴짓 · 섞임 · 모자람 · 띄엄띄엄(맥이 잠깐씩 깸)은 닫지 않는다', () => {
+    expect(manualBack([s(T - 20_000, 'distract'), s(T - 10_000, 'distract'), s(T, 'distract')], T, open)).toBeNull();
+    expect(manualBack([s(T - 20_000, 'work'), s(T - 10_000, null), s(T, 'work')], T, open)).toBeNull();
+    expect(manualBack([s(T - 10_000, 'work'), s(T, 'work')], T, open)).toBeNull();
+    expect(manualBack([s(T - 300_000, 'work'), s(T - 150_000, 'work'), s(T, 'work')], T, open)).toBeNull();
   });
 });

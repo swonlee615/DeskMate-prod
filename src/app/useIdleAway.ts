@@ -9,12 +9,12 @@
  * ★ PC 앱은 권한 없이 OS 에서 «마지막 입력 뒤 지난 초» 를 읽는다 (src-tauri/src/idle.rs · v3 getSystemIdleTime).
  *   10초마다 본다. 그 사이가 기준 시간보다 길게 비었으면(맥이 잠들었다 깸) 마지막으로 본 시각부터 자리비움
  * ★ 업무 앱 기준(PC 앱): 같은 틱에 맨 앞 앱을 표본으로 쌓고, 딴짓 앱만 기준 시간 넘게 쓰면 자리비움(by 'app') — domain/workApps
- *   ponytail: v3 의 «손으로 켠 휴게를 업무 앱으로 닫기» 는 아직 없다
+ * ★ 손으로 켠 휴게 중 업무 앱을 연달아 쓰면 그 시작 시각으로 닫는다 (onManualBack · domain/workApps manualBack)
  * ★ 출근 감지(PC 앱 · v3.2.0): 출근 전 · 퇴근 뒤에도 같은 10초 틱이 돈다. 맨 앞 앱이 업무 앱인지만 넘기고 판정은 domain/arrival
  */
 import { useEffect, useRef, useState } from 'react';
 import { deviceKind } from '../data/device';
-import { ACTIVE_SEC, appBucket, isSelf, distracted, pushSample, rememberApp, windowStats, winMs, type FrontApp, type Sample, type WorkAppsCfg } from '../domain/workApps';
+import { ACTIVE_SEC, appBucket, isSelf, distracted, manualBack, pushSample, rememberApp, windowStats, winMs, type FrontApp, type Sample, type WorkAppsCfg } from '../domain/workApps';
 
 /** 업무 앱 기준 — 설정 화면이 보여 줄 지금 상태 (저장하지 않는다) */
 export interface AppsLive { on: boolean; seen: FrontApp[]; distractMs: number; workMs: number; winMs: number }
@@ -42,6 +42,8 @@ export function useIdleAway(o: {
   onAway: (at: number, by: 'idle' | 'power' | 'app', mins: number) => void; onBack: (at: number) => void;
   /** 근무 중 표본 하나 — 앱 사용 기록 (domain/appUse) */
   onSample?: (f: FrontApp, self: boolean, kind: Sample['k'], at: number) => void;
+  /** 손으로 켠 휴게가 열려 있으면 그 시작 시각 · 업무 앱으로 돌아온 시각을 받는다 */
+  manualOpen?: () => number | null; onManualBack?: (at: number) => void;
   /** 출근 감지 — 근무 중이 아닐 때도 돈다. arrive 가 false 면 맨 앞 앱을 안 읽는다 */
   arrOn?: boolean; arrive?: () => boolean;
   onArrTick?: (i: { sec: number; kind: 'work' | 'other' | null; name: string | null; at: number }) => void;
@@ -79,7 +81,13 @@ export function useIdleAway(o: {
       const now = Date.now(), slept = now - last > th, from = last;
       last = now;
       if (sec == null || !c.on) return;
-      if (!c.working) samples = [];
+      const mOpen = c.manualOpen?.() ?? null;
+      if (!c.working && mOpen == null) samples = [];
+      if (mOpen != null) {
+        const at = appMode && sec <= ACTIVE_SEC ? manualBack(samples, now, mOpen) : null;
+        if (at != null) { sent.current = false; backAt = null; samples = []; c.onManualBack?.(at); }
+        return;
+      }
       const byApp = appMode && distracted(st, o.min);
       if (!sent.current && c.working && (slept || sec * 1000 >= th || byApp)) {
         sent.current = true;

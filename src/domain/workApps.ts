@@ -90,3 +90,19 @@ export function putApp(c: WorkAppsCfg, kind: 'work' | 'away', e: AppEntry): Pick
   const nextOther = other.filter((x) => appKey(x) !== k);
   return kind === 'work' ? { workApps: nextMine, nonWorkApps: nextOther } : { workApps: nextOther, nonWorkApps: nextMine };
 }
+
+/** 손으로 켠 휴게를 닫으려면 업무 앱 표본이 연달아 몇 개 (10초 × 3) */
+export const MANUAL_BACK_SAMPLES = 3;
+
+/**
+ * 손으로 켠 휴게를 깜빡했을 때 (v3 · LOGIC §2) — 업무 앱을 연달아 쓰고 있으면 «일을 다시 시작한 시각» 을 돌려준다. 아니면 null
+ * ★ 딴짓 앱 · 자리비움으로는 닫지 않는다 (진짜 쉬는 중일 수 있다). 섞여 있어도 판단하지 않는다
+ * ★ 표본이 «연달아» 쌓였을 때만 (v3.1.227). 덮어 둔 맥이 띄엄띄엄 깨며 남긴 표본을 연속 사용으로 읽지 않는다
+ * ★ 휴게는 1분 넘게 남긴다 (그보다 짧으면 휴게로 안 남는다)
+ */
+export function manualBack(samples: Sample[], now: number, openS: number): number | null {
+  const tail = samples.slice(-MANUAL_BACK_SAMPLES);
+  if (tail.length < MANUAL_BACK_SAMPLES || now - tail[0].t > MANUAL_BACK_SAMPLES * SAMPLE_MS * 2) return null;
+  if (!tail.every((x) => x.k === 'work')) return null;
+  return Math.min(now, Math.max(openS + 60_000, tail[0].t));
+}

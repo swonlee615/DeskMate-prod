@@ -396,6 +396,16 @@ describe('override — 고친 하루에서 출발해 그 뒤 이벤트를 얹는
     expect(d.breaks.filter((b) => b.kind === 'break')).toHaveLength(1);
   });
 
+  it('진행 중인 자리비움을 손으로 지우면 그 뒤 복귀 신호로 되살아나지 않는다 (LOGIC §2 «사람이 지운 건 지운 것» · v3 noBackTo)', () => {
+    const evs = [ev('clockIn', '09:00'), ev('awayStart', '10:00', 'mac', 'desktop', { by: 'idle' })];
+    const d0 = deriveDay(D, evs, t('10:20'));
+    expect(stateOf(d0)).toBe('break');
+    const o = ovr('10:20', removeBreak(d0, 0)!, evs);
+    const d = deriveDay(D, [...evs, o, ev('awayEnd', '10:21')], t('11:00'));
+    expect(d.breaks).toHaveLength(0);
+    expect(stateOf(d)).toBe('work');
+  });
+
   it('override 를 지우면(되돌리기) 고치기 전으로', () => {
     const evs = base();
     const r = setSessionTime(deriveDay(D, evs, END), 0, 'on', t('08:30'));

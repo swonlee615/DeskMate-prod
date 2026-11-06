@@ -10,11 +10,11 @@ import type { Backend, DayEvents, Item, Repo, SyncStatus, User } from '../data';
 import { deviceId, deviceKind, newId } from '../data/device';
 import type { AttEvent, AttEventType, AttState, Day, Leave } from '../domain/attendance/types';
 import { deriveDay } from '../domain/attendance/replay';
-import { dateKey, dayEndMs, dayParts, dayStartMs, goalPastAfter, sessions, stateOf, type GoalCfg } from '../domain/attendance/rules';
+import { dateKey, dayEndMs, dayParts, dayStartMs, goalPastAfter, openBreak, sessions, stateOf, type GoalCfg } from '../domain/attendance/rules';
 import { addBreakSpan, addWorkSpan, canCarry, editBreak, removeBreak, resolveAt, resolveCarry } from '../domain/attendance/edit';
 import { catsOf, cleanCats, type Cat } from '../domain/attendance/cats';
 import { breakConflicts, logsOf, overlapIds, resolveConflicts, splitRest, type Log, type SpanInput, type SpanRef } from '../domain/attendance/logs';
-import { addDays, dateOf, fmtDur, keyOf, korClock, weekStart } from '../ui/v3fmt';
+import { addDays, dateOf, fmtDur, hhmm, keyOf, korClock, weekStart } from '../ui/v3fmt';
 import { notify } from './notify';
 import { buildTeam, leaderboard, ROSTER, STATUS_ORDER, statusAt, TEAM_DEFAULT, teamHours, type LbRow, type Member, type MateStatus, type Team } from '../domain/sim/team';
 import { useMinute } from './clock';
@@ -486,6 +486,11 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
       if (by === 'app') say(`${mins}분째 업무 앱 사용이 없어서 휴게로 기록하고 있어요`);
     },
     onBack: (at) => { push('awayEnd', dateKey(at), { at }); },
+    manualOpen: () => { const b = state === 'break' ? openBreak(day) : undefined; return b && !b.auto ? b.s : null; },
+    onManualBack: (at) => {
+      const e = push('breakEnd', dateKey(at), { at });
+      say(`휴게 구간을 ${hhmm(at)}로 기록했어요 (${Math.round((at - (openBreak(day)?.s ?? at)) / 60000)}분)`, { label: '되돌리기', run: () => { repo.deleteEvent(e); setToast(null); } });
+    },
     arrOn: arrLive, arrive: () => arrMode() !== 'none',
     onArrTick: ({ sec, kind, name, at }) => {
       const st = arr.current;
