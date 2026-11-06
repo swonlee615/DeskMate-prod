@@ -45,7 +45,8 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "createUpdaterArtifacts": true
   },
   "plugins": {
     "deep-link": {
@@ -54,6 +55,12 @@
           "deskmate"
         ]
       }
+    },
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEVENDQzNzUzQThEOTE2NjkKUldScEZ0bW9VemRFN1ZKdjRLZFQzcnAyc3R3NmczZGVibk1DMVl1QWpxMXBKTVdVRW5HdVBFNTkK",
+      "endpoints": [
+        "https://github.com/swonlee615/DeskMate-prod/releases/latest/download/latest.json"
+      ]
     }
   }
 }

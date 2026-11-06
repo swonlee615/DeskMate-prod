@@ -6,6 +6,7 @@
  *   PC 창을 아무리 좁혀도 모바일 화면으로 바뀌지 않는다 — v3 의 3단 · 2단 · 1단(서랍) 으로만 바뀐다.
  */
 import { ArrivalAsk } from './ArrivalAsk';
+import { UpdateAsk } from './UpdateAsk';
 import { useTray } from '../app/useTray';
 import { PomoClock } from '../ui/Live';
 import { avStyle, avText } from '../ui/avatar';
@@ -238,6 +239,7 @@ export function PcWorkspace({ ws }: { ws: Workspace }) {
       {hb && <HabitModal ws={ws} h={hb.h} onClose={() => setHb(null)} onSaved={() => setDdTab('habit')} />}
 
       <ArrivalAsk ws={ws} />
+      <UpdateAsk ws={ws} />
       <div className={`toast${ws.toast ? ' show' : ''}${ws.toast?.action ? ' has-undo' : ''}${ws.toast?.bad ? ' bad' : ''}`} id="toast" role="status">
         <span className="tm">{ws.toast?.text}</span>
         {ws.toast?.action && <button className="tu" onClick={ws.toast.action.run}>{ws.toast.action.label}</button>}
