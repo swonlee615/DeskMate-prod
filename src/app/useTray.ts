@@ -26,7 +26,8 @@ export function trayState(ws: Workspace, now: number): TrayState {
   const rest = () => fmtDur(Math.floor(dayParts(d, now).breakMs / 60000));
   const offLine = () => `${d.onAt != null ? hhmm(d.onAt) : ''} → ${d.offAt != null ? hhmm(d.offAt) : ''} · 근무 ${worked()} · 뽀모도로 ${d.pomos ?? 0}회`;
   const remain = t.remainAt(now);
-  const focusRows = (): TrayItem[] => TRAY_PRESETS.map((n) => ({ id: `focus:${n}`, label: `　${n}분`, checked: t.cfg.focusMin === n }));
+  const pomoOn = ws.settings.trayPomo;
+  const focusRows = (): TrayItem[] => !pomoOn ? [] : TRAY_PRESETS.map((n) => ({ id: `focus:${n}`, label: `　${n}분`, checked: t.cfg.focusMin === n }));
   const head: string[] = [], items: TrayItem[] = [];
   let title: string, mark: TrayMark, card: TrayCard | null = null;
   const pend = ws.pendingDays;
@@ -61,7 +62,7 @@ export function trayState(ws: Workspace, now: number): TrayState {
     title = '출근 전'; mark = 'pre';
     head.push('출근 전');
     items.push({ id: 'on', label: '출근' });
-  } else if (t.running || (t.mode === 'focus' && remain < t.total - 1)) {
+  } else if (pomoOn && (t.running || (t.mode === 'focus' && remain < t.total - 1))) {
     // 마크 = 근태(근무 중), 글자 = 지금 하는 일 (v3.1.190)
     title = `${t.running ? (t.mode === 'focus' ? '🍅' : '☕️') : '⏸'} ${mmss(remain)}`; mark = 'work';
     head.push(`${(d.pomos ?? 0) + 1}번째 집중 · ${t.running ? `${t.label} 중` : '멈춤'}`,
@@ -73,7 +74,7 @@ export function trayState(ws: Workspace, now: number): TrayState {
     title = '근무 중'; mark = 'work';
     head.push('근무 중', `${hhmm(d.onAt)} 출근 · ${worked()} · 휴게 ${rest()}`);
     items.push({ id: 'breakStart', label: '휴게 시작' }, { id: 'off', label: '퇴근하기' },
-      { sep: true }, { id: 'focusToggle', label: '집중 시작' }, ...focusRows());
+      ...(pomoOn ? [{ sep: true }, { id: 'focusToggle', label: '집중 시작' }, ...focusRows()] : []));
   }
   const missed = m ? { tag: '앞서 놓친 업무 기록이 있어요', title: missedRange(m.s, m.e), actions: [{ id: 'miss:add', label: '근무로 추가' }, { id: 'miss:drop', label: '취소' }] } : null;
   // 목표는 그 날 근태만큼 줄어든 값. 연차라 0 이면 일한 만큼 전부 «넘친» 것 (v3.1.209)

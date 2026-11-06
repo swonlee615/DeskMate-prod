@@ -38,7 +38,7 @@ export function SettingsModal({ ws, onClose, onDay }: { ws: Workspace; onClose: 
   };
   const save = () => {
     const goalHours = clamp(d.goalHours, 1, 14, orig.current.goalHours);
-    ws.saveSettings({ mode: d.mode, theme: d.theme, wsName: d.wsName.trim() || 'DeskMate', goalHours, leaveGoal: d.leaveGoal, timerColor: d.timerColor, notify: d.notify, away: d.away, awayMin: clamp(d.awayMin, 3, 60, orig.current.awayMin) });
+    ws.saveSettings({ mode: d.mode, theme: d.theme, wsName: d.wsName.trim() || 'DeskMate', goalHours, leaveGoal: d.leaveGoal, timerColor: d.timerColor, notify: d.notify, trayPomo: d.trayPomo, away: d.away, awayMin: clamp(d.awayMin, 3, 60, orig.current.awayMin) });
     const c = ws.timer.cfg;
     const pomo: PomoCfg = { ...c, focusMin: clamp(d.focusMin, 5, 90, c.focusMin), shortMin: clamp(d.shortMin, 1, 30, c.shortMin), longMin: clamp(d.longMin, 5, 60, c.longMin), autoStart: d.autoStart };
     if ((Object.keys(pomo) as (keyof PomoCfg)[]).some((k) => pomo[k] !== c[k])) ws.timer.setCfg(pomo);
@@ -99,7 +99,16 @@ export function SettingsModal({ ws, onClose, onDay }: { ws: Workspace; onClose: 
                     라이트 모드에서는 <b>본문 바탕까지 같은 색 계열</b>로 바뀌어요.
                     포레스트를 고르면 카드도 아주 옅은 초록빛이 돼요.</p>
                 </div>
-                <p className="hint">앱 아이콘, 메뉴바, 시스템 알림은 PC 앱에서 쓸 수 있어요.</p>
+                {deviceKind() === 'desktop' ? <>
+                  <h4 className="set-sub">메뉴바</h4>
+                  <div className="field row2">
+                    <div><label>메뉴바에 뽀모도로 두기</label><select id="setTrayPomo" data-tgl aria-label="메뉴바에 뽀모도로 두기" value={d.trayPomo ? '1' : '0'} onChange={(e) => put({ trayPomo: e.target.value === '1' })}>
+                      <option value="1">둔다</option><option value="0">안 둔다</option></select></div>
+                    <div />
+                  </div>
+                  <p className="hint">메뉴바 메뉴의 본체는 <b>출근 · 휴게 · 퇴근</b>이에요. 집중 타이머는 곁이라 끄고 켤 수 있게 뒀어요.<br />
+                    <b>끄면</b> «집중 시작»과 시간 목록 두 줄만 사라지고, 메뉴바 글자도 <b>근무 상태</b>만 보여줘요.</p>
+                </> : <p className="hint">앱 아이콘, 메뉴바, 시스템 알림은 PC 앱에서 쓸 수 있어요.</p>}
               </section>
             )}
             {pane === 'ws' && (

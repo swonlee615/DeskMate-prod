@@ -39,6 +39,8 @@ export interface Settings {
   arrivalDetect: boolean; arrivalCooldownMin: number;
   /** 시스템 알림 (v3 notify — PC 앱만 · 기본 켬). 집중 · 휴식 끝 · 출근 감지 */
   notify: boolean;
+  /** 메뉴바에 뽀모도로 두기 (v3 trayPomo · v3.1.65 — PC 앱만 · 기본 켬). 끄면 메뉴바에 근무 상태만 */
+  trayPomo: boolean;
   /** 내 프로필 (v3 userNick · userName · userRank · userColor · userAvatar) — 비어 있으면 로그인 계정 이름 */
   nick: string; name: string; rank: string; color: string; avatar: string | null;
   /** 워크스페이스 로고 · 배지 색 · 팀 근무 시작(분) (v3 wsLogo · wsColor · teamStart) */
@@ -47,7 +49,7 @@ export interface Settings {
   goalPast?: GoalPast[];
 }
 export const SETTINGS_DEFAULT: Settings = { mode: 'system', theme: 'navy', wsName: 'DeskMate', goalHours: 8, leaveGoal: true, timerColor: '#2b8fd8', away: true, awayMin: 10,
-  workAppsOn: false, workApps: [], nonWorkApps: [], unknownApp: 'away', arrivalDetect: true, arrivalCooldownMin: 30, notify: true,
+  workAppsOn: false, workApps: [], nonWorkApps: [], unknownApp: 'away', arrivalDetect: true, arrivalCooldownMin: 30, notify: true, trayPomo: true,
   nick: '', name: '', rank: '', color: '#1264a3', avatar: null, wsLogo: null, wsColor: '#1264a3', teamStart: null };   // color-ok: v3 기본 프로필 · 배지 색 (데이터 값)
 
 /** v3 화면 모드 (v3.1.37) — 기본은 시스템 설정 */
