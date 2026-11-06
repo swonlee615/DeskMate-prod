@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>DeskMate</title>
+<style>
+/* 메뉴바 팝오버 — v3 src/tray.html 을 옮겼다 (웹: src-tauri/src/tray.rs 가 띄우고 src/app/useTray.ts 가 상태를 보낸다)
+   v3 메모 그대로 ↓
+   메뉴바 팝오버 (v3.2.0 · v3.2.1) — 시안 「메뉴바 팝업 · 상태별」
+   ★ 모양은 macOS 메뉴를 따른다 — 13px · 줄 22px · 회색 상태 줄 · 구분선. 우리 것은 «카드» 두 가지뿐이다
+     (놓친 업무 기록 · 출근 감지). 나머지 상태는 예전 기본 메뉴와 같은 문구 · 순서다 (소유자 시안 2026-10-30).
+   ★ 값은 `styles.css` 의 네이비 테마 토큰을 **이름 그대로** 옮겼다. 이 창은 본 창의 CSS 를 안 읽으므로
+     토큰 값이 바뀌면 여기도 같이 고친다 (짝: styles.css `:root` · `body[data-mode="light"][data-theme="navy"]`).
+   ★ v3.2.2 — 카드는 «테두리» 가 아니라 **한 칸 밝은 면** 으로 묶는다 (소유자: 「노란 띠가 거슬려」).
+     노랑은 제목 앞 점 하나에만 남긴다 — 메뉴 안에서 색 띠는 경고처럼 읽힌다.
+     굵기도 메뉴 결에 맞춰 낮춘다(700 → 600). 글꼴은 시스템(SF · Apple SD 산돌고딕 Neo), 없으면 Pretendard.
+   ★ 라이트 · 다크는 시스템 모양을 따른다 — 본 창도 `nativeTheme.themeSource = 'system'` 이다.
+     테마(오버진 · 포레스트 …)는 안 따라간다 — 메뉴는 앱 바깥의 판이라 OS 쪽 결에 맞춘다. */
+:root {
+  --main: #1b1d21; --surface-2: #222529; --border: #35373b; --sidebar-sel: #1264a3;
+  --text: #d1d2d3; --text-strong: #ffffff; --text-muted: #a0a1a4; --text-dim: #94979c;
+  --yellow: #ecb22e; --btn-hover: rgba(255,255,255,.10); --on-accent: #fff;
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    --main: #f9fafe; --surface-2: #f0f2f9; --border: #c9cdd9; --sidebar-sel: #0076b8;
+    --text: #38332a; --text-strong: #28231a; --text-muted: #5b564c; --text-dim: #706a60;
+    --yellow: #a66000; --btn-hover: rgba(40,45,61,.07);
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: transparent; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", sans-serif; color: var(--text);
+  font-size: 13px; -webkit-user-select: none; user-select: none; overflow: hidden; }
+.pop { background: var(--main); border: 1px solid var(--border); border-radius: 8px; padding: 5px;
+  display: flex; flex-direction: column; }
+.hd { padding: 2px 0; }
+.hd div { padding: 2px 10px 2px 15px; line-height: 18px; color: var(--text-dim); font-variant-numeric: tabular-nums;
+  word-break: keep-all; }
+.cd { margin: 4px 4px 2px; padding: 10px; border-radius: 6px; background: var(--surface-2);
+  display: flex; flex-direction: column; gap: 8px; }
+.cd.ask .t::before { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 3px;
+  background: var(--yellow); margin-right: 6px; vertical-align: 2px; }
+.cd .l { font-size: 12px; color: var(--text-muted); }
+.cd .t { font-weight: 600; color: var(--text-strong); font-variant-numeric: tabular-nums; }
+.pr { height: 26px; border: 0; border-radius: 5px; background: var(--sidebar-sel); color: var(--on-accent);
+  font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+.pr:hover { filter: brightness(1.1); }
+.g2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.sc { height: 24px; border: 1px solid var(--border); border-radius: 5px; background: transparent; color: var(--text);
+  font: inherit; font-size: 12px; font-weight: 500; cursor: pointer; }
+.sc:hover, .row:hover:not(:disabled) { background: var(--btn-hover); }
+.row { height: 22px; border: 0; border-radius: 4px; background: transparent; color: var(--text); font: inherit;
+  text-align: left; padding: 0 10px 0 15px; cursor: pointer; display: flex; align-items: center;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row:disabled { opacity: .45; cursor: default; }
+.row .ck { width: 14px; flex-shrink: 0; font-size: 12px; }
+.row .kb { margin-left: auto; color: var(--text-muted); }
+.sep { height: 1px; background: var(--border); margin: 5px 10px; }
+button:focus-visible { outline: 2px solid var(--sidebar-sel); outline-offset: 1px; }
+</style>
+</head>
+<body>
+<div class="pop" id="pop"></div>
+<script>
+/* 메뉴바 팝오버 그리기 (v3.2.0 · v3.2.1)
+   ★ `main.js` 가 넘겨주는 `st`(렌더러 `trayState()` 가 만든 것) 를 **그대로** 그린다.
+     판단은 하나도 안 한다 — 「지금 무슨 상태인가」는 렌더러만 안다 (v3.1.65 규칙).
+   ★ 그리는 순서는 예전 기본 메뉴와 같다 — 회색 상태 줄 → (카드) → 항목 → DeskMate 열기 → 설정… · 종료.
+   ★ 글자는 전부 `textContent` 로 넣는다. `st` 는 앱 안에서 오지만, 앱 이름 같은 바깥 글자가 섞일 수 있다. */
+(function () {
+  /* 웹 — Electron 브리지(preload-tray.js) 대신 Tauri (withGlobalTauri) */
+  const T = window.__TAURI__;
+  const api = {
+    onRender: (cb) => { T.event.listen('tray:render', (e) => cb(e.payload)); T.core.invoke('tray_last').then(cb); },
+    pick: (id) => T.core.invoke('tray_pick', { id: String(id || '') }),
+    size: (h, w) => T.core.invoke('tray_size', { w, h }),
+  };
+  const pop = document.getElementById('pop');
+  /* 뽀모도로 프리셋 줄(「　25분」 — 앞의 전각 공백이 «들여쓰기» 표시다, app.js `focusRows`).
+     체크는 그 들여쓰기 칸 안에 선다 — 그래야 체크가 있든 없든 글자 시작이 같다 (소유자 시안) */
+  const INDENT = /^　/;
+
+  const el = (tag, cls, text) => {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  };
+  const btn = (cls, label, id, dis) => {
+    const b = el('button', cls, label);
+    b.type = 'button';
+    if (dis) b.disabled = true;
+    else b.onclick = () => api.pick(id);
+    return b;
+  };
+  const sep = () => el('div', 'sep');
+  const card = (c, ask) => {
+    const cd = el('div', ask ? 'cd ask' : 'cd');
+    if (c.tag) {
+      const tt = el('div');
+      tt.appendChild(el('div', 'l', c.tag));
+      tt.appendChild(el('div', 't', c.title || ''));
+      cd.appendChild(tt);
+    } else cd.appendChild(el('div', 't', c.title || ''));
+    const acts = c.actions || [];
+    /* 출근 감지는 주 단추 하나 + 보조 둘, 놓친 기록은 보조 둘 (시안) */
+    const rest = ask ? acts.slice(1) : acts;
+    if (ask && acts[0]) cd.appendChild(btn('pr', acts[0].label, acts[0].id));
+    if (rest.length) {
+      const g = el('div', 'g2');
+      for (const a of rest) g.appendChild(btn('sc', a.label, a.id));
+      cd.appendChild(g);
+    }
+    return cd;
+  };
+
+  function render(st) {
+    st = st || {};
+    pop.textContent = '';
+    if ((st.head || []).length) {
+      const hd = el('div', 'hd');
+      hd.setAttribute('aria-disabled', 'true');
+      for (const h of st.head) hd.appendChild(el('div', null, h));
+      pop.appendChild(hd);
+    }
+    if (st.missed && (st.missed.actions || []).length) pop.appendChild(card(st.missed, false));
+    if (st.card && (st.card.actions || []).length) pop.appendChild(card(st.card, true));
+    pop.appendChild(sep());
+    for (const it of st.items || []) {
+      if (!it) continue;
+      if (it.sep) { pop.appendChild(sep()); continue; }
+      const indent = INDENT.test(it.label || '');
+      const b = btn('row', null, it.id, it.dim === true);
+      if (indent || it.checked != null) b.appendChild(el('span', 'ck', it.checked ? '✓' : ''));
+      b.appendChild(document.createTextNode(String(it.label || '').replace(INDENT, '')));
+      pop.appendChild(b);
+    }
+    if ((st.items || []).length) pop.appendChild(sep());
+    pop.appendChild(btn('row', 'DeskMate 열기', '__open'));
+    pop.appendChild(sep());
+    pop.appendChild(btn('row', '설정…', '__settings'));
+    const q = btn('row', '종료', '__quit');
+    q.appendChild(el('span', 'kb', '⌘Q'));
+    pop.appendChild(q);
+    /* 폭 — 시안의 252px 이 기본. 항목 글자가 그보다 길면(「계속 일했어요 → 10/30 00:00까지 이어서 근무」)
+       macOS 메뉴처럼 판을 넓힌다. 회색 상태 줄은 넓히는 이유가 되지 않는다 — 줄을 바꾼다 (소유자 시안) */
+    pop.style.width = '252px';
+    let need = 0;
+    pop.querySelectorAll('.row').forEach((r) => { need = Math.max(need, r.scrollWidth); });
+    const w = Math.min(420, Math.max(252, need + 12));
+    pop.style.width = `${w}px`;
+    requestAnimationFrame(() => api.size(pop.getBoundingClientRect().height, w));
+  }
+
+  /* Esc — 모르는 id 를 보내면 main.js 는 닫기만 한다 (`tray:pick`) */
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') api.pick('__close'); });
+  render(null);
+  api.onRender(render);
+})();
+</script>
+</body>
+</html>

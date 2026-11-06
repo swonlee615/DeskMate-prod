@@ -27,7 +27,7 @@ pub fn run() {
     .plugin(tauri_plugin_notification::init())
     // 창 위치 · 크기를 기억한다 (v3 winBounds 와 같은 동작)
     .plugin(tauri_plugin_window_state::Builder::default().build())
-    .invoke_handler(tauri::generate_handler![idle::system_idle_secs, front::front_app_now, front::installed_apps_list, tray::tray_set, tray::tray_title, notify])
+    .invoke_handler(tauri::generate_handler![idle::system_idle_secs, front::front_app_now, front::installed_apps_list, tray::tray_set, tray::tray_title, tray::tray_icon, tray::tray_last, tray::tray_pick, tray::tray_size, notify])
     .setup(|app| {
       if cfg!(debug_assertions) {
         app.handle().plugin(
