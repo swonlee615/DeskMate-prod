@@ -10,7 +10,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Workspace } from '../app/useWorkspace';
 import type { Day, Leave } from '../domain/attendance/types';
-import { baseGoalMin, dayGoalMin, dayParts, dayStartMs, effKind, openBreak, spanEnd } from '../domain/attendance/rules';
+import { baseGoalMin, dayGoalMin, dayParts, dayStartMs, effKind, openBreak, spanEnd, stateOf } from '../domain/attendance/rules';
+import { deviceKind } from '../data/device';
 import {
   addSessionAt, canAddSession, dropSession, mergeSession, sessionRows, sessionSlot,
   sessionWhy, setSessionTime,
@@ -234,6 +235,7 @@ export function DayPage({ ws, date, full, onClose, onFull, onGo, focusOff, onDD 
                 {d.onAt != null && <span className="lg"><i className="mk-line on" />출근</span>}
                 {(d.offAt != null || d.breaks.some((b) => effKind(d, b, now) === 'off')) && <span className="lg"><i className="mk-line off" />퇴근</span>}
                 <span className="lg-sp2" />
+                {isToday && <AppSync ws={ws} d={d} cells={Object.keys(apps)} />}
               </div></div>
               <DDayLines ws={ws} date={date} onOpen={onDD} />
             </div>
@@ -249,6 +251,20 @@ export function DayPage({ ws, date, full, onClose, onFull, onGo, focusOff, onDD 
 }
 
 // ───────────────────────────────────────────── 조각들
+
+/**
+ * 오늘 범례 오른쪽 끝 (v3 arSync · appUseState) — PC 앱에서만. 모으는 중이면 «↻ 싱크», 아니면 왜 안 모이는지 한 줄
+ * ★ 웹은 표가 저절로 다시 그려진다. 싱크는 지금 10분 칸(아직 메모리에만 있는 것)을 바로 표에 올린다
+ */
+function AppSync({ ws, d, cells }: { ws: Workspace; d: Day; cells: string[] }) {
+  if (deviceKind() !== 'desktop') return null;
+  const s = ws.settings;
+  const why = !s.away ? <>설정 › 자리비움에서 <b>자리비움 자동 감지</b>가 꺼져 있어요. 앱 사용은 이 감지 위에 얹혀 있어요.</>
+    : !s.workAppsOn ? <>설정 › 자리비움에서 <b>업무 앱 기준</b>이 꺼져 있어요. 이게 켜져 있어야 앱 이름을 읽어요.</> : null;
+  if (why) return <div className="ar-warn">⚠️ {why}</div>;
+  if (stateOf(d) !== 'work') return <div className="ar-note"><span className="dot" /><span>출근하면 앱 사용을 다시 모아요.</span></div>;
+  return <button className="mini-btn tiny" id="arSync" title="지금 쓰는 앱을 바로 표에 반영해요" onClick={() => ws.syncApps(cells)}>↻ 싱크</button>;
+}
 
 function LeaveSel({ date, v, empty, onLeave }: { date: string; v: Leave; empty: string; onLeave: (d: string, l: Leave) => void }) {
   const cur = leaveOf(v);

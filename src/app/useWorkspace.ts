@@ -212,6 +212,8 @@ export interface Workspace {
   deleteSpan: (date: string, orig: SpanRef) => void;
   /** 앱 사용 초안 줄 지우기 (v3 · 잘못 잡힌 앱 사용 기록) — 그 구간의 칸만 비운다. 시간 기록 · 휴게는 그대로 */
   dropApps: (date: string, docs: AppDoc[], s: number, e: number) => void;
+  /** 오늘 범례의 «↻ 싱크» (v3 syncAppUse) — 지금 칸을 바로 저장한다. cells = 표에 이미 있는 칸 */
+  syncApps: (cells: string[]) => void;
   /** 「겹친 휴게 정리」 — 사람이 누른 정리라 비근무까지 자른다 (v3.1.64) */
   fixConflicts: (date: string) => void;
   /** 카테고리 = 이름 붙인 색 (v3 cfg.cats) — 저장한 적 없으면 12색 · 이름 없음 */
@@ -841,6 +843,13 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
     say('앱 사용 기록을 지웠어요', { label: '되돌리기', run: () => { undo.forEach((f) => f()); setToast(null); } });
   };
 
+  const syncApps: Workspace['syncApps'] = (cells) => {
+    const a = appAcc.current, add = !!a && a.date === today && !cells.includes(String(a.g));
+    flushApps();
+    const n = cells.length + (add ? 1 : 0);
+    say(`지금까지 모인 ${n}칸(${fmtDur(n * APP_SLOT_MIN)})을 표에 맞췄어요${add ? '. 방금 칸 1개 추가' : ''}`);
+  };
+
   const fixConflicts = (date: string) => {
     const d = dayOf(date);
     const back = breakConflicts(d).reduce((a, c) => a + c.min, 0);
@@ -958,7 +967,7 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
     blocks, addBlock, patchBlocks, editBlocks, undoBlocks, redoBlocks, lastUndoAt, lastEditAt, toggleBlock, removeBlock, newId,
     ddays, saveDDay, pinDDay, archiveDDay, deleteDDay,
     saved, savedSort, isSaved, toggleSaved, pinSaved, setSavedSort, trash, deleteDay, restoreTrash, purgeTrash, emptyTrash, teamCfg, v3Preview, v3Import, v3Imported, images, addImages, imageBlob, removeImage, ranks, firstDate, habits, offDay, saveHabit, archiveHabit, deleteHabit, toggleHabit,
-    logs, watchAllLogs, watchApps, watchAllBlocks, saveSpan, deleteSpan, dropApps, fixConflicts, cats, setCats,
+    logs, watchAllLogs, watchApps, watchAllBlocks, saveSpan, deleteSpan, dropApps, syncApps, fixConflicts, cats, setCats,
     mates, ranking, mateStatus,
     nick, initial: nick.slice(0, 1).toUpperCase(),
     presence: state === 'break' ? 'break' : state === 'work' ? 'active' : 'offline',
