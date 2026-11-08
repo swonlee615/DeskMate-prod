@@ -9,6 +9,7 @@
  * ★ PC 앱은 권한 없이 OS 에서 «마지막 입력 뒤 지난 초» 를 읽는다 (src-tauri/src/idle.rs · v3 getSystemIdleTime).
  *   10초마다 본다. 그 사이가 기준 시간보다 길게 비었으면(맥이 잠들었다 깸) 마지막으로 본 시각부터 자리비움
  * ★ 업무 앱 기준(PC 앱): 같은 틱에 맨 앞 앱을 표본으로 쌓고, 딴짓 앱만 기준 시간 넘게 쓰면 자리비움(by 'app') — domain/workApps
+ * ★ 화면 잠금(PC 앱 · 맥): 잠근 시각부터 자리비움 · 잠긴 동안은 아무것도 닫지 않는다 · 풀린 시각에 바로 복귀 (v3 powerEvent)
  * ★ 손으로 켠 휴게 중 업무 앱을 연달아 쓰면 그 시작 시각으로 닫는다 (onManualBack · domain/workApps manualBack)
  * ★ 출근 감지(PC 앱 · v3.2.0): 출근 전 · 퇴근 뒤에도 같은 10초 틱이 돈다. 맨 앞 앱이 업무 앱인지만 넘기고 판정은 domain/arrival
  */
@@ -57,12 +58,28 @@ export function useIdleAway(o: {
   useEffect(() => {
     if (!(o.on || o.arrOn) || perm !== 'app') return;
     const th = Math.max(3, o.min) * 60_000;
-    let last = Date.now(), backAt: number | null = null, samples: Sample[] = [], seen: FrontApp[] = [], by: 'idle' | 'power' | 'app' = 'idle';
+    let last = Date.now(), wasLocked = false, backAt: number | null = null, samples: Sample[] = [], seen: FrontApp[] = [], by: 'idle' | 'power' | 'app' = 'idle';
     const win = winMs(o.min);
     const tick = async () => {
       const { invoke } = await import('@tauri-apps/api/core');
       const sec = await invoke<number | null>('system_idle_secs');
       const c = cb.current, appMode = c.apps.on, arr = !c.working && !!c.arrive?.();
+      // 화면 잠금 (v3 powerEvent · v3.1.227) — 잠겨 있으면 아무것도 휴게를 닫지 못하고 표본도 안 쌓는다 (DarkWake 에 읽힌 앱은 사람이 쓴 게 아니다)
+      // 잠근 그 시각부터 자리비움, 풀린 그 시각에 30초 기다리지 않고 바로 복귀
+      const locked = (await invoke<boolean | null>('screen_locked_now').catch(() => null)) === true;
+      const unlocked = wasLocked && !locked;
+      wasLocked = locked;
+      if (locked) {
+        const now = Date.now(), from = last;
+        last = now; backAt = null; samples = [];
+        if (c.on && c.working && !sent.current && c.manualOpen?.() == null) {
+          sent.current = true; by = 'power';
+          const at = Math.max(from, now - (sec ?? 0) * 1000);
+          c.onAway(at, by, Math.round((now - at) / 60_000));
+        }
+        return;
+      }
+      if (unlocked && sent.current) { sent.current = false; backAt = null; samples = []; last = Date.now(); c.onBack(last); return; }
       // 표본 한 개 — 맨 앞에 있고 90초 안에 손댄 앱만. 출근 감지는 자리비움 기준 안이면 읽는다 (v3 arrivalTick)
       let kind: Sample['k'] = null, af: FrontApp | null = null;
       if (appMode && sec != null && (sec <= ACTIVE_SEC || (arr && sec * 1000 < th))) {
