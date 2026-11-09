@@ -300,7 +300,7 @@ function CatList({ ws }: { ws: Workspace }) {
   return (
     <ul className="m-card m-list m-catl">
       {list.map((c, i) => (
-        <li key={c.color}>
+        <li key={`${c.color}:${c.name}`}>
           <button className="m-sw" style={{ background: catVar(c.color) }} aria-label="색 고르기" aria-expanded={pal === i} onClick={() => setPal(pal === i ? null : i)} />
           <input maxLength={14} placeholder={`예) ${CAT_EX[i % CAT_EX.length]}`} defaultValue={c.name} aria-label="카테고리 이름"
             onBlur={(e) => { if (e.target.value.trim() !== c.name) ws.setCats(put(i, { name: e.target.value })); }}

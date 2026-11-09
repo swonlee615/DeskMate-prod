@@ -22,10 +22,12 @@ const md = (k: string) => { const d = dateOf(k); return `${d.getMonth() + 1}/${d
 
 export function MobileWeek({ ws, goDay }: { ws: Workspace; goDay: (date: string) => void }) {
   const { blocks, days, now, today, wpWeek: wk } = ws;
-  const [sheet, setSheet] = useState<WItem | null>(null);
+  // 시트는 여는 순간의 id 만 쥔다. 내용은 매번 지금 목록에서 찾는다 (다른 기기가 옮겨도 옛 날짜로 옮기지 않게 · v3.2.6 요일 콤보와 같은 실수)
+  const [sheetId, setSheet] = useState<string | null>(null);
   const keys = weekDays(wk);
   const isThis = wk === weekKeyOf(today);
   const items = weekItems(blocks, wk, today);
+  const sheet = sheetId ? items.find((x) => x.b.id === sheetId) ?? null : null;
   const rate = rangeRate(blocks, keys[0], keys[6]);
   const tag = weekTag(dateOf(wk));
   let total = 0;
@@ -50,7 +52,7 @@ export function MobileWeek({ ws, goDay }: { ws: Workspace; goDay: (date: string)
     apply(c, `${where}${kids ? ` (딸린 ${kids}줄도 함께)` : ''}`);
     setSheet(null);
   };
-  const row = (it: WItem) => <MItem key={it.b.id} it={it} ws={ws} onMore={() => setSheet(it)} onBadge={() => goDay(it.key || today)} />;
+  const row = (it: WItem) => <MItem key={it.b.id} it={it} ws={ws} onMore={() => setSheet(it.b.id)} onBadge={() => goDay(it.key || today)} />;
 
   const undone = listGroups(items, false);
   const done = listGroups(items, true);

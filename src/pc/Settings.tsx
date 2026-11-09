@@ -237,7 +237,7 @@ function CatList({ ws }: { ws: Workspace }) {
   return (
     <div id="catList" className="cat-list">
       {list.map((c, i) => (
-        <div className="cat-row" key={c.color}>
+        <div className="cat-row" key={`${c.color}:${c.name}`}>
           <button className="cat-sw" type="button" style={{ '--c': catVar(c.color) } as React.CSSProperties} title="색 고르기"
             onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); setPop({ i, x: r.left, y: r.bottom + 6 }); }} />
           <input data-f="name" maxLength={14} placeholder={`예) ${CAT_EX[i % CAT_EX.length]}`} defaultValue={c.name}
