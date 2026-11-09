@@ -913,3 +913,6 @@ button.m-cat.on { color: var(--text-strong); font-weight: 700; box-shadow: inset
 .m-ps-sl { display: grid; grid-template-columns: 1fr 44px; gap: 2px 8px; font-size: 13px; color: var(--text-muted); }
 .m-ps-sl input { grid-column: 1 / -1; grid-row: 2; width: 100%; accent-color: var(--blue); }
 .m-ps-sl em { grid-column: 2; grid-row: 1; font-style: normal; text-align: right; color: var(--text); font-variant-numeric: tabular-nums; }
+.m-mem-f { margin: 0 0 4px; }
+.m-mem-f .m-set-f { padding: 4px 0; min-height: 46px; }
+.m-set-f select { height: 36px; padding: 0 10px; border-radius: 9px; font-size: 15px; color: var(--text-strong); background: var(--surface-3); border: 0; }

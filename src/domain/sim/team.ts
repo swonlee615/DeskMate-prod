@@ -59,7 +59,7 @@ export const PERSONA_SLIDERS: [NumKey, string, number, number, number][] = [
 export const TONES: [Member['tone'], string][] = [['casual', '편함'], ['formal', '정중'], ['dry', '건조'], ['bubbly', '발랄']];
 export const toneLabel = (t: Member['tone']) => TONES.find(([v]) => v === t)?.[1] ?? '편함';
 
-const RANKS = ['인턴', '사원', '주임', '대리', '과장', '차장', '팀장', '이사', '대표'];
+export const RANKS = ['인턴', '사원', '주임', '대리', '과장', '차장', '팀장', '이사', '대표'];
 const rankIdx = (r: string) => { const i = RANKS.indexOf(r); return i < 0 ? 3 : i; };
 
 export type StatusKey = 'commute' | 'meeting' | 'huddle' | 'focus' | 'dnd' | 'lunch' | 'away' | 'remote' | 'sick' | 'vacation' | 'online' | 'offline';

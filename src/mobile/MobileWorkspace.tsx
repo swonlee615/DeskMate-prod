@@ -27,7 +27,7 @@ import { fmtMB } from '../domain/images';
 import { AWAY_HINT, LEAVE_GOAL_HINT, MODES, SET_NAV, SLOT_HINT, systemIsDark, THEMES, TIMER_COLORS, useCatSum } from '../ui/settingsNav';
 import { CAT_EX, nextCatColor, type Cat } from '../domain/attendance/cats';
 import { catVar, SLOT_COLORS } from '../domain/attendance/logs';
-import { PERSONAS, PERSONA_SLIDERS, toneLabel } from '../domain/sim/team';
+import { PERSONAS, PERSONA_SLIDERS, RANKS, toneLabel } from '../domain/sim/team';
 import './mobile.css';
 
 type Tab = 'att' | 'dash' | 'team' | 'later' | 'set';
@@ -179,6 +179,11 @@ function SetPanel({ ws, k, goDay }: { ws: Workspace; k: string; goDay: (date: st
     <li className="m-set-f"><span>{label}</span>
       <button className={`m-tgl${v ? ' on' : ''}`} role="switch" aria-checked={v} aria-label={label} onClick={() => on(!v)}><i /></button></li>
   );
+  const txt = (label: string, v: string, ph: string, on: (s: string) => void) => (
+    <li className="m-set-f"><span>{label}</span>
+      <input defaultValue={v} key={v} placeholder={ph} maxLength={20} aria-label={label}
+        onBlur={(e) => { const n = e.target.value.trim(); if (n !== v) on(n); }} /></li>
+  );
   if (k === 'general') return <>
     <h3 className="m-set-h">화면 모드</h3>
     <div className="m-seg">{MODES.map(([m, , b]) => (
@@ -222,9 +227,18 @@ function SetPanel({ ws, k, goDay }: { ws: Workspace; k: string; goDay: (date: st
   </>;
   if (k === 'data') return <DataImages ws={ws} goDay={goDay} />;
   if (k === 'members') return <>
+    <h3 className="m-set-h">나</h3>
+    <ul className="m-card m-list">
+      {txt('닉네임', st.nick, ws.nick, (v) => ws.saveSettings({ nick: v }))}
+      {txt('이름', st.name, '이름', (v) => ws.saveSettings({ name: v }))}
+      <li className="m-set-f"><span>직급</span>
+        <select value={st.rank || '대리'} aria-label="내 직급" onChange={(e) => ws.saveSettings({ rank: e.target.value })}>
+          {RANKS.map((r) => <option key={r}>{r}</option>)}</select></li>
+    </ul>
+    <p className="m-set-hint">닉네임은 팀 · 랭킹에 보이는 이름이에요. 비워 두면 계정 이름을 써요.</p>
     <h3 className="m-set-h">동료 멤버</h3>
     <MemberList ws={ws} />
-    <p className="m-set-hint">성향은 근무 패턴(출퇴근 시각 · 집중 길이 · 휴가 빈도)을 결정해요. 이름을 누르면 성향을 바꿀 수 있어요.</p>
+    <p className="m-set-hint">줄을 누르면 이름 · 직무 · 성향을 바꿀 수 있어요. 성향은 근무 패턴(출퇴근 시각 · 집중 길이 · 휴가 빈도)을 결정해요.</p>
   </>;
   if (k === 'slot') return <>
     <h3 className="m-set-h">시간 기록 카테고리</h3>
@@ -234,7 +248,7 @@ function SetPanel({ ws, k, goDay }: { ws: Workspace; k: string; goDay: (date: st
   return null;
 }
 
-/** PC 설정 › 멤버 설정과 같은 일 — 줄을 누르면 성향이 펼쳐진다. 슬라이더는 손을 뗄 때 저장 */
+/** PC 설정 › 멤버 설정과 같은 일 — 줄을 누르면 이름 · 직무 · 직급 · 성향이 펼쳐진다. 글은 칸을 떠날 때, 슬라이더는 손을 뗄 때 저장 */
 function MemberList({ ws }: { ws: Workspace }) {
   const [open, setOpen] = useState<string | null>(null);
   const put = (id: string, c: Partial<(typeof ws.members)[number]>) => ws.saveMembers(ws.members.map((m) => (m.id === id ? { ...m, ...c } : m)));
@@ -248,6 +262,16 @@ function MemberList({ ws }: { ws: Workspace }) {
             <i className="m-chev" aria-hidden="true">{open === m.id ? '⌃' : '›'}</i>
           </button>
           {open === m.id && <div className="m-ps">
+            <ul className="m-list m-mem-f">
+              {(['nick', 'name', 'role'] as const).map((f) => (
+                <li key={f} className="m-set-f"><span>{{ nick: '닉네임', name: '이름', role: '직무' }[f]}</span>
+                  <input defaultValue={m[f]} key={m[f]} maxLength={20} aria-label={`${m.nick} ${f}`}
+                    onBlur={(e) => { const v = e.target.value.trim(); if (v !== m[f]) put(m.id, { [f]: v }); }} /></li>
+              ))}
+              <li className="m-set-f"><span>직급</span>
+                <select value={m.rank} aria-label={`${m.nick} 직급`} onChange={(e) => put(m.id, { rank: e.target.value })}>
+                  {RANKS.map((r) => <option key={r}>{r}</option>)}</select></li>
+            </ul>
             <select className="m-field" value="" aria-label={`${m.nick} 성향 프리셋`} onChange={(e) => { const p = PERSONAS.find(([k]) => k === e.target.value); if (p) put(m.id, p[2]); }}>
               <option value="">프리셋 고르기 (아래 값이 한 번에 바뀌어요)</option>
               {PERSONAS.map(([k, name]) => <option key={k} value={k}>{name}</option>)}

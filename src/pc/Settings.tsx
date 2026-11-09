@@ -19,7 +19,7 @@ import type { V3Pick } from '../app/useWorkspace';
 import { WorkAppsCard } from './WorkApps';
 import { deviceKind } from '../data/device';
 import { notify } from '../app/notify';
-import { PERSONAS, PERSONA_SLIDERS, toneLabel, type Member } from '../domain/sim/team';
+import { PERSONAS, PERSONA_SLIDERS, RANKS, toneLabel, type Member } from '../domain/sim/team';
 import { avStyle, avText } from '../ui/avatar';
 
 type Draft = Settings & PomoCfg;
@@ -41,11 +41,11 @@ export function SettingsModal({ ws, onClose, onDay }: { ws: Workspace; onClose: 
   };
   const save = () => {
     const goalHours = clamp(d.goalHours, 1, 14, orig.current.goalHours);
-    ws.saveSettings({ mode: d.mode, theme: d.theme, wsName: d.wsName.trim() || 'DeskMate', goalHours, leaveGoal: d.leaveGoal, timerColor: d.timerColor, notify: d.notify, trayPomo: d.trayPomo, away: d.away, awayMin: clamp(d.awayMin, 3, 60, orig.current.awayMin) });
+    ws.saveSettings({ nick: d.nick.trim(), name: d.name.trim(), rank: d.rank, mode: d.mode, theme: d.theme, wsName: d.wsName.trim() || 'DeskMate', goalHours, leaveGoal: d.leaveGoal, timerColor: d.timerColor, notify: d.notify, trayPomo: d.trayPomo, away: d.away, awayMin: clamp(d.awayMin, 3, 60, orig.current.awayMin) });
     const c = ws.timer.cfg;
     const pomo: PomoCfg = { ...c, focusMin: clamp(d.focusMin, 5, 90, c.focusMin), shortMin: clamp(d.shortMin, 1, 30, c.shortMin), longMin: clamp(d.longMin, 5, 60, c.longMin), autoStart: d.autoStart };
     if ((Object.keys(pomo) as (keyof PomoCfg)[]).some((k) => pomo[k] !== c[k])) ws.timer.setCfg(pomo);
-    if (mem !== ws.members) ws.saveMembers(mem);
+    if (mem !== ws.members) ws.saveMembers(mem.map((m) => ({ ...m, nick: m.nick.trim(), name: m.name.trim(), role: m.role.trim() })));
     ws.say('설정을 저장했어요');
     onClose();
   };
@@ -188,8 +188,17 @@ export function SettingsModal({ ws, onClose, onDay }: { ws: Workspace; onClose: 
             {pane === 'members' && (
               <section className="set-panel on" data-set-panel="members">
                 <h4>멤버 설정</h4>
-                <div className="sec-t" style={{ marginTop: 0 }}>동료 멤버</div>
-                <p className="hint">성향은 근무 패턴(출퇴근 시각 · 집중 길이 · 휴가 빈도)을 결정해요.</p>
+                <div className="sec-t" style={{ marginTop: 0 }}>나</div>
+                <div className="mem-row edit me-row" id="meRow">
+                  <span className="av-cell"><span className="avprev none" style={avStyle(d.color, d.avatar)}>{avText(ws.initial, d.avatar)}</span></span>
+                  <input className="mr-nick" id="setNick" placeholder={ws.nick} aria-label="내 닉네임" maxLength={20} value={d.nick} onChange={(e) => put({ nick: e.target.value })} />
+                  <input className="mr-name" id="setName" placeholder="이름" aria-label="내 이름" maxLength={20} value={d.name} onChange={(e) => put({ name: e.target.value })} />
+                  <select className="mr-sel" id="setRank" aria-label="내 직급" value={d.rank || '대리'} onChange={(e) => put({ rank: e.target.value })}>
+                    {RANKS.map((r) => <option key={r}>{r}</option>)}</select>
+                </div>
+                <p className="hint">닉네임은 사이드바 · 랭킹에 보이는 이름이에요. 비워 두면 계정 이름을 써요.</p>
+                <div className="sec-t">동료 멤버</div>
+                <p className="hint">이름 · 닉네임을 바꾸면 그 사람으로 보여요. 성향은 근무 패턴(출퇴근 시각 · 집중 길이 · 휴가 빈도)을 결정해요.</p>
                 <MemberList list={mem} onChange={setMem} />
               </section>
             )}
@@ -352,21 +361,33 @@ function V3Import({ ws }: { ws: Workspace }) {
   );
 }
 
-/** 설정 › 멤버 설정 (v3 memRowHtml · 읽기 줄 + 성향) — 바꾼 값은 «저장» 을 눌러야 반영된다 */
+/** 설정 › 멤버 설정 (v3 memRowHtml · 읽기 줄 / «편집» 줄 + 성향) — 바꾼 값은 «저장» 을 눌러야 반영된다
+ * 아직: 추가 · 내보내기 · 숨기기 · 프로필 그림. 말투는 대화를 안 옮겨 효과가 없으니 고르지 않는다 */
 function MemberList({ list, onChange }: { list: Member[]; onChange: (l: Member[]) => void }) {
   const [open, setOpen] = useState<string | null>(null);
+  const [edit, setEdit] = useState(false);
   const put = (id: string, c: Partial<Member>) => onChange(list.map((m) => (m.id === id ? { ...m, ...c } : m)));
+  const txt = (m: Member, f: 'nick' | 'name' | 'role', ph: string) => (
+    <input className={`mr-${f}`} placeholder={ph} aria-label={`${m.nick} ${ph}`} maxLength={20} value={m[f]} onChange={(e) => put(m.id, { [f]: e.target.value })} />
+  );
   return (
     <div id="memEdit">
-      <div className="mem-bar"><span className="hint2">지금 {list.length}명 · 아래 «저장»을 눌러야 반영돼요</span></div>
+      <div className="mem-bar"><span className="hint2">지금 {list.length}명{edit && ' · 아래 «저장»을 눌러야 반영돼요'}</span>
+        <span className="mb-r"><button className={`btn ${edit ? 'primary' : 'ghost'} sm`} id="memEditBtn" type="button" onClick={() => setEdit(!edit)}>{edit ? '완료' : '편집'}</button></span></div>
       {list.map((m) => [
-        <div key={m.id} className={`mem-row${m.enabled === false ? ' hidden-m' : ''}`}>
+        <div key={m.id} className={`mem-row${edit ? ' edit' : ''}${m.enabled === false ? ' hidden-m' : ''}`}>
           <span className="av-cell"><span className="avprev none" style={avStyle(m.color, m.avatar)}>{avText(m.nick.slice(0, 1).toUpperCase() || '?', m.avatar)}</span></span>
-          <span className="mr-nick">{m.nick || '(닉네임 없음)'}</span>
-          <span className="mr-name">{m.name || '–'}</span>
-          <span className="mr-role">{m.role || '–'}</span>
-          <span className="mr-tag">{m.rank}</span>
-          <span className="mr-tag soft">{toneLabel(m.tone)}</span>
+          {edit ? <>
+            {txt(m, 'nick', '닉네임')}{txt(m, 'name', '이름')}{txt(m, 'role', '직무')}
+            <select className="mr-sel" aria-label={`${m.nick} 직급`} value={m.rank} onChange={(e) => put(m.id, { rank: e.target.value })}>
+              {RANKS.map((r) => <option key={r}>{r}</option>)}</select>
+          </> : <>
+            <span className="mr-nick">{m.nick || '(닉네임 없음)'}</span>
+            <span className="mr-name">{m.name || '–'}</span>
+            <span className="mr-role">{m.role || '–'}</span>
+            <span className="mr-tag">{m.rank}</span>
+            <span className="mr-tag soft">{toneLabel(m.tone)}</span>
+          </>}
           {m.enabled === false && <span className="mr-off">숨김</span>}
           <button className="txtbtn" type="button" aria-expanded={open === m.id} data-tip="근무 성향. 출퇴근 시각 · 집중 길이 · 휴가 빈도"
             onClick={() => setOpen(open === m.id ? null : m.id)}>성향</button>
