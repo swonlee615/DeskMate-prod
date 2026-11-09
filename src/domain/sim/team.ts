@@ -3,7 +3,7 @@
  *
  * ▣ 동료의 하루는 저장하지 않는다. (날짜 · 사람) 씨앗으로 매번 같은 하루를 만든다 — 기기가 여럿이어도 같다
  * ▣ 슬랙 상태 규칙: 출퇴근 30분 / 미팅 = 회의 길이 / 병가 · 재택 = 하루 / 휴가 = 1~5일
- * 대화 · 허들은 옮기지 않는다 (2026-10-27 소유자). 아직 안 옮긴 것: 동료 설정(이름 · 근무 시간 · 합류 시각)
+ * 대화 · 허들은 옮기지 않는다 (2026-10-27 소유자). 동료 설정은 성향만 옮겼다 (설정 › 멤버 설정). 아직: 이름 · 직무 바꾸기 · 추가 · 내보내기 · 숨기기
  */
 import { clamp, RNG } from './rng';
 
@@ -33,6 +33,31 @@ const SEED: Seed[] = [
   { nick: 'June', name: '오준서', role: '그로스 마케터', rank: '사원', tone: 'bubbly', chrono: 15, diligence: 0.70, chattiness: 0.92, focusLen: 35, overtime: 0.15, usesDnd: false, meetingProp: 1.4, emoji: '🌿', remoteProp: 0.12, leaveProp: 1.3, sickProp: 1.2 },
 ];
 export const ROSTER: Member[] = SEED.map((m, i) => ({ ...m, id: `m${i}`, color: AV_COLORS[i % AV_COLORS.length] }));
+
+/** 성향 프리셋 (v3 PERSONAS) — 고르면 근무 값이 한 번에 바뀐다. 슬라이더로 더 조절한다 */
+export const PERSONAS: [string, string, Partial<Member>][] = [
+  ['owl', '야근형', { overtime: 0.6, chrono: 30, diligence: 0.8 }],
+  ['sharp', '칼퇴형', { overtime: 0.05, chrono: -15 }],
+  ['resty', '휴가 잦음', { leaveProp: 1.7, sickProp: 1.3 }],
+  ['grindr', '성실 끝판왕', { diligence: 0.96, overtime: 0.35, chrono: -35 }],
+  ['homey', '재택러', { remoteProp: 0.4 }],
+  ['chatty', '수다쟁이', { chattiness: 0.95 }],
+  ['quiet', '조용한 집중가', { chattiness: 0.2, focusLen: 80, usesDnd: true }],
+];
+type NumKey = 'diligence' | 'overtime' | 'chrono' | 'leaveProp' | 'sickProp' | 'remoteProp' | 'chattiness';
+/** 성향 슬라이더 (v3 PERSONA_SLIDERS) — [값, 이름, 최소, 최대, 단위] */
+export const PERSONA_SLIDERS: [NumKey, string, number, number, number][] = [
+  ['diligence', '성실도', 0.4, 1, 0.02],
+  ['overtime', '야근 성향', 0, 0.8, 0.05],
+  ['chrono', '출근 시간대 (일찍 ↔ 늦게)', -60, 60, 5],
+  ['leaveProp', '휴가 빈도', 0, 2, 0.1],
+  ['sickProp', '병가 빈도', 0, 2, 0.1],
+  ['remoteProp', '재택 빈도', 0, 0.5, 0.02],
+  ['chattiness', '수다력', 0.1, 1, 0.05],
+];
+/** 말투 (v3 TONES) */
+export const TONES: [Member['tone'], string][] = [['casual', '편함'], ['formal', '정중'], ['dry', '건조'], ['bubbly', '발랄']];
+export const toneLabel = (t: Member['tone']) => TONES.find(([v]) => v === t)?.[1] ?? '편함';
 
 const RANKS = ['인턴', '사원', '주임', '대리', '과장', '차장', '팀장', '이사', '대표'];
 const rankIdx = (r: string) => { const i = RANKS.indexOf(r); return i < 0 ? 3 : i; };

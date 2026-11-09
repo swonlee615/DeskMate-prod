@@ -14,7 +14,7 @@ export interface SetNav { k: string; ni: string; nm: string; on?: boolean; sep?:
 export const SET_NAV: SetNav[] = [
   { k: 'general', ni: '⚙️', nm: '일반', on: true },
   { k: 'ws', ni: '🏢', nm: '워크스페이스', on: true },
-  { k: 'members', ni: '👥', nm: '멤버 설정' },
+  { k: 'members', ni: '👥', nm: '멤버 설정', on: true },
   { k: 'pomo', ni: '🍅', nm: '뽀모도로', on: true },
   { k: 'slot', ni: '⏱️', nm: '시간 기록', on: true },
   { k: 'away', ni: '💻', nm: '자리비움 · 업무 앱', on: true },

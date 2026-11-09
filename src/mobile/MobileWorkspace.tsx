@@ -27,6 +27,7 @@ import { fmtMB } from '../domain/images';
 import { AWAY_HINT, LEAVE_GOAL_HINT, MODES, SET_NAV, SLOT_HINT, systemIsDark, THEMES, TIMER_COLORS, useCatSum } from '../ui/settingsNav';
 import { CAT_EX, nextCatColor, type Cat } from '../domain/attendance/cats';
 import { catVar, SLOT_COLORS } from '../domain/attendance/logs';
+import { PERSONAS, PERSONA_SLIDERS, toneLabel } from '../domain/sim/team';
 import './mobile.css';
 
 type Tab = 'att' | 'dash' | 'team' | 'later' | 'set';
@@ -220,12 +221,50 @@ function SetPanel({ ws, k, goDay }: { ws: Workspace; k: string; goDay: (date: st
     <p className="m-set-hint">{AWAY_HINT} 감지는 PC의 Chrome이나 Edge에서 해요. 폰은 손에 들고 다녀서 감지하지 않아요.</p>
   </>;
   if (k === 'data') return <DataImages ws={ws} goDay={goDay} />;
+  if (k === 'members') return <>
+    <h3 className="m-set-h">동료 멤버</h3>
+    <MemberList ws={ws} />
+    <p className="m-set-hint">성향은 근무 패턴(출퇴근 시각 · 집중 길이 · 휴가 빈도)을 결정해요. 이름을 누르면 성향을 바꿀 수 있어요.</p>
+  </>;
   if (k === 'slot') return <>
     <h3 className="m-set-h">시간 기록 카테고리</h3>
     <p className="m-set-hint">{SLOT_HINT}</p>
     <CatList ws={ws} />
   </>;
   return null;
+}
+
+/** PC 설정 › 멤버 설정과 같은 일 — 줄을 누르면 성향이 펼쳐진다. 슬라이더는 손을 뗄 때 저장 */
+function MemberList({ ws }: { ws: Workspace }) {
+  const [open, setOpen] = useState<string | null>(null);
+  const put = (id: string, c: Partial<(typeof ws.members)[number]>) => ws.saveMembers(ws.members.map((m) => (m.id === id ? { ...m, ...c } : m)));
+  return (
+    <ul className="m-card m-list">
+      {ws.members.map((m) => (
+        <li key={m.id} className="m-mem">
+          <button className="m-row" type="button" aria-expanded={open === m.id} onClick={() => setOpen(open === m.id ? null : m.id)}>
+            <span className="m-av" style={avStyle(m.color, m.avatar)}>{avText(m.nick.slice(0, 1).toUpperCase() || '?', m.avatar)}</span>
+            <div className="m-row-l"><b>{m.nick} <small>{m.name}</small></b><span>{m.role} · {m.rank} · {toneLabel(m.tone)}{m.enabled === false ? ' · 숨김' : ''}</span></div>
+            <i className="m-chev" aria-hidden="true">{open === m.id ? '⌃' : '›'}</i>
+          </button>
+          {open === m.id && <div className="m-ps">
+            <select className="m-field" value="" aria-label={`${m.nick} 성향 프리셋`} onChange={(e) => { const p = PERSONAS.find(([k]) => k === e.target.value); if (p) put(m.id, p[2]); }}>
+              <option value="">프리셋 고르기 (아래 값이 한 번에 바뀌어요)</option>
+              {PERSONAS.map(([k, name]) => <option key={k} value={k}>{name}</option>)}
+            </select>
+            {PERSONA_SLIDERS.map(([f, name, lo, hi, st]) => (
+              <label key={`${f}${m[f]}`} className="m-ps-sl"><span>{name}</span>
+                <input type="range" min={lo} max={hi} step={st} defaultValue={m[f]}
+                  onInput={(e) => { const em = e.currentTarget.nextElementSibling; if (em) em.textContent = e.currentTarget.value; }}
+                  onPointerUp={(e) => { const v = +e.currentTarget.value; if (v !== m[f]) put(m.id, { [f]: v }); }}
+                  onKeyUp={(e) => { const v = +e.currentTarget.value; if (v !== m[f]) put(m.id, { [f]: v }); }} />
+                <em>{m[f]}</em></label>
+            ))}
+          </div>}
+        </li>
+      ))}
+    </ul>
+  );
 }
 
 /** PC 설정 › 시간 기록의 CatList 와 같은 일 — 색 점을 누르면 아래에 팔레트, 이름은 칸을 떠날 때 저장 */

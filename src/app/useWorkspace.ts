@@ -82,6 +82,8 @@ export interface Workspace {
   emptyTrash: () => void;
   /** 팀 — 멤버 · 근무시간대 (랭킹 · 순위 이력 · 사이드바가 같이 쓴다) */
   teamCfg: Team;
+  /** 숨긴 사람까지 전부 (설정 › 멤버 설정) · 통째로 저장 */
+  members: Member[]; saveMembers: (list: Member[]) => void;
   /** 이 브라우저의 자리비움 감지 권한 · 묻기 (PC 브라우저 · Chrome/Edge) */
   idle: { perm: IdlePerm; ask: () => Promise<void>; live: AppsLive | null };
   /** 출근 감지 물음 · 놓친 업무 기록 (v3.2.0 · v3.2.1 — PC 앱) */
@@ -871,6 +873,8 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
     hours: settings.teamStart != null ? teamHours(settings.teamStart, settings.goalHours) : TEAM_DEFAULT,
   }), [memDoc, settings.teamStart, settings.goalHours]);
   const team = useMemo(() => buildTeam(today, teamCfg.members, teamCfg.hours), [today, teamCfg]);
+  const members = memDoc?.list ?? ROSTER;
+  const saveMembers = (list: Member[]) => (memDoc ? repo.patchItem(MEMBERS_ID, { list }) : repo.addItem({ id: MEMBERS_ID, kind: 'members', list } as Item));
   const nowMin = (() => { const t = new Date(now); return t.getHours() * 60 + t.getMinutes(); })();
   const mates = useMemo(() => teamCfg.members.map((m) => ({ m, st: statusAt(team[m.id], m, nowMin) }))
     .sort((a, b) => STATUS_ORDER[a.st.key] - STATUS_ORDER[b.st.key] || a.m.nick.localeCompare(b.m.nick)), [team, nowMin]);
@@ -966,7 +970,7 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
     onOn, onOff, onRest, onLeave, dayOf, editDay, pendingDays, resolvePending, canCarry: canCarryFor,
     blocks, addBlock, patchBlocks, editBlocks, undoBlocks, redoBlocks, lastUndoAt, lastEditAt, toggleBlock, removeBlock, newId,
     ddays, saveDDay, pinDDay, archiveDDay, deleteDDay,
-    saved, savedSort, isSaved, toggleSaved, pinSaved, setSavedSort, trash, deleteDay, restoreTrash, purgeTrash, emptyTrash, teamCfg, v3Preview, v3Import, v3Imported, images, addImages, imageBlob, removeImage, ranks, firstDate, habits, offDay, saveHabit, archiveHabit, deleteHabit, toggleHabit,
+    saved, savedSort, isSaved, toggleSaved, pinSaved, setSavedSort, trash, deleteDay, restoreTrash, purgeTrash, emptyTrash, teamCfg, members, saveMembers, v3Preview, v3Import, v3Imported, images, addImages, imageBlob, removeImage, ranks, firstDate, habits, offDay, saveHabit, archiveHabit, deleteHabit, toggleHabit,
     logs, watchAllLogs, watchApps, watchAllBlocks, saveSpan, deleteSpan, dropApps, syncApps, fixConflicts, cats, setCats,
     mates, ranking, mateStatus,
     nick, initial: nick.slice(0, 1).toUpperCase(),

@@ -905,3 +905,11 @@ button.m-cat.on { color: var(--text-strong); font-weight: 700; box-shadow: inset
 .m-sc-t.done { color: var(--text-dim); text-decoration: line-through; }
 .m-sc mark { background: var(--yellow-a5); color: var(--warn-ink-2); border-radius: 2px; }
 .m-sc-more { align-self: center; margin-top: 8px; height: 32px; padding: 0 14px; border-radius: 16px; font-size: 13px; color: var(--blue); background: var(--surface-3); }
+
+/* ── 설정 › 멤버 설정 (PC .persona 와 같은 일) — 줄을 누르면 성향 */
+.m-mem + .m-mem { border-top: 1px solid var(--border); }
+.m-mem > .m-row { width: 100%; text-align: left; }
+.m-ps { display: flex; flex-direction: column; gap: 10px; padding: 0 16px 14px; }
+.m-ps-sl { display: grid; grid-template-columns: 1fr 44px; gap: 2px 8px; font-size: 13px; color: var(--text-muted); }
+.m-ps-sl input { grid-column: 1 / -1; grid-row: 2; width: 100%; accent-color: var(--blue); }
+.m-ps-sl em { grid-column: 2; grid-row: 1; font-style: normal; text-align: right; color: var(--text); font-variant-numeric: tabular-nums; }

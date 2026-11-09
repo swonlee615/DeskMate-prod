@@ -19,6 +19,8 @@ import type { V3Pick } from '../app/useWorkspace';
 import { WorkAppsCard } from './WorkApps';
 import { deviceKind } from '../data/device';
 import { notify } from '../app/notify';
+import { PERSONAS, PERSONA_SLIDERS, toneLabel, type Member } from '../domain/sim/team';
+import { avStyle, avText } from '../ui/avatar';
 
 type Draft = Settings & PomoCfg;
 const clamp = (v: number, a: number, b: number, d: number) => (Number.isFinite(v) ? Math.max(a, Math.min(b, Math.round(v))) : d);
@@ -28,6 +30,7 @@ export function SettingsModal({ ws, onClose, onDay }: { ws: Workspace; onClose: 
   const [pane, setPane] = useState('general');
   const [d, setD] = useState<Draft>({ ...ws.settings, ...ws.timer.cfg });
   const put = (x: Partial<Draft>) => setD((v) => ({ ...v, ...x }));
+  const [mem, setMem] = useState<Member[]>(ws.members);
   useEffect(() => { applyLook(d.mode, d.theme); }, [d.mode, d.theme]);
 
   const cancel = () => {
@@ -42,6 +45,7 @@ export function SettingsModal({ ws, onClose, onDay }: { ws: Workspace; onClose: 
     const c = ws.timer.cfg;
     const pomo: PomoCfg = { ...c, focusMin: clamp(d.focusMin, 5, 90, c.focusMin), shortMin: clamp(d.shortMin, 1, 30, c.shortMin), longMin: clamp(d.longMin, 5, 60, c.longMin), autoStart: d.autoStart };
     if ((Object.keys(pomo) as (keyof PomoCfg)[]).some((k) => pomo[k] !== c[k])) ws.timer.setCfg(pomo);
+    if (mem !== ws.members) ws.saveMembers(mem);
     ws.say('설정을 저장했어요');
     onClose();
   };
@@ -181,6 +185,14 @@ export function SettingsModal({ ws, onClose, onDay }: { ws: Workspace; onClose: 
               </section>
             )}
             {pane === 'data' && <DataPane ws={ws} onDay={(k) => { cancel(); onDay(k); }} />}
+            {pane === 'members' && (
+              <section className="set-panel on" data-set-panel="members">
+                <h4>멤버 설정</h4>
+                <div className="sec-t" style={{ marginTop: 0 }}>동료 멤버</div>
+                <p className="hint">성향은 근무 패턴(출퇴근 시각 · 집중 길이 · 휴가 빈도)을 결정해요.</p>
+                <MemberList list={mem} onChange={setMem} />
+              </section>
+            )}
             {pane === 'slot' && (
               <section className="set-panel on" data-set-panel="slot">
                 <h4>시간 기록 카테고리</h4>
@@ -337,5 +349,43 @@ function V3Import({ ws }: { ws: Workspace }) {
       )}
       {step && <p className="hint v3-step">{step === '끝' ? '다 가져왔어요.' : `${step}…`}</p>}
     </>
+  );
+}
+
+/** 설정 › 멤버 설정 (v3 memRowHtml · 읽기 줄 + 성향) — 바꾼 값은 «저장» 을 눌러야 반영된다 */
+function MemberList({ list, onChange }: { list: Member[]; onChange: (l: Member[]) => void }) {
+  const [open, setOpen] = useState<string | null>(null);
+  const put = (id: string, c: Partial<Member>) => onChange(list.map((m) => (m.id === id ? { ...m, ...c } : m)));
+  return (
+    <div id="memEdit">
+      <div className="mem-bar"><span className="hint2">지금 {list.length}명 · 아래 «저장»을 눌러야 반영돼요</span></div>
+      {list.map((m) => [
+        <div key={m.id} className={`mem-row${m.enabled === false ? ' hidden-m' : ''}`}>
+          <span className="av-cell"><span className="avprev none" style={avStyle(m.color, m.avatar)}>{avText(m.nick.slice(0, 1).toUpperCase() || '?', m.avatar)}</span></span>
+          <span className="mr-nick">{m.nick || '(닉네임 없음)'}</span>
+          <span className="mr-name">{m.name || '–'}</span>
+          <span className="mr-role">{m.role || '–'}</span>
+          <span className="mr-tag">{m.rank}</span>
+          <span className="mr-tag soft">{toneLabel(m.tone)}</span>
+          {m.enabled === false && <span className="mr-off">숨김</span>}
+          <button className="txtbtn" type="button" aria-expanded={open === m.id} data-tip="근무 성향. 출퇴근 시각 · 집중 길이 · 휴가 빈도"
+            onClick={() => setOpen(open === m.id ? null : m.id)}>성향</button>
+        </div>,
+        open === m.id && (
+          <div key={`${m.id}-p`} className="persona">
+            <div className="ps-row"><span>프리셋</span>
+              <select value="" aria-label={`${m.nick} 성향 프리셋`} onChange={(e) => { const p = PERSONAS.find(([k]) => k === e.target.value); if (p) put(m.id, p[2]); }}>
+                <option value="">직접 조절…</option>
+                {PERSONAS.map(([k, name]) => <option key={k} value={k}>{name}</option>)}
+              </select><span className="hint" style={{ margin: 0 }}>고르면 아래 값이 한 번에 바뀌어요</span></div>
+            {PERSONA_SLIDERS.map(([f, name, lo, hi, st]) => (
+              <label key={f} className="ps-sl"><span>{name}</span>
+                <input type="range" min={lo} max={hi} step={st} value={m[f]} onChange={(e) => put(m.id, { [f]: +e.target.value })} />
+                <em>{m[f]}</em></label>
+            ))}
+          </div>
+        ),
+      ])}
+    </div>
   );
 }
