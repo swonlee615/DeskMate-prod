@@ -323,8 +323,10 @@ function V3Import({ ws }: { ws: Workspace }) {
   };
   const go = async () => {
     if (!pick) return;
+    // 끝나면 단계 글을 걷는다 — 남겨 두면 «파일 고르기» 가 다시 안 나온다
     try { await ws.v3Import(pick, setStep); setPick(null); ws.say('로컬 앱 데이터를 가져왔어요'); }
-    catch { setStep(null); setErr('가져오다가 멈췄어요. 같은 파일을 다시 가져오면 돼요. 이미 들어간 기록은 덮어써요.'); }
+    catch { setErr(navigator.onLine ? '가져오다가 멈췄어요. 같은 파일을 다시 가져오면 돼요. 이미 들어간 기록은 덮어써요.' : '인터넷에 연결된 뒤에 가져와 주세요.'); }
+    finally { setStep(null); }
   };
   const r = pick?.conv.report, done = ws.v3Imported;
   return (
@@ -356,7 +358,7 @@ function V3Import({ ws }: { ws: Workspace }) {
           </div>
         </div>
       )}
-      {step && <p className="hint v3-step">{step === '끝' ? '다 가져왔어요.' : `${step}…`}</p>}
+      {step && <p className="hint v3-step">{step}…</p>}
     </>
   );
 }

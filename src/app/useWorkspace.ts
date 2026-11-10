@@ -417,20 +417,20 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
     return { bytes, conv: convertV3(await loadV3(bytes), Date.now()) };
   };
   const v3Import: Workspace['v3Import'] = async ({ bytes, conv: c }, onStep) => {
+    // 쓰기마다 서버 확인을 기다린다 — 오프라인이면 끝나지 않으니 처음부터 막는다
+    if (repo.mode === 'cloud' && !navigator.onLine) throw new Error('offline');
     const PART = 700 * 1024, parts = Math.ceil(bytes.length / PART);
     onStep('원본 파일을 보관하는 중');
-    for (let i = 0; i < parts; i++) repo.putArchive(`v3-sqlite-${i}`, bytes.slice(i * PART, (i + 1) * PART), { kind: 'v3-sqlite', part: i, of: parts, size: bytes.length });
+    for (let i = 0; i < parts; i++) await repo.putArchive(`v3-sqlite-${i}`, bytes.slice(i * PART, (i + 1) * PART), { kind: 'v3-sqlite', part: i, of: parts, size: bytes.length });
     onStep(`근태 ${c.report.days}일을 옮기는 중`);
     // 같은 날 웹에 이미 있던 기록은 «v3 하루에 녹아 있다» 고 적는다 — 안 그러면 재생이 v3 하루 위에 그 기록을 다시 얹는다
     const ovs = c.events.filter((e) => e.type === 'override');
     const prior = ovs.length ? await repo.eventsIn(ovs[0].date, ovs[ovs.length - 1].date) : [];
-    for (const e of c.events) {
-      if (e.type === 'override') e.basedOn = prior.filter((x) => x.date === e.date && !x.id.startsWith('v3-') && x.type !== 'pomoDone').map((x) => x.id);
-      repo.addEvent(e);
-    }
+    for (const e of ovs) e.basedOn = prior.filter((x) => x.date === e.date && !x.id.startsWith('v3-') && x.type !== 'pomoDone').map((x) => x.id);
+    await repo.putMany('events', c.events);
     onStep(`할 일 · 메모 ${c.report.lines}줄을 옮기는 중`);
-    for (const b of c.blocks) repo.addBlock(b);
-    for (const l of c.logs) repo.addLog(l);
+    await repo.putMany('blocks', c.blocks);
+    await repo.putMany('logs', c.logs);
     onStep('D-Day · 습관 · 설정을 옮기는 중');
     for (const d of c.ddays) repo.addItem(d as unknown as Item);
     for (const h of c.habits) repo.addItem(h as unknown as Item);
@@ -448,7 +448,6 @@ export function useWorkspace(backend: Backend, user: User): Workspace {
       repo.mergeItem({ id: IMGS_ID, kind: 'images', map: { [im.id]: { size: sh.bytes.length, date: im.date, area: im.area, block: im.block, at: Date.now(), w: sh.w, h: sh.h } } } as Item);
     }
     repo.addItem({ id: V3_ID, kind: 'v3import', at: Date.now(), report: c.report } as Item);
-    onStep('끝');
   };
 
   const saveSettings: Workspace['saveSettings'] = (x) => {

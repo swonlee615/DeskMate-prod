@@ -77,7 +77,12 @@ export interface Repo {
   /** 그림 받기 — 기기에 있으면 기기에서 (그림은 안 바뀐다). 없으면 null */
   getImage(id: string): Promise<Blob | null>;
   /** 원본 보관 — 옮기기 전 파일을 조각째 그대로 (`archive/{id}`). 웹에 아직 없는 기능의 데이터를 잃지 않게 */
-  putArchive(id: string, bytes: Uint8Array, info: Record<string, unknown>): void;
+  putArchive(id: string, bytes: Uint8Array, info: Record<string, unknown>): Promise<void>;
+  /**
+   * 많은 문서를 한꺼번에 (v3 가져오기) — 400개씩 묶어 쓰고, 서버가 받을 때까지 기다린다.
+   * 한 건씩 쓰면 쓰기마다 구독이 다시 돌아 화면이 얼어붙는다 (2026-11-10)
+   */
+  putMany(col: 'events' | 'blocks' | 'logs', docs: { id: string }[]): Promise<void>;
   /** 그림 파일을 실제로 지운다 — 지우기 규칙의 유일한 예외 (SYNC §14) */
   deleteImage(id: string): Promise<void>;
   /** 있으면 합치고 없으면 만든다 — 맵 안은 깊게 합친다 (덮어쓰지 않는다). 아직 받아 오지 못한 문서에도 안전하다 */

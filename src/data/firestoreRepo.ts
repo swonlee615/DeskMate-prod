@@ -160,7 +160,17 @@ export function createFirestoreRepo(db: Firestore, uid: string): Repo {
       const d = snap.data() as { data: Bytes; mime: string };
       return new Blob([d.data.toUint8Array() as BlobPart], { type: d.mime });
     },
-    putArchive(id, bytes, info) { track(setDoc(doc(acol, id), { ...info, data: Bytes.fromUint8Array(bytes), at: Date.now() })); },
+    putArchive(id, bytes, info) { const p = setDoc(doc(acol, id), { ...info, data: Bytes.fromUint8Array(bytes), at: Date.now() }); track(p); return p; },
+    async putMany(name, docs) {
+      const c = { events: col, blocks: bcol, logs: lcol }[name];
+      for (let i = 0; i < docs.length; i += 400) {
+        const batch = writeBatch(db);
+        for (const d of docs.slice(i, i + 400)) batch.set(doc(c, d.id), d);
+        const p = batch.commit();
+        track(p);
+        await p;
+      }
+    },
     deleteImage(id) { const p = deleteDoc(doc(gcol, id)); track(p); return Promise.resolve(); },
     mergeItem(it) { track(setDoc(doc(icol, it.id), it, { merge: true })); },
 

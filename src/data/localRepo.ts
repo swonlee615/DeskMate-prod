@@ -162,7 +162,13 @@ export function createLocalRepo(): Repo {
     async putImage(id, bytes, mime) { imgs.set(id, new Blob([bytes as BlobPart], { type: mime })); },
     async getImage(id) { return imgs.get(id) ?? null; },
     async deleteImage(id) { imgs.delete(id); },
-    putArchive() { /* 개발 모드 — 보관할 서버가 없다 */ },
+    async putArchive() { /* 개발 모드 — 보관할 서버가 없다 */ },
+    async putMany(name, docs) {
+      const ids = new Set(docs.map((d) => d.id));
+      if (name === 'events') { all = [...all.filter((x) => !ids.has(x.id)), ...(docs as AttEvent[])]; save(all); emit(); }
+      if (name === 'blocks') { blocks = [...blocks.filter((x) => !ids.has(x.id)), ...(docs as Block[])]; saveB(blocks); emitB(); }
+      if (name === 'logs') { logs = [...logs.filter((x) => !ids.has(x.id)), ...(docs as Log[])]; saveL(logs); emitL(); }
+    },
     mergeItem(it) {
       const deep = (a: Record<string, unknown>, b: Record<string, unknown>): Record<string, unknown> => Object.fromEntries(
         [...new Set([...Object.keys(a), ...Object.keys(b)])].map((k) => {
