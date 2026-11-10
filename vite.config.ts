@@ -9,6 +9,9 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      // Firebase 로그인 창(/__/auth/handler)은 앱 화면으로 바꿔치지 않는다.
+      // 바꾸면 팝업에 «Google로 계속하기» 만 다시 떠서 로그인이 끝나지 않는다 (2026-11-10)
+      workbox: { navigateFallbackDenylist: [/^\/__\//] },
       includeAssets: ['icon.svg'],
       manifest: {
         name: 'DeskMate',
