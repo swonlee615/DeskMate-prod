@@ -15,8 +15,8 @@
 | ⬜ | **Apple 로그인 설정** | Apple Developer Program 가입(연 $99) → Identifiers 에서 App ID 에 *Sign in with Apple* 켜기 → **Services ID** 생성(웹용) → Return URL 에 `https://<프로젝트>.firebaseapp.com/__/auth/handler` → **Key** 생성(.p8) → Firebase 콘솔 Authentication › Apple 에 Services ID · Team ID · Key ID · 키 내용 입력 |
 | ⬜ | **Google · Apple 버튼을 공식 이미지로 교체** | 지금은 글자 버튼. Apple HIG «Sign in with Apple» · Google «Sign-in branding guidelines» 의 배포 에셋 사용 |
 | ⬜ | 인증 · 재설정 메일 발신자 이름 · 문구 | Firebase 콘솔 Authentication › 템플릿. 언어는 코드에서 한국어로 지정됨 |
-| ⬜ | 승인된 도메인에 배포 주소 추가 | Authentication › 설정 › 승인된 도메인 |
-| ⬜ | `authDomain` 을 배포 도메인으로 | Safari 가 제3자 저장소를 막아 리디렉트 로그인이 실패하는 문제 회피. Firebase Hosting 에 배포하면 해결 |
+| ✅ | 승인된 도메인에 배포 주소 추가 | localhost · deskmate-86c84.firebaseapp.com · deskmate-86c84.web.app (2026-11-10 확인) |
+| ⬜ | `authDomain` 을 배포 도메인으로 | 지금 `firebaseapp.com`, 앱은 `web.app` 에서 연다. 바꾸려면 먼저 Google OAuth 클라이언트 · Apple Services ID 에 `https://deskmate-86c84.web.app/__/auth/handler` 를 넣고 `.env.local` 을 고친다. Safari 가 제3자 저장소를 막아 리디렉트 로그인이 실패하는 문제 회피. Firebase Hosting 에 배포하면 해결 |
 
 > 네이티브 iOS 앱을 낼 때: Google 로그인을 넣은 iOS 앱은 **Apple 로그인도 반드시** 넣어야 한다 (App Store 심사 4.8). 이미 들어 있다.
 
